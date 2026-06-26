@@ -1138,6 +1138,7 @@ function showTab(id){
   const tabs=['ts','tl','tt','tg','ta'];
   document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('active');
   if(id==='ts') calcSum();
+  if(id==='ta') loadAllUsers();
 }
 
 // ══ PERIOD ═════════════════════════════════════════════════════════════════
