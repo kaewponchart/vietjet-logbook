@@ -990,12 +990,12 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
 <script>
 // ══ FIREBASE CONFIG — แก้ค่าเหล่านี้จาก Firebase Console ══════════════════
 const FB_CONFIG = {
-  apiKey: "AIzaSyCDT7swJnRBevOuMl9lfc8RVITnENLznNk",
-  authDomain: "vietjet-logbook-98197.firebaseapp.com",
-  projectId: "vietjet-logbook-98197",
-  storageBucket: "vietjet-logbook-98197.firebasestorage.app",
-  messagingSenderId: "434422850398",
-  appId: "1:434422850398:web:36141d5b0831451338e5cf"
+  apiKey:            "YOUR_API_KEY",
+  authDomain:        "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId:         "YOUR_PROJECT_ID",
+  storageBucket:     "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_SENDER_ID",
+  appId:             "YOUR_APP_ID"
 };
 
 // ══ CONSTANTS ═════════════════════════════════════════════════════════════
@@ -1609,7 +1609,7 @@ async function loadAllUsers(){
 function renderAdminTable(data){
   const tbody=document.getElementById('admin-tbody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
-  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+u.name+'</td><td style="padding:9px 8px;text-align:center">'+u.staffId+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+u.position+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+u.rows+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px" onclick="viewUser(\'+u.uid+\',\'+u.name+\')">👁 ดู</button></td></tr>').join('');
+  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+u.name+'</td><td style="padding:9px 8px;text-align:center">'+u.staffId+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+u.position+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+u.rows+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px" onclick="viewUser(''+u.uid+'',''+u.name+'')">👁 ดู</button></td></tr>').join('');
 }
 function updateAdminStats(data){
   document.getElementById('stat-total').textContent=data.length;
@@ -1626,9 +1626,130 @@ async function viewUser(uid,name){
   try{
     const doc=await fbDb.collection('logbooks').doc(uid).get();
     if(!doc.exists){alert('ไม่พบข้อมูล');return;}
-    const d=doc.data();
-    alert('พนักงาน: '+((d.profile&&d.profile.name)||name)+'\nStaff ID: '+((d.profile&&d.profile.staffid)||'-')+'\nPosition: '+((d.profile&&d.profile.position)||'-')+'\nจำนวนบันทึก: '+(d.rows||[]).length+' แถว\nบันทึกล่าสุด: '+(d._savedAt?new Date(d._savedAt).toLocaleString('th-TH'):'-'));
+    const userData=doc.data();
+    showUserModal(userData,name);
   }catch(e){alert('Error: '+e.message);}
+}
+
+function showUserModal(userData,name){
+  // Save current D, load user data temporarily
+  const savedD=JSON.parse(JSON.stringify(D));
+  D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},userData);
+
+  // Create modal
+  const modal=document.createElement('div');
+  modal.id='admin-modal';
+  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9999;overflow-y:auto;padding:20px';
+  
+  modal.innerHTML=`
+    <div style="background:#f7f3ea;max-width:1400px;margin:0 auto;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+      <!-- Modal Header -->
+      <div style="background:#f5c000;padding:12px 20px;display:flex;justify-content:space-between;align-items:center">
+        <div>
+          <div style="font-size:15px;font-weight:800;color:#7a0000;letter-spacing:1px">EXPERIENCE INDIVIDUAL LOGBOOK — ADMIN VIEW</div>
+          <div style="font-size:11px;color:#9a5800">👁 ดูข้อมูลของ: <strong>${(userData.profile&&userData.profile.name)||name}</strong> | Staff ID: ${(userData.profile&&userData.profile.staffid)||'-'} | บันทึกล่าสุด: ${userData._savedAt?new Date(userData._savedAt).toLocaleString('th-TH'):'-'}</div>
+        </div>
+        <button onclick="closeUserModal()" style="background:#c00000;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">✕ ปิด</button>
+      </div>
+      <!-- Info bar -->
+      <div style="background:#fff5f5;border-bottom:1px solid #fbbcbc;padding:8px 20px;display:flex;gap:20px;font-size:12px">
+        <span>👤 <strong>${(userData.profile&&userData.profile.name)||'-'}</strong></span>
+        <span>🪪 ${(userData.profile&&userData.profile.staffid)||'-'}</span>
+        <span>✈️ ${(userData.profile&&userData.profile.amel)||'-'}</span>
+        <span>💼 ${(userData.profile&&userData.profile.position)||'-'}</span>
+        <span>📅 Period: ${userData.pfrom&&userData.pto?userData.pfrom+' — '+userData.pto:'Auto (24 months)'}</span>
+      </div>
+      <!-- Tabs -->
+      <div style="display:flex;gap:3px;background:#e8e2d0;padding:5px 5px 0">
+        <button onclick="switchModalTab('mts',this)" style="padding:7px 16px;background:#f7f3ea;color:#9a0000;border:none;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;cursor:pointer;box-shadow:0 -2px 0 #c00000 inset" id="mtab-mts">📊 Summary Sheet</button>
+        <button onclick="switchModalTab('mtl',this)" style="padding:7px 16px;background:#d4c99a;color:#6b4a00;border:none;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;cursor:pointer" id="mtab-mtl">📋 Experience Logbook</button>
+        <button onclick="switchModalTab('mtt',this)" style="padding:7px 16px;background:#d4c99a;color:#6b4a00;border:none;border-radius:6px 6px 0 0;font-size:12px;font-weight:600;cursor:pointer" id="mtab-mtt">🎓 Training</button>
+      </div>
+      <div style="padding:12px 16px">
+        <!-- Summary tab -->
+        <div id="mts" class="modal-tc"></div>
+        <!-- Logbook tab -->
+        <div id="mtl" class="modal-tc" style="display:none">
+          <table style="width:100%;border-collapse:collapse;font-size:11px;table-layout:auto">
+            <thead>
+              <tr style="background:#b00000;color:#fff">
+                <th style="padding:5px 3px">วันที่</th><th style="padding:5px 3px">Aircraft Type</th>
+                <th style="padding:5px 3px">Reg.</th><th style="padding:5px 3px">Work Ref.</th>
+                <th style="padding:5px 3px">Work Description</th><th style="padding:5px 3px">ATA</th>
+                <th style="padding:5px 3px">Skill</th><th style="padding:5px 3px">MX Loc.</th>
+                <th style="padding:5px 3px">1st</th><th style="padding:5px 3px">2nd</th>
+                <th style="padding:5px 3px">3rd</th><th style="padding:5px 3px">4th</th>
+                <th style="padding:5px 3px">5th</th><th style="padding:5px 3px">Dur.</th>
+                <th style="padding:5px 3px">Sig.</th>
+              </tr>
+            </thead>
+            <tbody id="modal-lb-body"></tbody>
+          </table>
+        </div>
+        <!-- Training tab -->
+        <div id="mtt" class="modal-tc" style="display:none">
+          <table style="width:100%;border-collapse:collapse;font-size:11px">
+            <thead>
+              <tr style="background:#b00000;color:#fff">
+                <th style="padding:5px">วันที่</th><th style="padding:5px">หลักสูตร</th>
+                <th style="padding:5px">ประเภท</th><th style="padding:5px">Provider</th>
+                <th style="padding:5px">ชั่วโมง</th><th style="padding:5px">Remark</th>
+              </tr>
+            </thead>
+            <tbody id="modal-tr-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>`;
+
+  document.body.appendChild(modal);
+
+  // Render logbook rows
+  const lbBody=document.getElementById('modal-lb-body');
+  (userData.rows||[]).forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    if(i%2)tr.style.background='#fdf8f0';
+    tr.innerHTML='<td style="padding:4px 3px">'+(r.date||'')+'</td><td style="padding:4px 3px">'+(r.actype||'')+'</td><td style="padding:4px 3px">'+(r.reg||'')+'</td><td style="padding:4px 3px">'+(r.workref||'')+'</td><td style="padding:4px 3px">'+(r.desc||'')+'</td><td style="padding:4px 3px">'+(r.ata||'')+'</td><td style="padding:4px 3px">'+(r.skill||'')+'</td><td style="padding:4px 3px">'+(r.mxloc||'')+'</td><td style="padding:4px 3px">'+(r.a1||'')+'</td><td style="padding:4px 3px">'+(r.a2||'')+'</td><td style="padding:4px 3px">'+(r.a3||'')+'</td><td style="padding:4px 3px">'+(r.a4||'')+'</td><td style="padding:4px 3px">'+(r.a5||'')+'</td><td style="padding:4px 3px">'+(r.dur||'')+'</td><td style="padding:4px 3px">'+(r.sig||'')+'</td>';
+    lbBody.appendChild(tr);
+  });
+  if(!(userData.rows||[]).length)lbBody.innerHTML='<tr><td colspan="15" style="text-align:center;padding:16px;color:#aaa">ไม่มีข้อมูล</td></tr>';
+
+  // Render training rows
+  const trBody=document.getElementById('modal-tr-body');
+  (userData.training||[]).forEach((r,i)=>{
+    const tr=document.createElement('tr');
+    if(i%2)tr.style.background='#fdf8f0';
+    tr.innerHTML='<td style="padding:4px 5px">'+(r.date||'')+'</td><td style="padding:4px 5px">'+(r.course||'')+'</td><td style="padding:4px 5px">'+(r.type||'')+'</td><td style="padding:4px 5px">'+(r.provider||'')+'</td><td style="padding:4px 5px">'+(r.dur||'')+'</td><td style="padding:4px 5px">'+(r.remark||'')+'</td>';
+    trBody.appendChild(tr);
+  });
+  if(!(userData.training||[]).length)trBody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:16px;color:#aaa">ไม่มีข้อมูล</td></tr>';
+
+  // Render summary — reuse calcSum() then clone the summary tab content
+  calcSum();
+  const summaryTab=document.getElementById('ts');
+  const mts=document.getElementById('mts');
+  mts.innerHTML=summaryTab.innerHTML;
+
+  // Restore D
+  D=savedD;
+  syncPro();
+  updatePeriodUI();
+}
+
+function switchModalTab(id,btn){
+  document.querySelectorAll('.modal-tc').forEach(t=>t.style.display='none');
+  document.getElementById(id).style.display='block';
+  document.querySelectorAll('#admin-modal button[id^="mtab"]').forEach(b=>{
+    b.style.background='#d4c99a';b.style.color='#6b4a00';b.style.boxShadow='none';
+  });
+  btn.style.background='#f7f3ea';btn.style.color='#9a0000';btn.style.boxShadow='0 -2px 0 #c00000 inset';
+}
+
+function closeUserModal(){
+  const m=document.getElementById('admin-modal');
+  if(m)m.remove();
+  // Restore current user's data
+  renderAll();calcSum();
 }
 
 </script>
