@@ -1,14 +1,15 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // แต่ละคนอ่าน-เขียนได้เฉพาะข้อมูลตัวเอง
     match /logbooks/{userId} {
-      // แต่ละคนเข้าถึงได้เฉพาะข้อมูลตัวเอง
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read, write: if request.auth != null
+                         && request.auth.uid == userId;
     }
+    // Admin อ่านข้อมูลทุกคนได้
     match /logbooks/{userId} {
-      // Admin อ่านได้ทุกคน — ใส่ email Admin จริงแทน
       allow read: if request.auth != null
-                  && request.auth.token.email in ['ADMIN_EMAIL@gmail.com'];
+                  && request.auth.token.email == "kaew.ponchart@gmail.com";
     }
   }
 }
