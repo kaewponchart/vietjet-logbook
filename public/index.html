@@ -1610,7 +1610,12 @@ async function loadAllUsers(){
 function renderAdminTable(data){
   const tbody=document.getElementById('admin-tbody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
-  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+u.name+'</td><td style="padding:9px 8px;text-align:center">'+u.staffId+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+u.position+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+u.rows+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px" onclick="viewUser(\'+u.uid+\',\'+u.name+\')">👁 ดู</button></td></tr>').join('');
+  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+u.name+'</td><td style="padding:9px 8px;text-align:center">'+u.staffId+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+u.position+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+u.rows+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn view-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px">👁 ดู</button></td></tr>').join('');
+  tbody.querySelectorAll('.view-user-btn').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      viewUser(decodeURIComponent(this.dataset.uid),decodeURIComponent(this.dataset.name));
+    });
+  });
 }
 function updateAdminStats(data){
   document.getElementById('stat-total').textContent=data.length;
