@@ -1631,7 +1631,12 @@ function filterAdminTable(){
 async function viewUser(uid,name){
   try{
     const doc=await fbDb.collection('logbooks').doc(uid).get();
-    if(!doc.exists){alert('ไม่พบข้อมูล');return;}
+    if(!doc.exists){
+      // DEBUG: แสดง uid ที่ค้นหา เทียบกับ document id จริงทั้งหมด
+      const allIds=(allUsersData||[]).map(u=>u.uid).join('\n');
+      alert('ไม่พบข้อมูล\n\n[DEBUG]\nuid ที่ค้นหา: ['+uid+']\nความยาว: '+uid.length+'\n\ndocument id ที่มีจริง:\n'+allIds);
+      return;
+    }
     const userData=doc.data();
     showUserModal(userData,name);
   }catch(e){alert('Error: '+e.message);}
