@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Experience Individual Logbook — TVJ-QA-F-057</title>
+<title>Thai VietJet Air Experience Logbook</title>
 
 <!-- Firebase SDK v9 compat -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -1527,6 +1527,26 @@ function exportPDF(tabId){
   }, 300);
 }
 
+// ── Admin export: print the VIEWED user's logbook, never the admin's own ──
+let _adminViewUser=null;
+function exportUserPDF(){
+  if(!_adminViewUser){exportPDF('all');return;}
+  const savedD=JSON.parse(JSON.stringify(D));
+  D=JSON.parse(JSON.stringify(_adminViewUser));
+  const modal=document.getElementById('admin-modal');
+  const mdisp=modal?modal.style.display:'';
+  if(modal)modal.style.display='none';            // keep admin-view overlay out of the print
+  renderAll();calcSum();
+  setTimeout(()=>{
+    document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
+    ['ts','tl','tt'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('print-active');});
+    window.print();
+    document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
+    D=savedD;renderAll();calcSum();                // restore admin's own data on the page
+    if(modal)modal.style.display=mdisp;
+  },300);
+}
+
 // ══ SUMMARY ═════════════════════════════════════════════════════════════════
 function res(ok){return ok?'<span class="rp">✓ Pass</span>':'<span class="rf">✗ Fail</span>';}
 function calcSum(){
@@ -1798,9 +1818,17 @@ function showUserModal(userData,name){
 
   // Render summary — reuse calcSum() then clone the summary tab content
   calcSum();
+  _adminViewUser=JSON.parse(JSON.stringify(D));   // snapshot of the viewed user (with any admin period override)
   const summaryTab=document.getElementById('ts');
   const mts=document.getElementById('mts');
   mts.innerHTML=summaryTab.innerHTML;
+  // The clone carries ts's action buttons, which would act on the wrong (admin's) data.
+  // Point Export at the user-aware export; hide Save/Recalc inside the admin view.
+  mts.querySelectorAll('button').forEach(b=>{
+    const oc=b.getAttribute('onclick')||'';
+    if(oc.includes('exportPDF'))b.setAttribute('onclick','exportUserPDF()');
+    else if(oc.includes('saveAll')||oc.includes('calcSum'))b.style.display='none';
+  });
 
   // Restore D
   D=savedD;
@@ -1820,6 +1848,7 @@ function switchModalTab(id,btn){
 function closeUserModal(){
   const m=document.getElementById('admin-modal');
   if(m)m.remove();
+  _adminViewUser=null;
   // Restore current user's data
   renderAll();calcSum();
 }
