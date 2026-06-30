@@ -439,7 +439,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
       <!-- 1st Type block -->
       <div style="background:#fdf9f0;border:1px solid #e8d8c0;border-radius:8px;overflow:hidden">
         <div style="background:#c00000;color:#fff;padding:6px 12px;font-size:11px;font-weight:700">
-          1ST TYPE &nbsp;·&nbsp; <span style="font-weight:400;opacity:.9">Airbus A320/321 (CFM56 / V2500 / PW1100) &nbsp;|&nbsp; Component C5, C15 &nbsp;|&nbsp; Specialized Service</span>
+          1ST TYPE &nbsp;·&nbsp; <span style="font-weight:400;opacity:.9">Airbus A320/321 (CFM56 / V2500 / PW1100) &nbsp;|&nbsp; Boeing 737-8/8200 (CFM Leap-1B) &nbsp;|&nbsp; Component C5, C15 &nbsp;|&nbsp; Specialized Service</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#eee">
           <div style="background:#f9f5ec;padding:12px 16px;text-align:center">
@@ -459,7 +459,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
       <!-- 2nd Type block -->
       <div style="background:#fdf9f0;border:1px solid #e8d8c0;border-radius:8px;overflow:hidden">
         <div style="background:#7a3500;color:#fff;padding:6px 12px;font-size:11px;font-weight:700">
-          2ND TYPE &nbsp;·&nbsp; <span style="font-weight:400;opacity:.9">Boeing 737-8/8200 (CFM Leap-1B) &nbsp;|&nbsp; Component C18</span>
+          2ND TYPE &nbsp;·&nbsp; <span style="font-weight:400;opacity:.9">Component C18</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#eee">
           <div style="background:#f9f5ec;padding:12px 16px;text-align:center">
@@ -514,7 +514,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
           <td style="padding:6px 8px;text-align:center;color:#aaa" id="ab_pw_e">-</td>
         </tr>
         <tr style="border-top:2px solid #e0c090;background:#fffdf0">
-          <td style="padding:6px 10px;font-size:11px"><span style="color:#7a3500;font-weight:600">▪</span> Boeing 737-8 CFM Leap-1B</td>
+          <td style="padding:6px 10px;font-size:11px"><span style="color:#c00000;font-weight:600">▪</span> Boeing 737-8 CFM Leap-1B</td>
           <td style="padding:6px 8px;text-align:center;font-weight:600" id="ab_boe_wd">-</td>
           <td style="padding:6px 8px;text-align:center" id="ab_boe_t">-</td>
           <td style="padding:6px 8px;text-align:center" id="ab_boe_h">-</td>
@@ -935,6 +935,20 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
   <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <h2 style="color:#1a3a6b;font-size:16px">👑 Admin Dashboard — ข้อมูลพนักงานทั้งหมด</h2>
     <button class="btn" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 โหลดข้อมูล</button>
+  </div>
+  <!-- Admin custom date period -->
+  <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span style="font-size:13px;font-weight:700;color:#1a3a6b">📅 ช่วงเวลา:</span>
+    <select id="admin-pmode" onchange="onAdminPM()" style="border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:13px">
+      <option value="all">ทั้งหมด (All time)</option>
+      <option value="custom">กำหนดเอง (Custom)</option>
+    </select>
+    <span id="admin-pdates" style="display:none;align-items:center;gap:6px">
+      <input type="date" id="admin-from" onchange="applyAdminPeriod()" style="border:1px solid #ccc;border-radius:6px;padding:5px 8px;font-size:13px">
+      <span style="color:#888">—</span>
+      <input type="date" id="admin-to" onchange="applyAdminPeriod()" style="border:1px solid #ccc;border-radius:6px;padding:5px 8px;font-size:13px">
+    </span>
+    <span id="admin-period-note" style="font-size:11px;color:#888;margin-left:auto">แสดงข้อมูลทั้งหมด (All time)</span>
   </div>
 
   <!-- Stats -->
@@ -1525,8 +1539,8 @@ function calcSum(){
   function ha(r,a){return[r.a1,r.a2,r.a3,r.a4,r.a5].some(x=>x&&x.includes(a));}
   function regIs1st(rg){return!rg||rg.startsWith('HS')||rg.includes('C5:')||rg.includes('C15:')||rg==='Other';}
   function regIs2nd(rg){return!rg||rg.startsWith('HS')||rg.includes('C18:')||rg==='Other';}
-  function i1(r){const ac=r.actype||'',rg=r.reg||'';if(/AIRBUS/i.test(ac))return regIs1st(rg);if(/C Rating/i.test(ac))return regIs1st(rg);if(/Specialized/i.test(ac))return true;return false;}
-  function i2(r){const ac=r.actype||'',rg=r.reg||'';if(/BOEING/i.test(ac))return regIs2nd(rg);if(/C Rating/i.test(ac))return regIs2nd(rg)&&!rg.includes('C5:')&&!rg.includes('C15:');return false;}
+  function i1(r){const ac=r.actype||'',rg=r.reg||'';if(/AIRBUS/i.test(ac))return regIs1st(rg);if(/BOEING/i.test(ac))return regIs2nd(rg);if(/C Rating/i.test(ac))return regIs1st(rg);if(/Specialized/i.test(ac))return true;return false;}
+  function i2(r){const ac=r.actype||'',rg=r.reg||'';if(/C Rating/i.test(ac))return regIs2nd(rg)&&!rg.includes('C5:')&&!rg.includes('C15:');return false;}
   const rp=vr.filter(r=>ip(r,fr,to));const r12=vr.filter(r=>ip(r,fr12,to));
   const r1=rp.filter(i1),r2=rp.filter(i2);
   const trH=(D.training||[]).reduce((s,t)=>s+parseFloat(t.dur||0),0);
@@ -1584,6 +1598,31 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ══ ADMIN FUNCTIONS ═══════════════════════════════════════════════════════
 const ADMIN_EMAIL = 'kaew.ponchart@gmail.com';
 let allUsersData = [];
+let adminPeriod={mode:'all',from:'',to:''};
+function getAdminRange(){
+  if(adminPeriod.mode!=='custom'||!adminPeriod.from||!adminPeriod.to)return null;
+  const f=isoToD(adminPeriod.from),t=isoToD(adminPeriod.to);
+  if(!f||!t)return null;
+  f.setHours(0,0,0,0);t.setHours(23,59,59,999);
+  if(t<f)return null;
+  return{from:f,to:t};
+}
+function rowsInAdminRange(rowsArr){
+  const r=getAdminRange();if(!r)return(rowsArr||[]).length;
+  return(rowsArr||[]).filter(x=>{const d=x.date&&pDate(x.date);return d&&d>=r.from&&d<=r.to;}).length;
+}
+function onAdminPM(){
+  adminPeriod.mode=gv('admin-pmode');
+  const pd=document.getElementById('admin-pdates');
+  if(pd)pd.style.display=adminPeriod.mode==='custom'?'inline-flex':'none';
+  applyAdminPeriod();
+}
+function applyAdminPeriod(){
+  adminPeriod.from=gv('admin-from');adminPeriod.to=gv('admin-to');
+  const note=document.getElementById('admin-period-note');const r=getAdminRange();
+  if(note)note.textContent=r?('กรองช่วง '+fmtD(r.from)+' — '+fmtD(r.to)+' · ใช้ override ตอนเปิด Summary พนักงานด้วย'):(adminPeriod.mode==='custom'?'เลือกวันที่เริ่ม–สิ้นสุดให้ครบ':'แสดงข้อมูลทั้งหมด (All time)');
+  if(allUsersData&&allUsersData.length){filterAdminTable();updateAdminStats(allUsersData);}
+}
 
 function checkAdmin(){
   if(currentUser && currentUser.email===ADMIN_EMAIL){
@@ -1602,7 +1641,7 @@ async function loadAllUsers(){
       const d=doc.data();
       allUsersData.push({uid:doc.id,name:(d.profile&&d.profile.name)||d._userName||'-',
         staffId:(d.profile&&d.profile.staffid)||'-',position:(d.profile&&d.profile.position)||'-',
-        rows:(d.rows||[]).length,savedAt:d._savedAt||'-',email:d._email||'-'});
+        rows:(d.rows||[]).length,rowsArr:(d.rows||[]),savedAt:d._savedAt||'-',email:d._email||'-'});
     });
     renderAdminTable(allUsersData);updateAdminStats(allUsersData);
   }catch(e){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#c00000">Error: '+e.message+'</td></tr>';}
@@ -1610,7 +1649,7 @@ async function loadAllUsers(){
 function renderAdminTable(data){
   const tbody=document.getElementById('admin-tbody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
-  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+u.name+'</td><td style="padding:9px 8px;text-align:center">'+u.staffId+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+u.position+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+u.rows+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn view-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px">👁 ดู</button> <button class="btn del-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#c00000;color:#fff;padding:3px 10px;font-size:11px">🗑 ลบ</button></td></tr>').join('');
+  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+u.name+'</td><td style="padding:9px 8px;text-align:center">'+u.staffId+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+u.position+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+(function(){var ar=getAdminRange();if(!ar)return u.rows;return rowsInAdminRange(u.rowsArr)+' <small style="color:#aaa;font-weight:400">/'+u.rows+'</small>';})()+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn view-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px">👁 ดู</button> <button class="btn del-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#c00000;color:#fff;padding:3px 10px;font-size:11px">🗑 ลบ</button></td></tr>').join('');
   tbody.querySelectorAll('.view-user-btn').forEach(btn=>{
     btn.addEventListener('click',function(){
       viewUser(decodeURIComponent(this.dataset.uid),decodeURIComponent(this.dataset.name));
@@ -1623,9 +1662,10 @@ function renderAdminTable(data){
   });
 }
 function updateAdminStats(data){
+  const ar=getAdminRange();const cnt=u=>ar?rowsInAdminRange(u.rowsArr):u.rows;
   document.getElementById('stat-total').textContent=data.length;
-  document.getElementById('stat-active').textContent=data.filter(u=>u.rows>0).length;
-  document.getElementById('stat-rows').textContent=data.reduce((s,u)=>s+u.rows,0);
+  document.getElementById('stat-active').textContent=data.filter(u=>cnt(u)>0).length;
+  document.getElementById('stat-rows').textContent=data.reduce((s,u)=>s+cnt(u),0);
   const latest=data.filter(u=>u.savedAt!=='-').sort((a,b)=>b.savedAt.localeCompare(a.savedAt))[0];
   document.getElementById('stat-lastupdate').textContent=latest?new Date(latest.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'-';
 }
@@ -1663,6 +1703,11 @@ function showUserModal(userData,name){
   const savedD=JSON.parse(JSON.stringify(D));
   D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},userData);
 
+  // Admin custom period override (Task 2): force every employee summary onto admin's chosen range
+  const _ar=getAdminRange();
+  if(_ar){D.pmode='custom';D.pfrom=dToIso(_ar.from);D.pto=dToIso(_ar.to);}
+  const _periodTxt=_ar?(dToIso(_ar.from)+' — '+dToIso(_ar.to)+' (Admin override)'):(userData.pfrom&&userData.pto?userData.pfrom+' — '+userData.pto:'Auto (24 months)');
+
   // Create modal
   const modal=document.createElement('div');
   modal.id='admin-modal';
@@ -1684,7 +1729,7 @@ function showUserModal(userData,name){
         <span>🪪 ${(userData.profile&&userData.profile.staffid)||'-'}</span>
         <span>✈️ ${(userData.profile&&userData.profile.amel)||'-'}</span>
         <span>💼 ${(userData.profile&&userData.profile.position)||'-'}</span>
-        <span>📅 Period: ${userData.pfrom&&userData.pto?userData.pfrom+' — '+userData.pto:'Auto (24 months)'}</span>
+        <span>📅 Period: ${_periodTxt}</span>
       </div>
       <!-- Tabs -->
       <div style="display:flex;gap:3px;background:#e8e2d0;padding:5px 5px 0">
