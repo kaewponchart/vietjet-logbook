@@ -581,6 +581,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
       <tr style="border-bottom:1px solid #ede4d0"><td style="padding:6px 12px">NDT – UT (Ultrasonic)</td><td style="text-align:center;font-size:11px;color:#888">Prev. 12 mo.</td><td style="text-align:center">≥ 1</td><td style="text-align:center;font-weight:600" id="aut"></td><td style="text-align:center;font-weight:600" id="autH">-</td><td style="text-align:center" id="autr"></td></tr>
       <tr style="background:#f8f4ea"><td style="padding:6px 12px">Specialized Service – Structure</td><td style="text-align:center;font-size:11px;color:#888">Prev. 12 mo.</td><td style="text-align:center">≥ 1</td><td style="text-align:center;font-weight:600" id="ast"></td><td style="text-align:center;color:#aaa">—</td><td style="text-align:center" id="astr"></td></tr>
     </table>
+      <p class="fnote" style="margin-top:6px">* NDT (ET/PT/MT/UT): <b>Total Hrs</b> = ชั่วโมงสะสม<b>ทั้งหมด</b>ที่บันทึกของแต่ละ method (ไม่จำกัดช่วงเวลา) — ส่วน <b>Tasks</b> และ <b>Result</b> ประเมินจากงานใน 12 เดือนล่าสุดนับจากวันที่ To</p>
   </div>
 
 </div>
@@ -944,9 +945,10 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
       <option value="custom">กำหนดเอง (Custom)</option>
     </select>
     <span id="admin-pdates" style="display:none;align-items:center;gap:6px">
-      <input type="date" id="admin-from" onchange="applyAdminPeriod()" style="border:1px solid #ccc;border-radius:6px;padding:5px 8px;font-size:13px">
-      <span style="color:#888">—</span>
-      <input type="date" id="admin-to" onchange="applyAdminPeriod()" style="border:1px solid #ccc;border-radius:6px;padding:5px 8px;font-size:13px">
+      <label style="font-size:11px;color:#888">จาก (From)</label>
+      <input type="date" id="admin-from" onchange="onAdminFrom()" style="border:1px solid #ccc;border-radius:6px;padding:5px 8px;font-size:13px">
+      <label style="font-size:11px;color:#888">ถึง (To)</label>
+      <input type="date" id="admin-to" onchange="onAdminTo()" style="border:1px solid #ccc;border-radius:6px;padding:5px 8px;font-size:13px">
     </span>
     <span id="admin-period-note" style="font-size:11px;color:#888;margin-left:auto">แสดงข้อมูลทั้งหมด (All time)</span>
   </div>
@@ -1588,6 +1590,7 @@ function calcSum(){
     const bar=document.getElementById('gb_'+id);if(bar)bar.style.width=Math.round(cnts[i]/mx*100)+'%';
   });
   function ndtHrs(m){return r12.filter(r=>r.skill&&r.skill.includes(m)).reduce((s,r)=>s+parseFloat(r.dur||0),0);}
+  function ndtHrsAll(m){return vr.filter(r=>r.skill&&r.skill.includes(m)).reduce((s,r)=>s+parseFloat(r.dur||0),0);}
   const bsi=rp.filter(r=>r.skill&&r.skill.includes('BSI')&&pDate(r.date)&&pDate(r.date).getFullYear()===cy).length;
   const et=r12.filter(r=>r.skill&&r.skill.includes('(ET)')).length;
   const pt=r12.filter(r=>r.skill&&r.skill.includes('(PT)')).length;
@@ -1595,10 +1598,10 @@ function calcSum(){
   const ut=r12.filter(r=>r.skill&&r.skill.includes('(UT)')).length;
   const st2=r12.filter(r=>r.actype&&r.actype.includes('Specialized Service - Structure')).length;
   sh('ab',bsi);sh('abr',res(bsi>=4));
-  sh('aet',et);sh('aetH',ndtHrs('(ET)').toFixed(1));sh('aetr',res(et>=1));
-  sh('apt',pt);sh('aptH',ndtHrs('(PT)').toFixed(1));sh('aptr',res(pt>=1));
-  sh('amt',mt);sh('amtH',ndtHrs('(MT)').toFixed(1));sh('amtr',res(mt>=1));
-  sh('aut',ut);sh('autH',ndtHrs('(UT)').toFixed(1));sh('autr',res(ut>=1));
+  sh('aet',et);sh('aetH',ndtHrsAll('(ET)').toFixed(1));sh('aetr',res(et>=1));
+  sh('apt',pt);sh('aptH',ndtHrsAll('(PT)').toFixed(1));sh('aptr',res(pt>=1));
+  sh('amt',mt);sh('amtH',ndtHrsAll('(MT)').toFixed(1));sh('amtr',res(mt>=1));
+  sh('aut',ut);sh('autH',ndtHrsAll('(UT)').toFixed(1));sh('autr',res(ut>=1));
   sh('ast',st2);sh('astr',res(st2>=1));
   function hcard(v,lbl,pass,showB){
     const cl=showB?(pass?'hcp':'hcf'):'hcn';
@@ -1637,10 +1640,22 @@ function onAdminPM(){
   if(pd)pd.style.display=adminPeriod.mode==='custom'?'inline-flex':'none';
   applyAdminPeriod();
 }
+function onAdminFrom(){
+  const fromV=gv('admin-from');
+  if(fromV){const fromD=isoToD(fromV);const toEl=document.getElementById('admin-to');const curTo=toEl.value?isoToD(toEl.value):null;
+    if(fromD&&(!curTo||curTo<fromD)){const t=new Date(fromD);t.setMonth(t.getMonth()+24);toEl.value=dToIso(t);}}
+  applyAdminPeriod();
+}
+function onAdminTo(){
+  const toV=gv('admin-to');
+  if(toV){const toD=isoToD(toV);const fromEl=document.getElementById('admin-from');const curFrom=fromEl.value?isoToD(fromEl.value):null;
+    if(toD&&(!curFrom||curFrom>toD)){const f=new Date(toD);f.setMonth(f.getMonth()-24);fromEl.value=dToIso(f);}}
+  applyAdminPeriod();
+}
 function applyAdminPeriod(){
   adminPeriod.from=gv('admin-from');adminPeriod.to=gv('admin-to');
   const note=document.getElementById('admin-period-note');const r=getAdminRange();
-  if(note)note.textContent=r?('กรองช่วง '+fmtD(r.from)+' — '+fmtD(r.to)+' · ใช้ override ตอนเปิด Summary พนักงานด้วย'):(adminPeriod.mode==='custom'?'เลือกวันที่เริ่ม–สิ้นสุดให้ครบ':'แสดงข้อมูลทั้งหมด (All time)');
+  if(note)note.textContent=r?('กรองช่วง '+fmtD(r.from)+' — '+fmtD(r.to)+' · ใช้ override ตอนเปิด Summary พนักงานด้วย'):(adminPeriod.mode==='custom'?'เลือก From หรือ To อย่างใดอย่างหนึ่ง อีกช่องจะเติม ±24 เดือนอัตโนมัติ (แก้เองได้)':'แสดงข้อมูลทั้งหมด (All time)');
   if(allUsersData&&allUsersData.length){filterAdminTable();updateAdminStats(allUsersData);}
 }
 
@@ -1816,8 +1831,8 @@ function showUserModal(userData,name){
   });
   if(!(userData.training||[]).length)trBody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:16px;color:#aaa">ไม่มีข้อมูล</td></tr>';
 
-  // Render summary — reuse calcSum() then clone the summary tab content
-  calcSum();
+  // Render summary — set the viewed user's header/period, recompute, THEN clone
+  syncPro();updatePeriodUI();calcSum();
   _adminViewUser=JSON.parse(JSON.stringify(D));   // snapshot of the viewed user (with any admin period override)
   const summaryTab=document.getElementById('ts');
   const mts=document.getElementById('mts');
