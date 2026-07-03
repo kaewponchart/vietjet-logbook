@@ -1112,14 +1112,21 @@ async function saveData(){
     showSaved('⚠️ ยังไม่ได้ login');
     return;
   }
+  const target = editUid || currentUser.uid;
   try {
     showSaved('⏳ กำลังบันทึก...');
     D._savedAt  = new Date().toISOString();
-    D._uid      = currentUser.uid;
-    D._email    = currentUser.email;
-    D._userName = currentUser.displayName || '';
-    await fbDb.collection('logbooks').doc(currentUser.uid).set(D);
-    showSaved('✓ บันทึกแล้ว — ' + new Date().toLocaleTimeString('th-TH'));
+    if(editUid){
+      // Admin editing another user's record: keep the owner's identity, stamp who edited
+      D._lastEditedBy = currentUser.email;
+      D._lastEditedAt = D._savedAt;
+    } else {
+      D._uid      = currentUser.uid;
+      D._email    = currentUser.email;
+      D._userName = currentUser.displayName || '';
+    }
+    await fbDb.collection('logbooks').doc(target).set(D);
+    showSaved((editUid?('✓ บันทึกข้อมูลของ '+editName+' — '):'✓ บันทึกแล้ว — ') + new Date().toLocaleTimeString('th-TH'));
   } catch(e){
     showSaved('❌ บันทึกไม่สำเร็จ: ' + e.message);
   }
@@ -1621,6 +1628,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ══ ADMIN FUNCTIONS ═══════════════════════════════════════════════════════
 const ADMIN_EMAIL = 'kaew.ponchart@gmail.com';
 let allUsersData = [];
+let editUid=null, editName='';           // when set, admin is editing this user's record
+let _adminViewUid='', _adminViewName=''; // user currently open in the admin modal
 let adminPeriod={mode:'all',from:'',to:''};
 function getAdminRange(){
   if(adminPeriod.mode!=='custom'||!adminPeriod.from||!adminPeriod.to)return null;
@@ -1684,10 +1693,15 @@ async function loadAllUsers(){
 function renderAdminTable(data){
   const tbody=document.getElementById('admin-tbody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
-  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+u.name+'</td><td style="padding:9px 8px;text-align:center">'+u.staffId+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+u.position+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+(function(){var ar=getAdminRange();if(!ar)return u.rows;return rowsInAdminRange(u.rowsArr)+' <small style="color:#aaa;font-weight:400">/'+u.rows+'</small>';})()+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn view-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px">👁 ดู</button> <button class="btn del-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#c00000;color:#fff;padding:3px 10px;font-size:11px">🗑 ลบ</button></td></tr>').join('');
+  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+u.name+'</td><td style="padding:9px 8px;text-align:center">'+u.staffId+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+u.position+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+(function(){var ar=getAdminRange();if(!ar)return u.rows;return rowsInAdminRange(u.rowsArr)+' <small style="color:#aaa;font-weight:400">/'+u.rows+'</small>';})()+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn view-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px">👁 ดู</button> <button class="btn edit-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a6b2e;color:#fff;padding:3px 10px;font-size:11px">✏️ แก้ไข</button> <button class="btn del-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#c00000;color:#fff;padding:3px 10px;font-size:11px">🗑 ลบ</button></td></tr>').join('');
   tbody.querySelectorAll('.view-user-btn').forEach(btn=>{
     btn.addEventListener('click',function(){
       viewUser(decodeURIComponent(this.dataset.uid),decodeURIComponent(this.dataset.name));
+    });
+  });
+  tbody.querySelectorAll('.edit-user-btn').forEach(btn=>{
+    btn.addEventListener('click',function(){
+      editUser(decodeURIComponent(this.dataset.uid),decodeURIComponent(this.dataset.name));
     });
   });
   tbody.querySelectorAll('.del-user-btn').forEach(btn=>{
@@ -1713,6 +1727,7 @@ async function viewUser(uid,name){
     const doc=await fbDb.collection('logbooks').doc(uid).get();
     if(!doc.exists){alert('ไม่พบข้อมูล');return;}
     const userData=doc.data();
+    _adminViewUid=uid; _adminViewName=name;
     showUserModal(userData,name);
   }catch(e){alert('Error: '+e.message);}
 }
@@ -1732,6 +1747,39 @@ async function deleteUser(uid,name){
     loadAllUsers(); // โหลดตารางใหม่
   }catch(e){alert('ลบไม่สำเร็จ: '+e.message);}
 }
+
+async function editUser(uid,name){
+  if(!currentUser||currentUser.email!==ADMIN_EMAIL){alert('ไม่มีสิทธิ์ Admin');return;}
+  if(uid===currentUser.uid){ closeUserModal(); showTab('tl'); return; } // own data: normal editing
+  if(!confirm('เข้าสู่โหมดแก้ไขข้อมูลของ "'+name+'"?\n\nการบันทึกหรือลบแถวจะเขียนทับข้อมูลของพนักงานคนนี้โดยตรง')) return;
+  try{
+    const doc=await fbDb.collection('logbooks').doc(uid).get();
+    if(!doc.exists){alert('ไม่พบข้อมูล');return;}
+    editUid=uid; editName=name;
+    D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},doc.data());
+    closeUserModal();      // remove modal if open (also renders current D)
+    showEditBanner();
+    showTab('tl');         // jump to Experience Logbook (editable)
+    renderAll();
+  }catch(e){alert('Error: '+e.message);}
+}
+async function exitEditMode(){
+  editUid=null; editName='';
+  hideEditBanner();
+  await loadData();        // reload the admin's own record
+  renderAll();calcSum();
+  showTab('ta'); loadAllUsers();
+}
+function showEditBanner(){
+  hideEditBanner();
+  const b=document.createElement('div');
+  b.id='edit-mode-banner';
+  b.style.cssText='position:fixed;left:0;right:0;bottom:0;z-index:10000;background:#c00000;color:#fff;padding:10px 16px;display:flex;align-items:center;gap:12px;justify-content:center;flex-wrap:wrap;font-size:13px;box-shadow:0 -2px 10px rgba(0,0,0,.35)';
+  b.innerHTML='✏️ <b>โหมดแก้ไข (Admin)</b> — กำลังแก้ไขข้อมูลของ <b>'+esc(editName)+'</b> · การบันทึก/ลบแถวจะเขียนทับข้อมูลของพนักงานคนนี้ '
+    +'<button onclick="exitEditMode()" style="background:#fff;color:#c00000;border:none;border-radius:6px;padding:5px 14px;font-weight:700;cursor:pointer">ออกจากโหมดแก้ไข</button>';
+  document.body.appendChild(b);
+}
+function hideEditBanner(){const b=document.getElementById('edit-mode-banner');if(b)b.remove();}
 
 function showUserModal(userData,name){
   // Save current D, load user data temporarily
@@ -1756,7 +1804,10 @@ function showUserModal(userData,name){
           <div style="font-size:15px;font-weight:800;color:#7a0000;letter-spacing:1px">EXPERIENCE INDIVIDUAL LOGBOOK — ADMIN VIEW</div>
           <div style="font-size:11px;color:#9a5800">👁 ดูข้อมูลของ: <strong>${(userData.profile&&userData.profile.name)||name}</strong> | Staff ID: ${(userData.profile&&userData.profile.staffid)||'-'} | บันทึกล่าสุด: ${userData._savedAt?new Date(userData._savedAt).toLocaleString('th-TH'):'-'}</div>
         </div>
-        <button onclick="closeUserModal()" style="background:#c00000;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">✕ ปิด</button>
+        <div style="display:flex;gap:8px">
+          <button onclick="editUser(_adminViewUid,_adminViewName)" style="background:#1a6b2e;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">✏️ แก้ไขข้อมูล</button>
+          <button onclick="closeUserModal()" style="background:#c00000;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">✕ ปิด</button>
+        </div>
       </div>
       <!-- Info bar -->
       <div style="background:#fff5f5;border-bottom:1px solid #fbbcbc;padding:8px 20px;display:flex;gap:20px;font-size:12px">
