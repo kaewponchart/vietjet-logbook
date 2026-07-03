@@ -326,6 +326,14 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
   }
   table.lg tr{page-break-inside:avoid!important}
 
+  /* Full-text cell content (replaces clipped inputs/selects when printing) */
+  .print-full{
+    display:block!important;white-space:normal!important;word-break:break-word!important;
+    overflow-wrap:anywhere!important;font-size:7px!important;line-height:1.2!important;
+    color:#000!important;width:100%!important;text-align:inherit!important;padding:0!important;
+  }
+  table.ttbl .print-full{font-size:8px!important}
+
   /* Info area above table */
   .igrid{margin-bottom:4px!important}
   .ifield label{font-size:8px!important;color:#000!important}
@@ -1511,6 +1519,27 @@ function clearFilters(){
 }
 
 // ══ PDF EXPORT ══════════════════════════════════════════════════════════════
+// Swap table inputs/selects for wrapping text so long cell content prints in full
+function _printSwapOn(){
+  const spans=[],hidden=[];
+  document.querySelectorAll('.tc.print-active table.lg td, .tc.print-active table.ttbl td').forEach(td=>{
+    td.querySelectorAll('input,select,textarea').forEach(el=>{
+      let val = el.tagName==='SELECT' ? (el.options[el.selectedIndex]?el.options[el.selectedIndex].text:'') : el.value;
+      const span=document.createElement('span');
+      span.className='print-full'; span.textContent=val;
+      el.style.display='none';
+      el.insertAdjacentElement('afterend',span);
+      spans.push(span); hidden.push(el);
+    });
+  });
+  return {spans,hidden};
+}
+function _printSwapOff(x){
+  if(!x)return;
+  x.spans.forEach(s=>s.remove());
+  x.hidden.forEach(el=>el.style.display='');
+}
+
 function exportPDF(tabId){
   const PRINT_TABS = tabId === 'all' ? ['ts','tl','tt'] : [tabId];
 
@@ -1530,7 +1559,9 @@ function exportPDF(tabId){
       if(el && id !== 'tg') el.classList.add('print-active');
     });
 
+    const _sw=_printSwapOn();
     window.print();
+    _printSwapOff(_sw);
 
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
   }, 300);
@@ -1549,7 +1580,9 @@ function exportUserPDF(){
   setTimeout(()=>{
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
     ['ts','tl','tt'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('print-active');});
+    const _sw=_printSwapOn();
     window.print();
+    _printSwapOff(_sw);
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
     D=savedD;renderAll();calcSum();                // restore admin's own data on the page
     if(modal)modal.style.display=mdisp;
