@@ -287,33 +287,49 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
   /* ══ LOGBOOK: compact, readable, all columns ═══════════════════════ */
   #tl.print-active,#tt.print-active{page-break-before:always!important}
 
-  /* Override fixed-width cols for print */
-  table.lg colgroup,table.lg col{display:none!important}
+  /* Keep proportional column widths for print (don't let table-layout:auto
+     squeeze/stretch columns based on content - that's what made other
+     columns look crushed). Widths below mirror the on-screen c0..cb ratios,
+     with the hidden Del column (cb) reduced to 0 and its space redistributed. */
   table.lg{
-    font-size:7px!important;
-    table-layout:auto!important;
+    font-size:6.5px!important;
+    table-layout:fixed!important;
     border-collapse:collapse!important;
     width:100%!important;
   }
+  table.lg col.c0{width:7.3%!important}
+  table.lg col.c1{width:10.9%!important}
+  table.lg col.c2{width:8.1%!important}
+  table.lg col.c3{width:6.5%!important}
+  table.lg col.c4{width:12.4%!important}
+  table.lg col.c5{width:6%!important}
+  table.lg col.c6{width:6.3%!important}
+  table.lg col.c7{width:7.3%!important}
+  table.lg col.c8{width:5.3%!important}
+  table.lg col.c9{width:4.3%!important}
+  table.lg col.ca{width:4.6%!important}
+  table.lg col.cb{width:0!important}
   table.lg th{
     background:#333!important;color:#fff!important;
-    padding:3px 2px!important;font-size:6.5px!important;
+    padding:3px 2px!important;font-size:6px!important;
     border:1px solid #555!important;
     word-break:break-word!important;
     white-space:normal!important;
   }
   table.lg td{
     padding:4px 2px!important;
-    height:28px!important;
+    height:auto!important;
     border:1px solid #ccc!important;
     background:#fff!important;color:#000!important;
     vertical-align:middle!important;
     word-break:break-word!important;
+    overflow-wrap:anywhere!important;
   }
   table.lg tr:nth-child(even) td{background:#f5f5f5!important}
   table.lg td input,table.lg td select{
-    height:22px!important;
-    font-size:7px!important;
+    height:auto!important;
+    min-height:20px!important;
+    font-size:6.5px!important;
     background:transparent!important;
     border:none!important;
     color:#000!important;
@@ -330,7 +346,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
   table.lg td .print-hide,table.ttbl td .print-hide{display:none!important}
   .print-full{
     display:block!important;white-space:normal!important;word-break:break-word!important;
-    overflow-wrap:anywhere!important;font-size:7px!important;line-height:1.2!important;
+    overflow-wrap:anywhere!important;font-size:6.5px!important;line-height:1.25!important;
     color:#000!important;width:100%!important;text-align:inherit!important;padding:0!important;
   }
   table.ttbl .print-full{font-size:8px!important}
