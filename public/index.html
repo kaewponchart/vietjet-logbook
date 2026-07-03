@@ -327,6 +327,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
   table.lg tr{page-break-inside:avoid!important}
 
   /* Full-text cell content (replaces clipped inputs/selects when printing) */
+  table.lg td .print-hide,table.ttbl td .print-hide{display:none!important}
   .print-full{
     display:block!important;white-space:normal!important;word-break:break-word!important;
     overflow-wrap:anywhere!important;font-size:7px!important;line-height:1.2!important;
@@ -1527,6 +1528,7 @@ function _printSwapOn(){
       let val = el.tagName==='SELECT' ? (el.options[el.selectedIndex]?el.options[el.selectedIndex].text:'') : el.value;
       const span=document.createElement('span');
       span.className='print-full'; span.textContent=val;
+      el.classList.add('print-hide');
       el.style.display='none';
       el.insertAdjacentElement('afterend',span);
       spans.push(span); hidden.push(el);
@@ -1537,7 +1539,7 @@ function _printSwapOn(){
 function _printSwapOff(x){
   if(!x)return;
   x.spans.forEach(s=>s.remove());
-  x.hidden.forEach(el=>el.style.display='');
+  x.hidden.forEach(el=>{el.classList.remove('print-hide');el.style.display='';});
 }
 
 function exportPDF(tabId){
@@ -1659,7 +1661,8 @@ document.addEventListener('DOMContentLoaded',()=>{
 });
 
 // ══ ADMIN FUNCTIONS ═══════════════════════════════════════════════════════
-const ADMIN_EMAIL = 'kaew.ponchart@gmail.com';
+const ADMIN_EMAILS = ['kaew.ponchart@gmail.com','chayanis.jamjunya@gmail.com','kingfubuki@gmail.com','wachira.workmail@gmail.com'];
+function isAdmin(){return !!(currentUser && currentUser.email && ADMIN_EMAILS.includes(currentUser.email.toLowerCase()));}
 let allUsersData = [];
 let editUid=null, editName='';           // when set, admin is editing this user's record
 let _adminViewUid='', _adminViewName=''; // user currently open in the admin modal
@@ -1702,13 +1705,13 @@ function applyAdminPeriod(){
 }
 
 function checkAdmin(){
-  if(currentUser && currentUser.email===ADMIN_EMAIL){
+  if(isAdmin()){
     const t=document.getElementById('admin-tab');if(t)t.style.display='inline-block';
   }
 }
 async function loadAllUsers(){
   if(!fbDb||!currentUser)return;
-  if(currentUser.email!==ADMIN_EMAIL){alert('ไม่มีสิทธิ์ Admin');return;}
+  if(!isAdmin()){alert('ไม่มีสิทธิ์ Admin');return;}
   const tbody=document.getElementById('admin-tbody');
   tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">⏳ กำลังโหลด...</td></tr>';
   try{
@@ -1767,7 +1770,7 @@ async function viewUser(uid,name){
 
 async function deleteUser(uid,name){
   // ตรวจสิทธิ์ admin อีกชั้นก่อนลบ
-  if(!currentUser||currentUser.email!==ADMIN_EMAIL){alert('ไม่มีสิทธิ์ลบข้อมูล');return;}
+  if(!isAdmin()){alert('ไม่มีสิทธิ์ลบข้อมูล');return;}
   // ยืนยันชั้นที่ 1
   if(!confirm('⚠️ ต้องการลบข้อมูล Logbook ของ "'+name+'" ใช่หรือไม่?\n\nการลบนี้ไม่สามารถกู้คืนได้')) return;
   // ยืนยันชั้นที่ 2 — ต้องพิมพ์ชื่อให้ตรง
@@ -1782,7 +1785,7 @@ async function deleteUser(uid,name){
 }
 
 async function editUser(uid,name){
-  if(!currentUser||currentUser.email!==ADMIN_EMAIL){alert('ไม่มีสิทธิ์ Admin');return;}
+  if(!isAdmin()){alert('ไม่มีสิทธิ์ Admin');return;}
   if(uid===currentUser.uid){ closeUserModal(); showTab('tl'); return; } // own data: normal editing
   if(!confirm('เข้าสู่โหมดแก้ไขข้อมูลของ "'+name+'"?\n\nการบันทึกหรือลบแถวจะเขียนทับข้อมูลของพนักงานคนนี้โดยตรง')) return;
   try{
