@@ -251,22 +251,27 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
   }
   .hc .hv{color:#000!important;font-size:18px!important}
   .hc .hl{color:#333!important;font-size:8px!important}
-  .hc .hb{background:#444!important;color:#fff!important;font-size:7px!important;border-radius:2px!important}
+  #ts .hc .hb{background:#444!important;color:#fff!important;font-size:7px!important;border-radius:2px!important}
 
   /* Pass/Fail: box with black/white contrast */
-  .rp{background:#000!important;color:#fff!important;
+  /* NOTE: scoped with #ts prefix so these beat the "#ts *{color:#000}" rule above
+     on specificity (both are !important, so specificity decides the winner). */
+  #ts .rp{background:#1b7a2e!important;color:#fff!important;
       border-radius:3px!important;padding:2px 8px!important;font-size:9px!important;font-weight:700!important}
-  .rf{background:#fff!important;color:#000!important;
-      border:1.5px solid #000!important;border-radius:3px!important;
+  #ts .rf{background:#fff!important;color:#c0392b!important;
+      border:1.5px solid #c0392b!important;border-radius:3px!important;
       padding:2px 8px!important;font-size:9px!important;font-weight:700!important}
 
-  /* Grade circles */
-  .grc,.grA,.grB,.grC,.grD{
-    background:#333!important;color:#fff!important;
+  /* Grade circles: distinct per-grade colors so they stay legible instead of
+     collapsing into a single near-black circle */
+  #ts .grc{
     width:18px!important;height:18px!important;line-height:18px!important;font-size:10px!important;
-    display:inline-block!important;
+    display:inline-block!important;border-radius:50%!important;text-align:center!important;
   }
-  .grD{background:#fff!important;color:#000!important;border:1.5px solid #555!important}
+  #ts .grA{background:#1565c0!important;color:#fff!important}
+  #ts .grB{background:#2e7d32!important;color:#fff!important}
+  #ts .grC{background:#e65100!important;color:#fff!important}
+  #ts .grD{background:#fff!important;color:#000!important;border:1.5px solid #555!important}
 
   /* Grade bar */
   .gbar{background:#ddd!important;height:6px!important;display:block!important;width:100%!important}
@@ -1569,7 +1574,11 @@ function exportPDF(tabId){
     });
 
     const _sw=_printSwapOn();
+    const _origTitle=document.title;
+    const _staffId=(D.profile&&D.profile.staffid)?D.profile.staffid.trim():'';
+    document.title=_staffId?(_staffId+' - Experience Logbook'):'Experience Logbook';
     window.print();
+    document.title=_origTitle;
     _printSwapOff(_sw);
 
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
@@ -1590,7 +1599,11 @@ function exportUserPDF(){
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
     ['ts','tl','tt'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('print-active');});
     const _sw=_printSwapOn();
+    const _origTitle=document.title;
+    const _staffId=(D.profile&&D.profile.staffid)?D.profile.staffid.trim():'';
+    document.title=_staffId?(_staffId+' - Experience Logbook'):'Experience Logbook';
     window.print();
+    document.title=_origTitle;
     _printSwapOff(_sw);
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
     D=savedD;renderAll();calcSum();                // restore admin's own data on the page
