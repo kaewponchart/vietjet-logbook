@@ -22,21 +22,47 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#f7f3ea;color:#222;m
   padding:20px;
 }
 .login-card{
-  background:#fff;border-radius:16px;padding:36px 40px;max-width:400px;width:100%;
-  box-shadow:0 8px 32px rgba(0,0,0,.12);text-align:center;
+  background:#fff;border-radius:20px;padding:52px 56px;max-width:560px;width:100%;
+  box-shadow:0 10px 40px rgba(0,0,0,.14);text-align:center;
 }
-.login-logo{height:60px;margin-bottom:20px;object-fit:contain}
-.login-title{font-size:17px;font-weight:800;color:#7a0000;letter-spacing:1.2px;text-transform:uppercase;margin-bottom:4px}
-.login-sub{font-size:11px;color:#9a5800;margin-bottom:24px}
-.login-divider{border:none;border-top:1px solid #eee;margin:16px 0}
+.login-logo{height:96px;margin-bottom:28px;object-fit:contain}
+.login-title{font-size:24px;font-weight:800;color:#7a0000;letter-spacing:1.4px;text-transform:uppercase;margin-bottom:6px}
+.login-sub{font-size:14px;color:#9a5800;margin-bottom:30px}
+.login-divider{border:none;border-top:1px solid #eee;margin:22px 0}
+.login-msg{font-size:16px;color:#666;margin-bottom:22px}
 .btn-google{
-  width:100%;padding:12px 16px;background:#fff;border:1.5px solid #ddd;border-radius:10px;
-  font-size:13px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  gap:10px;transition:all .15s;color:#333;
+  width:100%;padding:16px 20px;background:#fff;border:1.5px solid #ddd;border-radius:12px;
+  font-size:17px;font-weight:600;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  gap:12px;transition:all .15s;color:#333;
 }
 .btn-google:hover{background:#f8f8f8;border-color:#bbb;box-shadow:0 2px 8px rgba(0,0,0,.08)}
-.login-note{font-size:11px;color:#aaa;margin-top:16px;line-height:1.6}
-.login-credit{font-size:10px;color:#b8ab8f;margin-top:22px;letter-spacing:.3px}
+.btn-google svg{width:24px;height:24px}
+.login-note{font-size:13px;color:#aaa;margin-top:20px;line-height:1.7}
+.login-credit{font-size:12px;color:#b8ab8f;margin-top:26px;letter-spacing:.3px}
+.login-version{font-size:11px;color:#c9bfa8;margin-top:4px;letter-spacing:.5px}
+@media (max-width:600px){
+  .login-card{padding:36px 24px}
+  .login-logo{height:72px}
+  .login-title{font-size:19px}
+  .btn-google{font-size:15px}
+}
+
+/* ══ VERSION UPDATE BANNER ═════════════════════════════════════════ */
+#update-banner{
+  display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;
+  background:#1f2937;color:#fff;padding:12px 16px;text-align:center;
+  font-size:14px;box-shadow:0 -4px 16px rgba(0,0,0,.25);
+}
+#update-banner button{
+  margin-left:12px;padding:7px 18px;border:none;border-radius:8px;cursor:pointer;
+  background:#e30613;color:#fff;font-size:14px;font-weight:700;
+}
+#update-banner button:hover{background:#c00510}
+#app-version-tag{
+  position:fixed;right:8px;bottom:6px;z-index:500;font-size:10px;color:#b8ab8f;
+  letter-spacing:.4px;pointer-events:none;user-select:none;
+}
+@media print{#update-banner,#app-version-tag{display:none!important}}
 
 /* ══ MAIN APP ══════════════════════════════════════════════════════ */
 #main-app{display:none}
@@ -395,7 +421,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
     <div class="login-title">Experience Individual Logbook</div>
     <div class="login-sub">TVJ-QA-F-057 | REV.01 | DATE 04 AUG 2023</div>
     <hr class="login-divider">
-    <p style="font-size:12px;color:#666;margin-bottom:16px">กรุณา Login เพื่อเข้าใช้งาน</p>
+    <p class="login-msg">กรุณา Login เพื่อเข้าใช้งาน</p>
     <button class="btn-google" onclick="loginGoogle()">
       <svg width="18" height="18" viewBox="0 0 48 48">
         <path fill="#4285F4" d="M47.5 24.5c0-1.6-.1-3.2-.4-4.7H24v9h13.1c-.6 3-2.3 5.5-4.9 7.2v6h7.9c4.6-4.2 7.4-10.5 7.4-17.5z"/>
@@ -408,7 +434,15 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
     <p class="login-note">ใช้ Gmail ส่วนตัว (@gmail.com)<br>ข้อมูลแยกตาม account อัตโนมัติ</p>
   </div>
   <div class="login-credit">Powered by TVJ QA</div>
+  <div class="login-version" id="login-version"></div>
 </div>
+
+<!-- ══ VERSION UPDATE BANNER ══════════════════════════════════════════ -->
+<div id="update-banner">
+  🔄 มีเวอร์ชันใหม่ <b id="update-new-ver"></b> พร้อมใช้งาน
+  <button onclick="applyUpdate()">อัปเดตเลย</button>
+</div>
+<div id="app-version-tag"></div>
 
 <!-- ══ MAIN APP ═══════════════════════════════════════════════════════ -->
 <div id="main-app">
@@ -1036,6 +1070,34 @@ const FB_CONFIG = {
   messagingSenderId: "434422850398",
   appId: "1:434422850398:web:36141d5b0831451338e5cf"
 };
+
+// ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
+const APP_VERSION = '2.1.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+let _newVerFound = '';
+function initVersionUI(){
+  const lv=document.getElementById('login-version');
+  if(lv) lv.textContent='Version '+APP_VERSION;
+  const tag=document.getElementById('app-version-tag');
+  if(tag) tag.textContent='v'+APP_VERSION;
+}
+async function checkVersion(){
+  try{
+    const res=await fetch(location.pathname+'?_vc='+Date.now(),{cache:'no-store'});
+    if(!res.ok)return;
+    const txt=await res.text();
+    const m=txt.match(/APP_VERSION\s*=\s*'([^']+)'/);
+    if(m&&m[1]&&m[1]!==APP_VERSION){
+      _newVerFound=m[1];
+      const b=document.getElementById('update-banner');
+      document.getElementById('update-new-ver').textContent='v'+_newVerFound;
+      b.style.display='block';
+    }
+  }catch(e){/* offline หรือ fetch ล้มเหลว — เงียบไว้ */}
+}
+function applyUpdate(){
+  // reload แบบ bypass cache ด้วย query ใหม่ ผู้ใช้ไม่ต้อง Ctrl+Shift+R
+  location.replace(location.pathname+'?v='+encodeURIComponent(_newVerFound||Date.now()));
+}
 
 // ══ CONSTANTS ═════════════════════════════════════════════════════════════
 const AC_T=['','AIRBUS A320/321 (CFM56)','AIRBUS A320/321 (V2500)','AIRBUS A320/321 (PW1100)','BOEING 737-8/8200 (CFM Leap-1B)','Component under C Rating','Specialized Service - NDT','Specialized Service - Structure','Other'];
@@ -1688,6 +1750,16 @@ document.addEventListener('DOMContentLoaded',()=>{
   document.getElementById('lb').addEventListener('change',()=>saveAll());
   document.getElementById('tb').addEventListener('change',()=>saveAll());
   initFirebase();
+  // ── version system ──
+  initVersionUI();
+  if(location.search.includes('v=')||location.search.includes('_vc=')){
+    history.replaceState(null,'',location.pathname); // ล้าง query ที่ใช้ bypass cache
+  }
+  setTimeout(checkVersion,5000);                      // เช็คครั้งแรกหลังโหลด 5 วิ
+  setInterval(checkVersion,10*60*1000);               // เช็คซ้ำทุก 10 นาที
+  document.addEventListener('visibilitychange',()=>{  // เช็คเมื่อสลับกลับมาที่แท็บ
+    if(document.visibilityState==='visible')checkVersion();
+  });
 });
 
 // ══ ADMIN FUNCTIONS ═══════════════════════════════════════════════════════
