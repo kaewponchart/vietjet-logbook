@@ -64,6 +64,12 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#f7f3ea;color:#222;m
 }
 @media print{#update-banner,#app-version-tag{display:none!important}}
 
+/* ══ SORTABLE DATE HEADER ══════════════════════════════════════════ */
+.th-sort{cursor:pointer;user-select:none}
+.th-sort:hover{filter:brightness(1.12)}
+.sort-ind{font-size:10px;opacity:.75}
+@media print{.sort-ind{display:none!important}}
+
 /* ══ MAIN APP ══════════════════════════════════════════════════════ */
 #main-app{display:none}
 .page{max-width:1520px;margin:0 auto;padding:10px}
@@ -742,7 +748,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
     </colgroup>
     <thead>
       <tr>
-        <th rowspan="2">UTC Date<br>(DD-MMM-YY)</th>
+        <th rowspan="2" class="th-sort" onclick="sortByDate('lb')" title="คลิกเพื่อเรียงตามวันที่">UTC Date<br>(DD-MMM-YY) <span class="sort-ind" id="sort-ind-lb">⇅</span></th>
         <th rowspan="2">Aircraft Type &amp; Engine<br>or Other Rating</th>
         <th rowspan="2">Aircraft Reg.<br>or Component P/N</th>
         <th rowspan="2">Work Ref.<br>(WO/Tech Log)</th>
@@ -775,7 +781,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
   <div style="overflow-x:auto">
   <table class="ttbl">
     <thead><tr>
-      <th style="width:90px">Start Date</th>
+      <th style="width:90px" class="th-sort" onclick="sortByDate('tb')" title="คลิกเพื่อเรียงตามวันที่">Start Date <span class="sort-ind" id="sort-ind-tb">⇅</span></th>
       <th style="width:210px">Training Course Name</th>
       <th style="width:100px">Type</th>
       <th style="width:90px">Provider</th>
@@ -1538,6 +1544,35 @@ function importData(evt){
 }
 
 // ══ RENDER ALL ═════════════════════════════════════════════════════════════
+// ══ SORT BY DATE (Experience Log / Training) ═══════════════════════════════
+const _sortDir={lb:0,tb:0};   // 0=ยังไม่เรียง, 1=เก่า→ใหม่, -1=ใหม่→เก่า
+function sortByDate(which){
+  if(_suspendSave)return;                 // กันเรียงระหว่าง admin export ข้อมูลคนอื่น
+  saveAll();                              // เก็บค่าที่กำลังพิมพ์อยู่ก่อน
+  const key=which==='lb'?'rows':'training';
+  const dir=_sortDir[which]===1?-1:1;     // คลิกสลับ ขึ้น/ลง
+  _sortDir[which]=dir;
+  const arr=(D[key]||[]).slice();
+  arr.sort((a,b)=>{
+    const da=pDate(a.date),db=pDate(b.date);
+    if(!da&&!db)return 0;
+    if(!da)return 1;                      // แถวที่วันที่ว่าง/ผิดรูปแบบ ไปอยู่ท้ายเสมอ
+    if(!db)return -1;
+    return dir*(da-db);
+  });
+  D[key]=arr;
+  renderAll();
+  saveData();
+  const fb=document.getElementById('filterBar');           // ถ้าเปิด filter อยู่ ให้กรองซ้ำหลังเรียง
+  if(fb&&fb.classList.contains('show'))applyFilters();
+  const ind=document.getElementById('sort-ind-'+which);
+  if(ind)ind.textContent=dir===1?'▲':'▼';
+  const other=which==='lb'?'tb':'lb';     // อีกตารางกลับเป็นสัญลักษณ์ปกติถ้ายังไม่เคยเรียง
+  const oi=document.getElementById('sort-ind-'+other);
+  if(oi&&_sortDir[other]===0)oi.textContent='⇅';
+  showSaved('เรียงวันที่ '+(dir===1?'เก่า → ใหม่':'ใหม่ → เก่า')+' แล้ว');
+}
+
 function renderAll(){
   document.getElementById('lb').innerHTML='';
   (D.rows||[]).forEach(r=>addRow(r));
