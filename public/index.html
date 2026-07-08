@@ -1064,13 +1064,6 @@ const TASK_MAP_B={
   'daily check':    {ata:'12-12, 12-13, 12-15, 29-11, 32-00, 32-41, 33-51, 47-31', acts:['Servicing','Inspection','','',''],   dur:'2.0'},
   'weekly check':   {ata:'05-41, 12-14, 24-34, 31-65, 73-00',               acts:['Servicing','Inspection','Test','',''],       dur:'2.0'},
 };
-// Legacy fallback
-const ATA_MAP_COMMON={'transit check':'12-13','apu change':'49-11','engine change':'71-00','a check':'Various ATA as specified in Work Package'};
-const ATA_MAP_A={'preflight check':'12-13, 23-71, 31-33, 33-50, 34-13','daily check':'12-13, 05-21 to 25, 05-27 to 28, 32-41, 34-13','weekly check':'05-21/25, 12-32, 24-21/24, 25-55, 31-36, 32-12/22, 32-40/42, 33-51, 52-10/22'};
-const ATA_MAP_B={'preflight check':'12-13, 23-71, 31-31, 33-51','daily check':'12-12, 12-13, 12-15, 29-11, 32-00, 32-41, 33-51, 47-31','weekly check':'05-41, 12-14, 24-34, 31-65, 73-00'};
-const ATA_MAP={...ATA_MAP_COMMON,...ATA_MAP_A};
-const MO=['JAN','FEB','MAR','APR','MAY','JUN','JUL','AUG','SEP','OCT','NOV','DEC'];
-
 // ══ STATE ═════════════════════════════════════════════════════════════════
 let D={profile:{name:'',staffid:'',amel:'',position:''},rows:[],training:[],pmode:'auto',pfrom:'',pto:''};
 let currentUser = null;
@@ -1092,7 +1085,6 @@ function initFirebase(){
       if(un) un.textContent = user.displayName || user.email;
       const kd = document.getElementById('userkey_disp');
       if(kd) kd.textContent = '🔑 ' + user.email;
-      checkAdmin();
       checkAdmin();
 
       document.getElementById('login-screen').style.display = 'none';
@@ -1156,7 +1148,8 @@ async function saveData(){
 }
 
 function setStatus(msg){ const el=document.getElementById('sind'); if(el) el.textContent=msg; }
-function showSaved(msg){ const el=document.getElementById('sind'); if(el){ el.textContent=msg; setTimeout(()=>el.textContent='',5000); } }
+let _sindTimer=null;
+function showSaved(msg){ const el=document.getElementById('sind'); if(el){ el.textContent=msg; if(_sindTimer)clearTimeout(_sindTimer); _sindTimer=setTimeout(()=>{el.textContent='';_sindTimer=null;},5000); } }
 
 // ══ PROFILE ════════════════════════════════════════════════════════════════
 function spro(){
@@ -1180,9 +1173,11 @@ function st(id,t){const e=document.getElementById(id);if(e)e.textContent=t;}
 function showTab(id){
   document.querySelectorAll('.tc').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
-  document.getElementById(id).classList.add('active');
+  const tc=document.getElementById(id);if(tc)tc.classList.add('active');
   const tabs=['ts','tl','tt','tg','ta'];
-  document.querySelectorAll('.tab')[tabs.indexOf(id)].classList.add('active');
+  const idx=tabs.indexOf(id);
+  const tabBtns=document.querySelectorAll('.tab');
+  if(idx>-1&&tabBtns[idx])tabBtns[idx].classList.add('active');
   if(id==='ts') calcSum();
   if(id==='ta') loadAllUsers();
 }
@@ -1197,8 +1192,11 @@ function pDate(s){
   const mo={JAN:0,FEB:1,MAR:2,APR:3,MAY:4,JUN:5,JUL:6,AUG:7,SEP:8,OCT:9,NOV:10,DEC:11};
   const m=s.match(/(\d{1,2})-([A-Za-z]{3})-(\d{2,4})/);
   if(!m)return null;
+  const mm=mo[m[2].toUpperCase()];
+  if(mm===undefined)return null;
   const yr=m[3].length===2?2000+parseInt(m[3]):parseInt(m[3]);
-  return new Date(yr,mo[m[2].toUpperCase()],parseInt(m[1]));
+  const d=new Date(yr,mm,parseInt(m[1]));
+  return isNaN(d.getTime())?null:d;
 }
 function getPeriod(){
   if(D.pmode==='custom'&&D.pfrom&&D.pto){
@@ -1218,10 +1216,10 @@ function onPM(){
   D.pmode=gv('pmode');
   const pd=document.getElementById('pdates');
   if(D.pmode==='custom'){
-    pd.style.display='flex';
+    if(pd)pd.style.display='flex';
     if(D.pfrom)setPPDisp('from',D.pfrom);
     if(D.pto)setPPDisp('to',D.pto);
-  } else { pd.style.display='none'; }
+  } else { if(pd)pd.style.display='none'; }
   updatePeriodUI();saveAll();
 }
 
@@ -1276,13 +1274,14 @@ document.addEventListener('click',e=>{
 
 // Row date picker
 let dpTgt=null,dpY=0,dpM2=0;
-function openDP(inp){
+function openDP(inp,ev){
   dpTgt=inp;const d=pDate(inp.value)||new Date();dpY=d.getFullYear();dpM2=d.getMonth();
   renderDP();
   const pop=document.getElementById('dpop');
   const r=inp.getBoundingClientRect();
   pop.style.top=(r.bottom+window.scrollY+3)+'px';pop.style.left=(r.left+window.scrollX)+'px';
-  pop.classList.add('show');event.stopPropagation();
+  pop.classList.add('show');
+  if(ev)ev.stopPropagation();
 }
 function closeDPop(){document.getElementById('dpop').classList.remove('show');}
 function dpNav(dir){dpM2+=dir;if(dpM2>11){dpM2=0;dpY++;}if(dpM2<0){dpM2=11;dpY--;}renderDP();}
@@ -1308,10 +1307,10 @@ function mksel(opts,val,sty){
   opts.forEach(o=>s+='<option'+(o===val?' selected':'')+'>'+o+'</option>');
   return s+'</select>';
 }
-function esc(s){return(s||'').replace(/"/g,'&quot;').replace(/</g,'&lt;');}
+function esc(s){return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');}
 function validateDur(inp){
-  let v=parseFloat(inp.value);if(isNaN(v)||v<0){inp.value='';return;}
-  v=Math.round(v*2)/2;inp.value=v.toFixed(1);
+  let v=parseFloat(inp.value);if(isNaN(v)||v<=0){inp.value='';return;}
+  v=Math.max(0.5,Math.round(v*2)/2);inp.value=v.toFixed(1);
 }
 function autoFill(inp){
   const tr=inp.closest('tr');if(!tr)return;
@@ -1386,7 +1385,7 @@ function addRow(r){
   r=r||{date:'',actype:'',reg:'',workref:'',desc:'',ata:'',skill:'',mxloc:'',a1:'',a2:'',a3:'',a4:'',a5:'',dur:'',sig:''};
   const tr=document.createElement('tr');
   tr.innerHTML=`
-    <td><input class="di" value="${r.date||''}" placeholder="01-JAN-25" readonly onclick="openDP(this);event.stopPropagation()"></td>
+    <td><input class="di" value="${esc(r.date)}" placeholder="01-JAN-25" readonly onclick="openDP(this,event)"></td>
     <td><select style='width:100%;border:none;background:transparent;font-size:10.5px' onchange='onAcTypeChange(this)'>${AC_T.map(o=>`<option${o===r.actype?' selected':''}>${o}</option>`).join('')}</select></td><td>${mksel(AC_R,r.reg)}</td>
     <td><input value="${esc(r.workref)}" placeholder="WO No." style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
     <td><input value="${esc(r.desc)}" placeholder="Work Description" style="width:100%;border:none;background:transparent;font-size:10.5px" oninput="autoATA(this)"></td>
@@ -1420,7 +1419,7 @@ function addTRow(r){
   r=r||{date:'',course:'',type:'',provider:'',dur:'',remark:'',sig:''};
   const tr=document.createElement('tr');
   tr.innerHTML=`
-    <td><input class="di" value="${r.date||''}" placeholder="01-JAN-25" readonly onclick="openDP(this);event.stopPropagation()" style="width:85px;border:none;background:transparent;font-size:11px;cursor:pointer"></td>
+    <td><input class="di" value="${esc(r.date)}" placeholder="01-JAN-25" readonly onclick="openDP(this,event)" style="width:85px;border:none;background:transparent;font-size:11px;cursor:pointer"></td>
     <td>${mksel(TR_SUB,r.course,'width:100%;border:none;background:transparent;font-size:10.5px')}</td>
     <td>${mksel(['','Initial','Recurrent'],r.type,'width:100%;border:none;background:transparent;font-size:10.5px')}</td>
     <td>${mksel(['','TVJ','External'],r.provider,'width:100%;border:none;background:transparent;font-size:10.5px')}</td>
@@ -1442,7 +1441,9 @@ function getTRows(){
 }
 
 // ══ SAVE ALL ════════════════════════════════════════════════════════════════
+let _suspendSave=false;   // true while another user's data is temporarily on screen (admin export)
 function saveAll(){
+  if(_suspendSave)return;
   D.rows=getRows();D.training=getTRows();
   D.pmode=gv('pmode')||'auto';
   saveData();
@@ -1462,6 +1463,9 @@ function importData(evt){
   rd.onload=e=>{
     try{
       const imp=JSON.parse(e.target.result);
+      if(!imp||typeof imp!=='object'||Array.isArray(imp)||(imp.rows&&!Array.isArray(imp.rows))||(imp.training&&!Array.isArray(imp.training))){
+        alert('ไฟล์ไม่ใช่ข้อมูล Logbook ที่ถูกต้อง');evt.target.value='';return;
+      }
       if(confirm('Import จะเขียนทับข้อมูลทั้งหมด ยืนยัน?')){
         D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},imp);
         renderAll();saveData();alert('Import สำเร็จ! มี '+(D.rows||[]).length+' แถว');
@@ -1591,6 +1595,7 @@ function exportPDF(tabId){
 let _adminViewUser=null;
 function exportUserPDF(){
   if(!_adminViewUser){exportPDF('all');return;}
+  _suspendSave=true;                              // block auto-save while foreign data is on screen
   const savedD=JSON.parse(JSON.stringify(D));
   D=JSON.parse(JSON.stringify(_adminViewUser));
   const modal=document.getElementById('admin-modal');
@@ -1609,6 +1614,7 @@ function exportUserPDF(){
     _printSwapOff(_sw);
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
     D=savedD;renderAll();calcSum();                // restore admin's own data on the page
+    _suspendSave=false;
     if(modal)modal.style.display=mdisp;
   },300);
 }
@@ -1629,7 +1635,9 @@ function calcSum(){
   function i2(r){const ac=r.actype||'',rg=r.reg||'';if(/C Rating/i.test(ac))return regIs2nd(rg)&&!rg.includes('C5:')&&!rg.includes('C15:');return false;}
   const rp=vr.filter(r=>ip(r,fr,to));const r12=vr.filter(r=>ip(r,fr12,to));
   const r1=rp.filter(i1),r2=rp.filter(i2);
-  const trH=(D.training||[]).reduce((s,t)=>s+parseFloat(t.dur||0),0);
+  // Training hours for the +20% credit must fall inside the same summary period as the working days.
+  // (Rows without a valid date are excluded from the credit.)
+  const trH=(D.training||[]).filter(t=>{const d=pDate(t.date);return d&&d>=fr&&d<=to;}).reduce((s,t)=>s+parseFloat(t.dur||0),0);
   const wd1=Math.floor(r1.reduce((s,r)=>s+parseFloat(r.dur||0),0)/8);
   const mx20=Math.floor(wd1*0.2);const ex=Math.min(Math.floor(trH/8),mx20);const wd1t=wd1+ex;
   const t1=new Set(r1.map(r=>r.date)).size;
@@ -1727,9 +1735,8 @@ function applyAdminPeriod(){
 }
 
 function checkAdmin(){
-  if(isAdmin()){
-    const t=document.getElementById('admin-tab');if(t)t.style.display='inline-block';
-  }
+  const t=document.getElementById('admin-tab');
+  if(t)t.style.display=isAdmin()?'inline-block':'none';
 }
 async function loadAllUsers(){
   if(!fbDb||!currentUser)return;
@@ -1751,7 +1758,7 @@ async function loadAllUsers(){
 function renderAdminTable(data){
   const tbody=document.getElementById('admin-tbody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
-  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+u.name+'</td><td style="padding:9px 8px;text-align:center">'+u.staffId+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+u.position+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+(function(){var ar=getAdminRange();if(!ar)return u.rows;return rowsInAdminRange(u.rowsArr)+' <small style="color:#aaa;font-weight:400">/'+u.rows+'</small>';})()+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn view-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px">👁 ดู</button> <button class="btn edit-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a6b2e;color:#fff;padding:3px 10px;font-size:11px">✏️ แก้ไข</button> <button class="btn del-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#c00000;color:#fff;padding:3px 10px;font-size:11px">🗑 ลบ</button></td></tr>').join('');
+  tbody.innerHTML=data.map((u,i)=>'<tr style="'+(i%2?'background:#fdf8f0':'')+'"><td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+esc(u.name)+'</td><td style="padding:9px 8px;text-align:center">'+esc(u.staffId)+'</td><td style="padding:9px 8px;text-align:center;font-size:11px">'+esc(u.position)+'</td><td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+(function(){var ar=getAdminRange();if(!ar)return u.rows;return rowsInAdminRange(u.rowsArr)+' <small style="color:#aaa;font-weight:400">/'+u.rows+'</small>';})()+'</td><td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td><td style="padding:9px 8px;text-align:center"><button class="btn view-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px">👁 ดู</button> <button class="btn edit-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a6b2e;color:#fff;padding:3px 10px;font-size:11px">✏️ แก้ไข</button> <button class="btn del-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#c00000;color:#fff;padding:3px 10px;font-size:11px">🗑 ลบ</button></td></tr>').join('');
   tbody.querySelectorAll('.view-user-btn').forEach(btn=>{
     btn.addEventListener('click',function(){
       viewUser(decodeURIComponent(this.dataset.uid),decodeURIComponent(this.dataset.name));
@@ -1793,6 +1800,7 @@ async function viewUser(uid,name){
 async function deleteUser(uid,name){
   // ตรวจสิทธิ์ admin อีกชั้นก่อนลบ
   if(!isAdmin()){alert('ไม่มีสิทธิ์ลบข้อมูล');return;}
+  if(editUid&&uid===editUid){alert('กำลังอยู่ในโหมดแก้ไขข้อมูลของพนักงานคนนี้ กรุณาออกจากโหมดแก้ไขก่อนลบ');return;}
   // ยืนยันชั้นที่ 1
   if(!confirm('⚠️ ต้องการลบข้อมูล Logbook ของ "'+name+'" ใช่หรือไม่?\n\nการลบนี้ไม่สามารถกู้คืนได้')) return;
   // ยืนยันชั้นที่ 2 — ต้องพิมพ์ชื่อให้ตรง
@@ -1860,7 +1868,7 @@ function showUserModal(userData,name){
       <div style="background:#f5c000;padding:12px 20px;display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:15px;font-weight:800;color:#7a0000;letter-spacing:1px">EXPERIENCE INDIVIDUAL LOGBOOK — ADMIN VIEW</div>
-          <div style="font-size:11px;color:#9a5800">👁 ดูข้อมูลของ: <strong>${(userData.profile&&userData.profile.name)||name}</strong> | Staff ID: ${(userData.profile&&userData.profile.staffid)||'-'} | บันทึกล่าสุด: ${userData._savedAt?new Date(userData._savedAt).toLocaleString('th-TH'):'-'}</div>
+          <div style="font-size:11px;color:#9a5800">👁 ดูข้อมูลของ: <strong>${esc((userData.profile&&userData.profile.name)||name)}</strong> | Staff ID: ${esc((userData.profile&&userData.profile.staffid)||'-')} | บันทึกล่าสุด: ${userData._savedAt?new Date(userData._savedAt).toLocaleString('th-TH'):'-'}</div>
         </div>
         <div style="display:flex;gap:8px">
           <button onclick="editUser(_adminViewUid,_adminViewName)" style="background:#1a6b2e;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">✏️ แก้ไขข้อมูล</button>
@@ -1869,11 +1877,11 @@ function showUserModal(userData,name){
       </div>
       <!-- Info bar -->
       <div style="background:#fff5f5;border-bottom:1px solid #fbbcbc;padding:8px 20px;display:flex;gap:20px;font-size:12px">
-        <span>👤 <strong>${(userData.profile&&userData.profile.name)||'-'}</strong></span>
-        <span>🪪 ${(userData.profile&&userData.profile.staffid)||'-'}</span>
-        <span>✈️ ${(userData.profile&&userData.profile.amel)||'-'}</span>
-        <span>💼 ${(userData.profile&&userData.profile.position)||'-'}</span>
-        <span>📅 Period: ${_periodTxt}</span>
+        <span>👤 <strong>${esc((userData.profile&&userData.profile.name)||'-')}</strong></span>
+        <span>🪪 ${esc((userData.profile&&userData.profile.staffid)||'-')}</span>
+        <span>✈️ ${esc((userData.profile&&userData.profile.amel)||'-')}</span>
+        <span>💼 ${esc((userData.profile&&userData.profile.position)||'-')}</span>
+        <span>📅 Period: ${esc(_periodTxt)}</span>
       </div>
       <!-- Tabs -->
       <div style="display:flex;gap:3px;background:#e8e2d0;padding:5px 5px 0">
@@ -1925,7 +1933,7 @@ function showUserModal(userData,name){
   (userData.rows||[]).forEach((r,i)=>{
     const tr=document.createElement('tr');
     if(i%2)tr.style.background='#fdf8f0';
-    tr.innerHTML='<td style="padding:4px 3px">'+(r.date||'')+'</td><td style="padding:4px 3px">'+(r.actype||'')+'</td><td style="padding:4px 3px">'+(r.reg||'')+'</td><td style="padding:4px 3px">'+(r.workref||'')+'</td><td style="padding:4px 3px">'+(r.desc||'')+'</td><td style="padding:4px 3px">'+(r.ata||'')+'</td><td style="padding:4px 3px">'+(r.skill||'')+'</td><td style="padding:4px 3px">'+(r.mxloc||'')+'</td><td style="padding:4px 3px">'+(r.a1||'')+'</td><td style="padding:4px 3px">'+(r.a2||'')+'</td><td style="padding:4px 3px">'+(r.a3||'')+'</td><td style="padding:4px 3px">'+(r.a4||'')+'</td><td style="padding:4px 3px">'+(r.a5||'')+'</td><td style="padding:4px 3px">'+(r.dur||'')+'</td><td style="padding:4px 3px">'+(r.sig||'')+'</td>';
+    tr.innerHTML='<td style="padding:4px 3px">'+esc(r.date)+'</td><td style="padding:4px 3px">'+esc(r.actype)+'</td><td style="padding:4px 3px">'+esc(r.reg)+'</td><td style="padding:4px 3px">'+esc(r.workref)+'</td><td style="padding:4px 3px">'+esc(r.desc)+'</td><td style="padding:4px 3px">'+esc(r.ata)+'</td><td style="padding:4px 3px">'+esc(r.skill)+'</td><td style="padding:4px 3px">'+esc(r.mxloc)+'</td><td style="padding:4px 3px">'+esc(r.a1)+'</td><td style="padding:4px 3px">'+esc(r.a2)+'</td><td style="padding:4px 3px">'+esc(r.a3)+'</td><td style="padding:4px 3px">'+esc(r.a4)+'</td><td style="padding:4px 3px">'+esc(r.a5)+'</td><td style="padding:4px 3px">'+esc(r.dur)+'</td><td style="padding:4px 3px">'+esc(r.sig)+'</td>';
     lbBody.appendChild(tr);
   });
   if(!(userData.rows||[]).length)lbBody.innerHTML='<tr><td colspan="15" style="text-align:center;padding:16px;color:#aaa">ไม่มีข้อมูล</td></tr>';
@@ -1935,7 +1943,7 @@ function showUserModal(userData,name){
   (userData.training||[]).forEach((r,i)=>{
     const tr=document.createElement('tr');
     if(i%2)tr.style.background='#fdf8f0';
-    tr.innerHTML='<td style="padding:4px 5px">'+(r.date||'')+'</td><td style="padding:4px 5px">'+(r.course||'')+'</td><td style="padding:4px 5px">'+(r.type||'')+'</td><td style="padding:4px 5px">'+(r.provider||'')+'</td><td style="padding:4px 5px">'+(r.dur||'')+'</td><td style="padding:4px 5px">'+(r.remark||'')+'</td>';
+    tr.innerHTML='<td style="padding:4px 5px">'+esc(r.date)+'</td><td style="padding:4px 5px">'+esc(r.course)+'</td><td style="padding:4px 5px">'+esc(r.type)+'</td><td style="padding:4px 5px">'+esc(r.provider)+'</td><td style="padding:4px 5px">'+esc(r.dur)+'</td><td style="padding:4px 5px">'+esc(r.remark)+'</td>';
     trBody.appendChild(tr);
   });
   if(!(userData.training||[]).length)trBody.innerHTML='<tr><td colspan="6" style="text-align:center;padding:16px;color:#aaa">ไม่มีข้อมูล</td></tr>';
@@ -1953,11 +1961,14 @@ function showUserModal(userData,name){
     if(oc.includes('exportPDF'))b.setAttribute('onclick','exportUserPDF()');
     else if(oc.includes('saveAll')||oc.includes('calcSum'))b.style.display='none';
   });
+  // The clone duplicated every id from #ts — invalid HTML that can break later getElementById calls.
+  mts.querySelectorAll('[id]').forEach(e=>e.removeAttribute('id'));
 
   // Restore D
   D=savedD;
   syncPro();
   updatePeriodUI();
+  calcSum();   // recompute so the main Summary tab shows the admin's own data again
 }
 
 function switchModalTab(id,btn){
