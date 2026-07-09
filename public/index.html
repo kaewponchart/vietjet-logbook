@@ -1346,9 +1346,14 @@ function openDP(inp,ev){
   dpTgt=inp;const d=pDate(inp.value)||new Date();dpY=d.getFullYear();dpM2=d.getMonth();
   renderDP();
   const pop=document.getElementById('dpop');
+  pop.classList.add('show');                      // แสดงก่อนเพื่อวัดขนาดจริง
   const r=inp.getBoundingClientRect();
-  pop.style.top=(r.bottom+window.scrollY+3)+'px';pop.style.left=(r.left+window.scrollX)+'px';
-  pop.classList.add('show');
+  const ph=pop.offsetHeight,pw=pop.offsetWidth;
+  // .dpop เป็น position:fixed → ใช้พิกัด viewport ตรง ๆ ห้ามบวก scrollY/scrollX
+  let top=r.bottom+3,left=r.left;
+  if(top+ph>window.innerHeight-8)top=Math.max(8,r.top-ph-3);   // ล้นขอบล่าง → เด้งขึ้นเหนือช่อง
+  if(left+pw>window.innerWidth-8)left=Math.max(8,window.innerWidth-pw-8);
+  pop.style.top=top+'px';pop.style.left=left+'px';
   if(ev)ev.stopPropagation();
 }
 function closeDPop(){document.getElementById('dpop').classList.remove('show');}
