@@ -1040,7 +1040,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
     </div>
     <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:14px;text-align:center">
       <div style="font-size:24px;font-weight:800;color:#1a6b2e" id="stat-pass">-</div>
-      <div style="font-size:11px;color:#888">ผ่านเกณฑ์ 1st Type</div>
+      <div style="font-size:11px;color:#888">ผ่านเกณฑ์</div>
     </div>
     <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:14px;text-align:center">
       <div style="font-size:24px;font-weight:800;color:#c00000" id="stat-rows">-</div>
@@ -1069,6 +1069,15 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
     </select>
   </div>
 
+  <!-- Criteria note -->
+  <div style="background:#f4f7fd;border:1px solid #d5e0f5;border-radius:8px;padding:8px 14px;margin-bottom:10px;font-size:11px;color:#445;line-height:1.7">
+    <b style="color:#1a3a6b">เกณฑ์การประเมิน (TCAR 8 Part 145.A.35):</b>
+    <b>1st Type</b> = งานบน AIRBUS A320/321 (ทุกเครื่องยนต์), BOEING 737-8, Component C-Rating (C5/C15) และ Specialized Service &nbsp;·&nbsp;
+    <b>2nd Type</b> = Component C-Rating (C18) &nbsp;·&nbsp;
+    ผ่านเมื่อครบ <b>≥100 Working Days</b> (ชม.รวม ÷ 8 + เครดิตเทรนนิ่งสูงสุด 20%) <b>หรือ ≥180 Tasks</b> อย่างใดอย่างหนึ่ง ภายในช่วงประเมิน
+    &nbsp;·&nbsp; <b>Specialized Service – NDT/Structure</b> ประเมินตาม Additional Nature of Experience (แต่ละ method ≥1 task ใน 12 เดือนล่าสุด)
+  </div>
+
   <!-- Table -->
   <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;overflow:hidden">
     <table style="width:100%;border-collapse:collapse;font-size:12px">
@@ -1078,8 +1087,8 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
           <th style="padding:10px 8px;text-align:center">Staff ID</th>
           <th style="padding:10px 8px;text-align:center">Position</th>
           <th style="padding:10px 8px;text-align:center">บันทึก (แถว)</th>
-          <th style="padding:10px 8px;text-align:center" title="1st Type Working Days (รวมเครดิต Training +20%)">WD<br><small style="font-weight:400">1st Type</small></th>
-          <th style="padding:10px 8px;text-align:center" title="1st Type Tasks (จำนวนวันที่มีงาน)">Tasks<br><small style="font-weight:400">1st Type</small></th>
+          <th style="padding:10px 8px;text-align:center" title="1st Type Working Days (รวมเครดิต Training +20%) — สำหรับ NDT แสดง ET/PT">WD<br><small style="font-weight:400">1st Type · NoE</small></th>
+          <th style="padding:10px 8px;text-align:center" title="1st Type Tasks (จำนวนวันที่มีงาน) — สำหรับ NDT/Structure แสดง MT/UT/Structure">Tasks<br><small style="font-weight:400">1st Type · NoE</small></th>
           <th style="padding:10px 8px;text-align:center">สถานะ</th>
           <th style="padding:10px 8px;text-align:center">บันทึกล่าสุด</th>
           <th style="padding:10px 8px;text-align:center">จัดการ</th>
@@ -1768,22 +1777,30 @@ function compCore(rows,training,fr,to){
   const t1=new Set(r1.map(r=>r.date)).size;
   const wd2=Math.floor(r2.reduce((s,r)=>s+parseFloat(r.dur||0),0)/8);
   const t2=new Set(r2.map(r=>r.date)).size;
-  return{vr,rp,wd1,ex,wd1t,t1,wd2,t2,
-    pass1:wd1t>=100&&t1>=180,                 // ผ่านเกณฑ์ 1st Type (100 WD + 180 Tasks)
-    has2:r2.length>0,pass2:wd2>=100&&t2>=180};
+  // Additional Nature of Experience: ET/PT/MT/UT ≥1 ใน 12 เดือนล่าสุด, Structure ≥1 ใน 12 เดือน, BSI ≥4 ในปีปัจจุบัน
+  const fr12=new Date(to);fr12.setMonth(fr12.getMonth()-12);fr12.setHours(0,0,0,0);
+  const r12=vr.filter(r=>ip(r,fr12,to));
+  const cy=to.getFullYear();
+  const cnt12=m=>r12.filter(r=>r.skill&&r.skill.includes(m)).length;
+  const et=cnt12('(ET)'),pt=cnt12('(PT)'),mt=cnt12('(MT)'),ut=cnt12('(UT)');
+  const st2=r12.filter(r=>r.actype&&r.actype.includes('Specialized Service - Structure')).length;
+  const bsi=rp.filter(r=>r.skill&&r.skill.includes('BSI')&&pDate(r.date)&&pDate(r.date).getFullYear()===cy).length;
+  return{vr,rp,r12,wd1,ex,wd1t,t1,wd2,t2,
+    // TCAR 8 Part 145.A.35: ผ่านถ้าครบ 100 Working Days "หรือ" 180 Tasks อย่างใดอย่างหนึ่ง
+    pass1:wd1t>=100||t1>=180,
+    has2:r2.length>0,pass2:wd2>=100||t2>=180,
+    et,pt,mt,ut,st2,bsi,
+    ndtPass:et>=1&&pt>=1&&mt>=1&&ut>=1,       // NDT ต้อง current ครบทุก method
+    stPass:st2>=1};
 }
 
 function calcSum(){
   const p=getPeriod();const to=p.to,fr=p.from;
-  const fr12=new Date(to);fr12.setMonth(fr12.getMonth()-12);fr12.setHours(0,0,0,0);
-  const cy=to.getFullYear();
   const spd=document.getElementById('spd');if(spd)spd.textContent=fmtD(fr)+' — '+fmtD(to);
   const rows=D.rows||[];
   const c=compCore(rows,D.training,fr,to);
   const vr=c.vr,rp=c.rp;
-  function ip(r,f,t){const d=pDate(r.date);return d&&d>=f&&d<=t;}
   function ha(r,a){return[r.a1,r.a2,r.a3,r.a4,r.a5].some(x=>x&&x.includes(a));}
-  const r12=vr.filter(r=>ip(r,fr12,to));
   const ex=c.ex,wd1t=c.wd1t,t1=c.t1,wd2=c.wd2,t2=c.t2;
   sh('s1w_big',wd1t+(ex>0?` <small style="color:#aaa;font-size:14px">(+${ex}trn)</small>`:''));
   sh('s1t_big',t1);sh('s2w_big',wd2);sh('s2t_big',t2);
@@ -1804,14 +1821,8 @@ function calcSum(){
     sh('g'+id+'g','<span class="grc gr'+g+'">'+g+'</span>');
     const bar=document.getElementById('gb_'+id);if(bar)bar.style.width=Math.round(cnts[i]/mx*100)+'%';
   });
-  function ndtHrs(m){return r12.filter(r=>r.skill&&r.skill.includes(m)).reduce((s,r)=>s+parseFloat(r.dur||0),0);}
   function ndtHrsAll(m){return vr.filter(r=>r.skill&&r.skill.includes(m)).reduce((s,r)=>s+parseFloat(r.dur||0),0);}
-  const bsi=rp.filter(r=>r.skill&&r.skill.includes('BSI')&&pDate(r.date)&&pDate(r.date).getFullYear()===cy).length;
-  const et=r12.filter(r=>r.skill&&r.skill.includes('(ET)')).length;
-  const pt=r12.filter(r=>r.skill&&r.skill.includes('(PT)')).length;
-  const mt=r12.filter(r=>r.skill&&r.skill.includes('(MT)')).length;
-  const ut=r12.filter(r=>r.skill&&r.skill.includes('(UT)')).length;
-  const st2=r12.filter(r=>r.actype&&r.actype.includes('Specialized Service - Structure')).length;
+  const bsi=c.bsi,et=c.et,pt=c.pt,mt=c.mt,ut=c.ut,st2=c.st2;
   sh('ab',bsi);sh('abr',res(bsi>=4));
   sh('aet',et);sh('aetH',ndtHrsAll('(ET)').toFixed(1));sh('aetr',res(et>=1));
   sh('apt',pt);sh('aptH',ndtHrsAll('(PT)').toFixed(1));sh('aptr',res(pt>=1));
@@ -1935,20 +1946,41 @@ function renderAdminTable(data){
   const tbody=document.getElementById('admin-tbody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
   const nb=(v,req)=>'<span style="font-weight:700;color:'+(v>=req?'#2e7d32':'#c00000')+'">'+v+'</span><small style="color:#aaa">/'+req+'</small>';
+  const mini=(lbl,v,req)=>'<small style="color:#888">'+lbl+'</small> '+nb(v,req);
+  const mkBadge=(pass,sub)=>(pass
+    ?'<span style="background:#e4f3e5;color:#2e7d32;border:1px solid #a5d6a7;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">✓ ผ่าน</span>'
+    :'<span style="background:#fdecea;color:#c00000;border:1px solid #f5b8b3;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">✗ ไม่ผ่าน</span>')
+    +(sub?'<div style="font-size:9px;color:#888;margin-top:2px">'+sub+'</div>':'');
   tbody.innerHTML=data.map((u,i)=>{
     const c=adminUserComp(u);
-    const badge=c.pass1
-      ?'<span style="background:#e4f3e5;color:#2e7d32;border:1px solid #a5d6a7;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">✓ ผ่าน</span>'
-      :'<span style="background:#fdecea;color:#c00000;border:1px solid #f5b8b3;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">✗ ไม่ผ่าน</span>';
-    const t2tip=c.has2?' title="2nd Type: '+c.wd2+' WD / '+c.t2+' Tasks'+(c.pass2?' (ผ่าน)':' (ไม่ผ่าน)')+'"':'';
+    const isNDT=u.position==='Specialized Service - NDT';
+    const isST=u.position==='Specialized Service - Structure';
+    let cellWD,cellTasks,badge,tip='';
+    if(isNDT){
+      // Additional Nature of Experience – NDT: แต่ละ method ≥1 ใน 12 เดือนล่าสุด
+      cellWD=mini('ET',c.et,1)+' · '+mini('PT',c.pt,1);
+      cellTasks=mini('MT',c.mt,1)+' · '+mini('UT',c.ut,1);
+      badge=mkBadge(c.ndtPass,'Additional NoE – NDT');
+      tip=' title="Additional Nature of Experience – NDT: ET/PT/MT/UT อย่างละ ≥1 task ใน 12 เดือนล่าสุด (1st Type: '+c.wd1t+' WD / '+c.t1+' Tasks)"';
+    }else if(isST){
+      cellWD='<span style="color:#bbb">—</span>';
+      cellTasks=mini('Structure',c.st2,1);
+      badge=mkBadge(c.stPass,'Additional NoE – Structure');
+      tip=' title="Additional Nature of Experience – Structure: ≥1 task ใน 12 เดือนล่าสุด (1st Type: '+c.wd1t+' WD / '+c.t1+' Tasks)"';
+    }else{
+      cellWD=nb(c.wd1t,100)+(c.ex>0?' <small style="color:#888">(+'+c.ex+'trn)</small>':'');
+      cellTasks=nb(c.t1,180);
+      badge=mkBadge(c.pass1,'');
+      tip=c.has2?' title="2nd Type: '+c.wd2+' WD / '+c.t2+' Tasks'+(c.pass2?' (ผ่าน)':' (ไม่ผ่าน)')+'"':'';
+    }
     return '<tr style="'+(i%2?'background:#fdf8f0':'')+'">'
       +'<td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+esc(u.name)+'</td>'
       +'<td style="padding:9px 8px;text-align:center">'+esc(u.staffId)+'</td>'
       +'<td style="padding:9px 8px;text-align:center;font-size:11px">'+esc(u.position)+'</td>'
       +'<td style="padding:9px 8px;text-align:center;font-weight:700;color:#c00000">'+(function(){var ar=getAdminRange();if(!ar)return u.rows;return rowsInAdminRange(u.rowsArr)+' <small style="color:#aaa;font-weight:400">/'+u.rows+'</small>';})()+'</td>'
-      +'<td style="padding:9px 8px;text-align:center"'+t2tip+'>'+nb(c.wd1t,100)+(c.ex>0?' <small style="color:#888">(+'+c.ex+'trn)</small>':'')+'</td>'
-      +'<td style="padding:9px 8px;text-align:center"'+t2tip+'>'+nb(c.t1,180)+'</td>'
-      +'<td style="padding:9px 8px;text-align:center"'+t2tip+'>'+badge+'</td>'
+      +'<td style="padding:9px 8px;text-align:center"'+tip+'>'+cellWD+'</td>'
+      +'<td style="padding:9px 8px;text-align:center"'+tip+'>'+cellTasks+'</td>'
+      +'<td style="padding:9px 8px;text-align:center"'+tip+'>'+badge+'</td>'
       +'<td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td>'
       +'<td style="padding:9px 8px;text-align:center"><button class="btn view-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px">👁 ดู</button> <button class="btn edit-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a6b2e;color:#fff;padding:3px 10px;font-size:11px">✏️ แก้ไข</button> <button class="btn del-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#c00000;color:#fff;padding:3px 10px;font-size:11px">🗑 ลบ</button></td></tr>';
   }).join('');
@@ -1968,12 +2000,18 @@ function renderAdminTable(data){
     });
   });
 }
+function adminUserPass(u){
+  const c=adminUserComp(u);
+  if(u.position==='Specialized Service - NDT')return c.ndtPass;
+  if(u.position==='Specialized Service - Structure')return c.stPass;
+  return c.pass1;
+}
 function updateAdminStats(data){
   const ar=getAdminRange();const cnt=u=>ar?rowsInAdminRange(u.rowsArr):u.rows;
   document.getElementById('stat-total').textContent=data.length;
   document.getElementById('stat-active').textContent=data.filter(u=>cnt(u)>0).length;
   document.getElementById('stat-rows').textContent=data.reduce((s,u)=>s+cnt(u),0);
-  const passCnt=data.filter(u=>adminUserComp(u).pass1).length;
+  const passCnt=data.filter(adminUserPass).length;
   const sp=document.getElementById('stat-pass');if(sp)sp.textContent=passCnt+' / '+data.length;
   const latest=data.filter(u=>u.savedAt!=='-').sort((a,b)=>b.savedAt.localeCompare(a.savedAt))[0];
   document.getElementById('stat-lastupdate').textContent=latest?new Date(latest.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'-';
@@ -1985,7 +2023,7 @@ function filterAdminTable(){
   renderAdminTable(allUsersData.filter(u=>{
     if(q&&!(u.name.toLowerCase().includes(q)||u.staffId.toLowerCase().includes(q)))return false;
     if(pos&&(u.position||'-')!==pos)return false;
-    if(st){const p=adminUserComp(u).pass1;if(st==='pass'&&!p)return false;if(st==='fail'&&p)return false;}
+    if(st){const p=adminUserPass(u);if(st==='pass'&&!p)return false;if(st==='fail'&&p)return false;}
     return true;
   }));
 }
