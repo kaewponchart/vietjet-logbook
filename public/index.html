@@ -70,6 +70,18 @@ body{font-family:Arial,sans-serif;font-size:13px;background:#f7f3ea;color:#222;m
 .sort-ind{font-size:10px;opacity:.75}
 @media print{.sort-ind{display:none!important}}
 
+/* ══ STICKY TABLE HEADER ═══════════════════════════════════════════ */
+.tbl-scroll{overflow:auto;max-height:calc(100vh - 250px);min-height:320px}
+table.lg thead,table.ttbl thead{position:sticky;top:0;z-index:20}
+table.lg thead th,table.ttbl thead th{
+  /* border-collapse ทำให้เส้นขอบหายตอน sticky → วาดเส้นด้วย box-shadow แทน */
+  box-shadow:inset -1px -1px 0 #cc2222,inset 0 1px 0 #cc2222;
+}
+@media print{
+  .tbl-scroll{overflow:visible!important;max-height:none!important;min-height:0!important}
+  table.lg thead,table.ttbl thead{position:static!important}
+}
+
 /* ══ MAIN APP ══════════════════════════════════════════════════════ */
 #main-app{display:none}
 .page{max-width:1520px;margin:0 auto;padding:10px}
@@ -738,7 +750,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
       <div><label>Signature</label><input id="f_sig" placeholder="ค้นหา..." oninput="applyFilters()"></div>
     </div>
   </div>
-  <div style="overflow-x:auto">
+  <div class="tbl-scroll">
   <table class="lg">
     <colgroup>
       <col class="c0"><col class="c1"><col class="c2"><col class="c3"><col class="c4">
@@ -778,7 +790,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
     <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportPDF('all')">📄 Export PDF</button>
     <span style="font-size:11px;color:#e65100;font-weight:700;margin-left:auto">⚠ Training เพิ่มได้สูงสุด 20% ของ 1st Type Working Days</span>
   </div>
-  <div style="overflow-x:auto">
+  <div class="tbl-scroll">
   <table class="ttbl">
     <thead><tr>
       <th style="width:90px" class="th-sort" onclick="sortByDate('tb')" title="คลิกเพื่อเรียงตามวันที่">Start Date <span class="sort-ind" id="sort-ind-tb">⇅</span></th>
@@ -1799,6 +1811,10 @@ document.addEventListener('DOMContentLoaded',()=>{
   setInterval(checkVersion,10*60*1000);               // เช็คซ้ำทุก 10 นาที
   document.addEventListener('visibilitychange',()=>{  // เช็คเมื่อสลับกลับมาที่แท็บ
     if(document.visibilityState==='visible')checkVersion();
+  });
+  // ── ปิดปฏิทินเมื่อเลื่อนตาราง (ปฏิทินเป็น fixed จะค้างกลางจอถ้าไม่ปิด) ──
+  document.querySelectorAll('.tbl-scroll').forEach(el=>{
+    el.addEventListener('scroll',closeDPop,{passive:true});
   });
 });
 
