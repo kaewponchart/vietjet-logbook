@@ -77,9 +77,12 @@ table.lg thead th,table.ttbl thead th{
   /* border-collapse ทำให้เส้นขอบหายตอน sticky → วาดเส้นด้วย box-shadow แทน */
   box-shadow:inset -1px -1px 0 #cc2222,inset 0 1px 0 #cc2222;
 }
+/* ตาราง Admin: หัวตารางลอยติดด้านบนเวลาเลื่อนดูรายชื่อยาวๆ */
+table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:#1a3a6b;box-shadow:inset 0 -1px 0 #12294d}
 @media print{
   .tbl-scroll{overflow:visible!important;max-height:none!important;min-height:0!important}
   table.lg thead,table.ttbl thead{position:static!important}
+  table.admin-tbl thead th{position:static!important}
 }
 
 /* ══ MAIN APP ══════════════════════════════════════════════════════ */
@@ -509,12 +512,12 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
     <div style="font-size:11px;font-weight:700;color:#9a0000;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #e31837">
       Experience Compliance
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:start">
+    <div style="display:grid;grid-template-columns:1fr;gap:10px;align-items:start">
 
-      <!-- 1st Type block -->
+      <!-- 1st Type block (รวมทุกงาน — ยกเลิก 2nd Type แล้ว) -->
       <div style="background:#fdf9f0;border:1px solid #e8d8c0;border-radius:8px;overflow:hidden">
         <div style="background:#c00000;color:#fff;padding:6px 12px;font-size:11px;font-weight:700">
-          1ST TYPE &nbsp;·&nbsp; <span style="font-weight:400;opacity:.9">Airbus A320/321 (CFM56 / V2500 / PW1100) &nbsp;|&nbsp; Boeing 737-8/8200 (CFM Leap-1B) &nbsp;|&nbsp; Component C5, C15 &nbsp;|&nbsp; Specialized Service</span>
+          1ST TYPE &nbsp;·&nbsp; <span style="font-weight:400;opacity:.9">Airbus A320/321 (CFM56 / V2500 / PW1100) &nbsp;|&nbsp; Boeing 737-8/8200 (CFM Leap-1B) &nbsp;|&nbsp; Component C5, C15, C18 &nbsp;|&nbsp; Specialized Service</span>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#eee">
           <div style="background:#f9f5ec;padding:12px 16px;text-align:center">
@@ -528,27 +531,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
             <div style="margin-top:6px" id="s1tr">-</div>
           </div>
         </div>
-        <div style="padding:4px 12px;font-size:10px;color:#aaa;background:#fafafa">* Training hrs (Extra 20%) นับรวมใน Working Days</div>
-      </div>
-
-      <!-- 2nd Type block -->
-      <div style="background:#fdf9f0;border:1px solid #e8d8c0;border-radius:8px;overflow:hidden">
-        <div style="background:#7a3500;color:#fff;padding:6px 12px;font-size:11px;font-weight:700">
-          2ND TYPE &nbsp;·&nbsp; <span style="font-weight:400;opacity:.9">Component C18</span>
-        </div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:#eee">
-          <div style="background:#f9f5ec;padding:12px 16px;text-align:center">
-            <div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Working Days <span style="color:#aaa">(≥ 100)</span></div>
-            <div style="font-size:28px;font-weight:700;color:#222;line-height:1" id="s2w_big">-</div>
-            <div style="margin-top:6px" id="s2wr">-</div>
-          </div>
-          <div style="background:#f9f5ec;padding:12px 16px;text-align:center">
-            <div style="font-size:10px;color:#888;margin-bottom:4px;text-transform:uppercase;letter-spacing:.5px">Tasks diff. date <span style="color:#aaa">(≥ 180)</span></div>
-            <div style="font-size:28px;font-weight:700;color:#222;line-height:1" id="s2t_big">-</div>
-            <div style="margin-top:6px" id="s2tr">-</div>
-          </div>
-        </div>
-        <div style="padding:4px 12px;font-size:10px;color:#aaa;background:#fafafa">* At least 1 condition pass per type is acceptable</div>
+        <div style="padding:4px 12px;font-size:10px;color:#aaa;background:#fafafa">* Training hrs (Extra 20%) นับรวมใน Working Days &nbsp;·&nbsp; ผ่านเมื่อครบ ≥100 Working Days หรือ ≥180 Tasks อย่างใดอย่างหนึ่ง</div>
       </div>
     </div>
   </div>
@@ -1072,14 +1055,13 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
   <!-- Criteria note -->
   <div style="background:#f4f7fd;border:1px solid #d5e0f5;border-radius:8px;padding:8px 14px;margin-bottom:10px;font-size:11px;color:#445;line-height:1.7">
     <b style="color:#1a3a6b">เกณฑ์การประเมิน (TCAR 8 Part 145.A.35):</b>
-    <b>1st Type</b> = งานบน AIRBUS A320/321 (ทุกเครื่องยนต์), BOEING 737-8, Component C-Rating (C5/C15) และ Specialized Service &nbsp;·&nbsp;
-    <b>2nd Type</b> = Component C-Rating (C18) &nbsp;·&nbsp;
+    <b>1st Type</b> = งานบน AIRBUS A320/321 (ทุกเครื่องยนต์), BOEING 737-8, Component C-Rating (C5 / C15 / C18) และ Specialized Service &nbsp;·&nbsp;
     ผ่านเมื่อครบ <b>≥100 Working Days</b> (ชม.รวม ÷ 8 + เครดิตเทรนนิ่งสูงสุด 20%) <b>หรือ ≥180 Tasks</b> อย่างใดอย่างหนึ่ง ภายในช่วงประเมิน — ใช้เกณฑ์เดียวกันทุก Position
   </div>
 
   <!-- Table -->
-  <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;overflow:hidden">
-    <table style="width:100%;border-collapse:collapse;font-size:12px">
+  <div class="tbl-scroll" style="background:#fff;border:1px solid #e0e4ee;border-radius:8px">
+    <table class="admin-tbl" style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
         <tr style="background:#1a3a6b;color:#fff">
           <th style="padding:10px 12px;text-align:left">ชื่อ-นามสกุล</th>
@@ -1115,7 +1097,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.2.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.3.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1764,18 +1746,14 @@ function res(ok){return ok?'<span class="rp">✓ Pass</span>':'<span class="rf">
 function compCore(rows,training,fr,to){
   const vr=(rows||[]).filter(r=>r.date&&pDate(r.date));
   const ip=(r,f,t)=>{const d=pDate(r.date);return d&&d>=f&&d<=t;};
-  const regIs1st=rg=>!rg||rg.startsWith('HS')||rg.includes('C5:')||rg.includes('C15:')||rg==='Other';
-  const regIs2nd=rg=>!rg||rg.startsWith('HS')||rg.includes('C18:')||rg==='Other';
-  const i1=r=>{const ac=r.actype||'',rg=r.reg||'';if(/AIRBUS/i.test(ac))return regIs1st(rg);if(/BOEING/i.test(ac))return regIs2nd(rg);if(/C Rating/i.test(ac))return regIs1st(rg);if(/Specialized/i.test(ac))return true;return false;};
-  const i2=r=>{const ac=r.actype||'',rg=r.reg||'';if(/C Rating/i.test(ac))return regIs2nd(rg)&&!rg.includes('C5:')&&!rg.includes('C15:');return false;};
+  // ทุกงานถือเป็น 1st Type ทั้งหมด — Component C18 นับเป็น 1st Type แล้ว (ยกเลิกแนวคิด 2nd Type)
+  const i1=r=>{const ac=r.actype||'';return /AIRBUS|BOEING|C Rating|Specialized/i.test(ac);};
   const rp=vr.filter(r=>ip(r,fr,to));
-  const r1=rp.filter(i1),r2=rp.filter(i2);
+  const r1=rp.filter(i1);
   const trH=(training||[]).filter(t=>{const d=pDate(t.date);return d&&d>=fr&&d<=to;}).reduce((s,t)=>s+parseFloat(t.dur||0),0);
   const wd1=Math.floor(r1.reduce((s,r)=>s+parseFloat(r.dur||0),0)/8);
   const mx20=Math.floor(wd1*0.2);const ex=Math.min(Math.floor(trH/8),mx20);const wd1t=wd1+ex;
   const t1=new Set(r1.map(r=>r.date)).size;
-  const wd2=Math.floor(r2.reduce((s,r)=>s+parseFloat(r.dur||0),0)/8);
-  const t2=new Set(r2.map(r=>r.date)).size;
   // Additional Nature of Experience: ET/PT/MT/UT ≥1 ใน 12 เดือนล่าสุด, Structure ≥1 ใน 12 เดือน, BSI ≥4 ในปีปัจจุบัน
   const fr12=new Date(to);fr12.setMonth(fr12.getMonth()-12);fr12.setHours(0,0,0,0);
   const r12=vr.filter(r=>ip(r,fr12,to));
@@ -1784,10 +1762,9 @@ function compCore(rows,training,fr,to){
   const et=cnt12('(ET)'),pt=cnt12('(PT)'),mt=cnt12('(MT)'),ut=cnt12('(UT)');
   const st2=r12.filter(r=>r.actype&&r.actype.includes('Specialized Service - Structure')).length;
   const bsi=rp.filter(r=>r.skill&&r.skill.includes('BSI')&&pDate(r.date)&&pDate(r.date).getFullYear()===cy).length;
-  return{vr,rp,r12,wd1,ex,wd1t,t1,wd2,t2,
+  return{vr,rp,r12,wd1,ex,wd1t,t1,
     // TCAR 8 Part 145.A.35: ผ่านถ้าครบ 100 Working Days "หรือ" 180 Tasks อย่างใดอย่างหนึ่ง
     pass1:wd1t>=100||t1>=180,
-    has2:r2.length>0,pass2:wd2>=100||t2>=180,
     et,pt,mt,ut,st2,bsi,
     ndtPass:et>=1&&pt>=1&&mt>=1&&ut>=1,       // NDT ต้อง current ครบทุก method
     stPass:st2>=1};
@@ -1800,10 +1777,10 @@ function calcSum(){
   const c=compCore(rows,D.training,fr,to);
   const vr=c.vr,rp=c.rp;
   function ha(r,a){return[r.a1,r.a2,r.a3,r.a4,r.a5].some(x=>x&&x.includes(a));}
-  const ex=c.ex,wd1t=c.wd1t,t1=c.t1,wd2=c.wd2,t2=c.t2;
+  const ex=c.ex,wd1t=c.wd1t,t1=c.t1;
   sh('s1w_big',wd1t+(ex>0?` <small style="color:#aaa;font-size:14px">(+${ex}trn)</small>`:''));
-  sh('s1t_big',t1);sh('s2w_big',wd2);sh('s2t_big',t2);
-  sh('s1wr',res(wd1t>=100));sh('s1tr',res(t1>=180));sh('s2wr',res(wd2>=100));sh('s2tr',res(t2>=180));
+  sh('s1t_big',t1);
+  sh('s1wr',res(wd1t>=100));sh('s1tr',res(t1>=180));
   const acBreak=p=>rp.filter(row=>row.actype&&new RegExp(p,'i').test(row.actype));
   function ab(rs){const wd=Math.floor(rs.reduce((s,r)=>s+parseFloat(r.dur||0),0)/8);return{wd,tasks:new Set(rs.map(r=>r.date)).size,hrs:rs.reduce((s,r)=>s+parseFloat(r.dur||0),0).toFixed(1),entries:rs.length};}
   function setAB(pre,d){sh(pre+'_wd',d.wd);sh(pre+'_t',d.tasks);sh(pre+'_h',d.hrs);sh(pre+'_e',d.entries);}
@@ -1833,7 +1810,7 @@ function calcSum(){
     const bg=showB?`<span class="hb">${pass?'PASS':'FAIL'}</span>`:'';
     return`<div class="hc ${cl}">${bg}<div class="hv">${v}</div><div class="hl">${lbl}</div></div>`;
   }
-  sh('hcards',hcard(wd1t,'1st Type<br>Working Days',wd1t>=100,true)+hcard(t1,'1st Type<br>Tasks',t1>=180,true)+hcard(wd2,'2nd Type<br>Working Days',wd2>=100,true)+hcard(t2,'2nd Type<br>Tasks',t2>=180,true)+hcard(rows.length,'Total<br>Entries',true,false));
+  sh('hcards',hcard(wd1t,'1st Type<br>Working Days',wd1t>=100,true)+hcard(t1,'1st Type<br>Tasks',t1>=180,true)+hcard(rows.length,'Total<br>Entries',true,false));
 }
 
 // ══ AUTO SAVE ON CHANGE ════════════════════════════════════════════════════
@@ -1955,7 +1932,7 @@ function renderAdminTable(data){
     const cellWD=nb(c.wd1t,100)+(c.ex>0?' <small style="color:#888">(+'+c.ex+'trn)</small>':'');
     const cellTasks=nb(c.t1,180);
     const badge=mkBadge(c.pass1,'');
-    const tip=c.has2?' title="2nd Type: '+c.wd2+' WD / '+c.t2+' Tasks'+(c.pass2?' (ผ่าน)':' (ไม่ผ่าน)')+'"':'';
+    const tip='';
     return '<tr style="'+(i%2?'background:#fdf8f0':'')+'">'
       +'<td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+esc(u.name)+'</td>'
       +'<td style="padding:9px 8px;text-align:center">'+esc(u.staffId)+'</td>'
