@@ -579,6 +579,38 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
           <td style="padding:6px 8px;text-align:center;color:#aaa" id="ab_boe_e">-</td>
         </tr>
       </table>
+      <!-- Component Type Breakdown -->
+      <div style="background:#3a3a3a;color:#fff;padding:6px 12px;font-size:11px;font-weight:700;border-top:1px solid #e8d8c0">🔩 Component Type Breakdown</div>
+      <table style="width:100%;border-collapse:collapse;font-size:11.5px">
+        <tr style="background:#f0ead8">
+          <th style="padding:5px 10px;text-align:left;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #eee">Component</th>
+          <th style="padding:5px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #eee">W.Days</th>
+          <th style="padding:5px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #eee">Tasks</th>
+          <th style="padding:5px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #eee">Hrs</th>
+          <th style="padding:5px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #eee">#</th>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0">
+          <td style="padding:6px 10px;font-size:11px"><span style="color:#7a3500;font-weight:600">▪</span> C5</td>
+          <td style="padding:6px 8px;text-align:center;font-weight:600" id="cb_c5_wd">-</td>
+          <td style="padding:6px 8px;text-align:center" id="cb_c5_t">-</td>
+          <td style="padding:6px 8px;text-align:center" id="cb_c5_h">-</td>
+          <td style="padding:6px 8px;text-align:center;color:#aaa" id="cb_c5_e">-</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0;background:#fafafa">
+          <td style="padding:6px 10px;font-size:11px"><span style="color:#7a3500;font-weight:600">▪</span> C15</td>
+          <td style="padding:6px 8px;text-align:center;font-weight:600" id="cb_c15_wd">-</td>
+          <td style="padding:6px 8px;text-align:center" id="cb_c15_t">-</td>
+          <td style="padding:6px 8px;text-align:center" id="cb_c15_h">-</td>
+          <td style="padding:6px 8px;text-align:center;color:#aaa" id="cb_c15_e">-</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0">
+          <td style="padding:6px 10px;font-size:11px"><span style="color:#7a3500;font-weight:600">▪</span> C18</td>
+          <td style="padding:6px 8px;text-align:center;font-weight:600" id="cb_c18_wd">-</td>
+          <td style="padding:6px 8px;text-align:center" id="cb_c18_t">-</td>
+          <td style="padding:6px 8px;text-align:center" id="cb_c18_h">-</td>
+          <td style="padding:6px 8px;text-align:center;color:#aaa" id="cb_c18_e">-</td>
+        </tr>
+      </table>
     </div>
 
     <!-- Nature of Experience -->
@@ -1097,7 +1129,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.3.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.4.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1786,6 +1818,9 @@ function calcSum(){
   function setAB(pre,d){sh(pre+'_wd',d.wd);sh(pre+'_t',d.tasks);sh(pre+'_h',d.hrs);sh(pre+'_e',d.entries);}
   setAB('ab_cfm',ab(acBreak('CFM56')));setAB('ab_v25',ab(acBreak('V2500')));
   setAB('ab_pw',ab(acBreak('PW1100')));setAB('ab_boe',ab(acBreak('BOEING')));
+  // Component Type Breakdown — แยกตามรหัส C-Rating ในช่อง Reg. (C5:/C15:/C18:)
+  const compBreak=code=>rp.filter(row=>/C Rating/i.test(row.actype||'')&&(row.reg||'').includes(code+':'));
+  setAB('cb_c5',ab(compBreak('C5')));setAB('cb_c15',ab(compBreak('C15')));setAB('cb_c18',ab(compBreak('C18')));
   const acts=['Servicing','Inspection','Test','Troubleshooting','Repair','Modification','Remove & Install','Overhaul','Supervised','Release to Service'];
   const gids=['s','i','t','tr','r','m','ri','o','su','rs'];
   const cnts=acts.map(a=>rp.filter(r=>ha(r,a)).length);
