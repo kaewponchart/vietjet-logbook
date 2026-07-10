@@ -1074,8 +1074,7 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
     <b style="color:#1a3a6b">เกณฑ์การประเมิน (TCAR 8 Part 145.A.35):</b>
     <b>1st Type</b> = งานบน AIRBUS A320/321 (ทุกเครื่องยนต์), BOEING 737-8, Component C-Rating (C5/C15) และ Specialized Service &nbsp;·&nbsp;
     <b>2nd Type</b> = Component C-Rating (C18) &nbsp;·&nbsp;
-    ผ่านเมื่อครบ <b>≥100 Working Days</b> (ชม.รวม ÷ 8 + เครดิตเทรนนิ่งสูงสุด 20%) <b>หรือ ≥180 Tasks</b> อย่างใดอย่างหนึ่ง ภายในช่วงประเมิน
-    &nbsp;·&nbsp; <b>Specialized Service – NDT/Structure</b> ประเมินตาม Additional Nature of Experience (แต่ละ method ≥1 task ใน 12 เดือนล่าสุด)
+    ผ่านเมื่อครบ <b>≥100 Working Days</b> (ชม.รวม ÷ 8 + เครดิตเทรนนิ่งสูงสุด 20%) <b>หรือ ≥180 Tasks</b> อย่างใดอย่างหนึ่ง ภายในช่วงประเมิน — ใช้เกณฑ์เดียวกันทุก Position
   </div>
 
   <!-- Table -->
@@ -1087,8 +1086,8 @@ table.lg td input:focus,table.lg td select:focus{outline:1px solid #c00000;backg
           <th style="padding:10px 8px;text-align:center">Staff ID</th>
           <th style="padding:10px 8px;text-align:center">Position</th>
           <th style="padding:10px 8px;text-align:center">บันทึก (แถว)</th>
-          <th style="padding:10px 8px;text-align:center" title="1st Type Working Days (รวมเครดิต Training +20%) — สำหรับ NDT แสดง ET/PT">WD<br><small style="font-weight:400">1st Type · NoE</small></th>
-          <th style="padding:10px 8px;text-align:center" title="1st Type Tasks (จำนวนวันที่มีงาน) — สำหรับ NDT/Structure แสดง MT/UT/Structure">Tasks<br><small style="font-weight:400">1st Type · NoE</small></th>
+          <th style="padding:10px 8px;text-align:center" title="1st Type Working Days (รวมเครดิต Training +20%)">WD<br><small style="font-weight:400">1st Type</small></th>
+          <th style="padding:10px 8px;text-align:center" title="1st Type Tasks (จำนวนวันที่มีงาน)">Tasks<br><small style="font-weight:400">1st Type</small></th>
           <th style="padding:10px 8px;text-align:center">สถานะ</th>
           <th style="padding:10px 8px;text-align:center">บันทึกล่าสุด</th>
           <th style="padding:10px 8px;text-align:center">จัดการ</th>
@@ -1946,33 +1945,17 @@ function renderAdminTable(data){
   const tbody=document.getElementById('admin-tbody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
   const nb=(v,req)=>'<span style="font-weight:700;color:'+(v>=req?'#2e7d32':'#c00000')+'">'+v+'</span><small style="color:#aaa">/'+req+'</small>';
-  const mini=(lbl,v,req)=>'<small style="color:#888">'+lbl+'</small> '+nb(v,req);
   const mkBadge=(pass,sub)=>(pass
     ?'<span style="background:#e4f3e5;color:#2e7d32;border:1px solid #a5d6a7;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">✓ ผ่าน</span>'
     :'<span style="background:#fdecea;color:#c00000;border:1px solid #f5b8b3;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">✗ ไม่ผ่าน</span>')
     +(sub?'<div style="font-size:9px;color:#888;margin-top:2px">'+sub+'</div>':'');
   tbody.innerHTML=data.map((u,i)=>{
     const c=adminUserComp(u);
-    const isNDT=u.position==='Specialized Service - NDT';
-    const isST=u.position==='Specialized Service - Structure';
-    let cellWD,cellTasks,badge,tip='';
-    if(isNDT){
-      // Additional Nature of Experience – NDT: แต่ละ method ≥1 ใน 12 เดือนล่าสุด
-      cellWD=mini('ET',c.et,1)+' · '+mini('PT',c.pt,1);
-      cellTasks=mini('MT',c.mt,1)+' · '+mini('UT',c.ut,1);
-      badge=mkBadge(c.ndtPass,'Additional NoE – NDT');
-      tip=' title="Additional Nature of Experience – NDT: ET/PT/MT/UT อย่างละ ≥1 task ใน 12 เดือนล่าสุด (1st Type: '+c.wd1t+' WD / '+c.t1+' Tasks)"';
-    }else if(isST){
-      cellWD='<span style="color:#bbb">—</span>';
-      cellTasks=mini('Structure',c.st2,1);
-      badge=mkBadge(c.stPass,'Additional NoE – Structure');
-      tip=' title="Additional Nature of Experience – Structure: ≥1 task ใน 12 เดือนล่าสุด (1st Type: '+c.wd1t+' WD / '+c.t1+' Tasks)"';
-    }else{
-      cellWD=nb(c.wd1t,100)+(c.ex>0?' <small style="color:#888">(+'+c.ex+'trn)</small>':'');
-      cellTasks=nb(c.t1,180);
-      badge=mkBadge(c.pass1,'');
-      tip=c.has2?' title="2nd Type: '+c.wd2+' WD / '+c.t2+' Tasks'+(c.pass2?' (ผ่าน)':' (ไม่ผ่าน)')+'"':'';
-    }
+    // เกณฑ์เดียวกันทุก position: TCAR 8 Part 145.A.35 → ≥100 WD หรือ ≥180 Tasks
+    const cellWD=nb(c.wd1t,100)+(c.ex>0?' <small style="color:#888">(+'+c.ex+'trn)</small>':'');
+    const cellTasks=nb(c.t1,180);
+    const badge=mkBadge(c.pass1,'');
+    const tip=c.has2?' title="2nd Type: '+c.wd2+' WD / '+c.t2+' Tasks'+(c.pass2?' (ผ่าน)':' (ไม่ผ่าน)')+'"':'';
     return '<tr style="'+(i%2?'background:#fdf8f0':'')+'">'
       +'<td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+esc(u.name)+'</td>'
       +'<td style="padding:9px 8px;text-align:center">'+esc(u.staffId)+'</td>'
@@ -2001,10 +1984,8 @@ function renderAdminTable(data){
   });
 }
 function adminUserPass(u){
-  const c=adminUserComp(u);
-  if(u.position==='Specialized Service - NDT')return c.ndtPass;
-  if(u.position==='Specialized Service - Structure')return c.stPass;
-  return c.pass1;
+  // เกณฑ์เดียวกันทุก position (TCAR 8 Part 145.A.35): ≥100 WD หรือ ≥180 Tasks
+  return adminUserComp(u).pass1;
 }
 function updateAdminStats(data){
   const ar=getAdminRange();const cnt=u=>ar?rowsInAdminRange(u.rowsArr):u.rows;
