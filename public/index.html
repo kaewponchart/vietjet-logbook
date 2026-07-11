@@ -1137,7 +1137,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.5.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.6.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1247,9 +1247,25 @@ async function loadData(){
     const doc = await fbDb.collection('logbooks').doc(currentUser.uid).get();
     if(doc.exists){
       D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, doc.data());
+      _baseSavedAt = D._savedAt || null;   // เวอร์ชันที่เราถืออยู่ (ใช้ตรวจการชนกัน)
+    } else {
+      _baseSavedAt = null;
     }
   } catch(e){ console.warn('Load error:',e); }
   setStatus('');
+}
+
+// ── Concurrency guard: กันหลาย session เขียนทับกันแบบเงียบ ๆ (last-write-wins) ──
+let _baseSavedAt  = null;    // _savedAt ของเวอร์ชันที่เรากำลังถืออยู่บนจอ
+let _conflictOpen = false;   // true = กำลังมี modal แจ้งข้อมูลชนกันค้างอยู่ (พักการบันทึก)
+let _saving       = false;   // กันการเซฟซ้อนกัน
+let _saveTimer    = null;    // ตัวจับเวลา debounce ของ autosave
+
+// autosave แบบหน่วงเวลา (ใช้กับช่องที่พิมพ์ทีละตัวอักษร)
+function queueSave(){
+  if(_conflictOpen) return;
+  if(_saveTimer) clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(()=>{ _saveTimer=null; saveData(); }, 600);
 }
 
 async function saveData(){
@@ -1257,23 +1273,92 @@ async function saveData(){
     showSaved('⚠️ ยังไม่ได้ login');
     return;
   }
+  if(_conflictOpen) return;                 // พักไว้จนกว่าผู้ใช้จะเลือกวิธีแก้ปัญหาชนกัน
+  if(_saving){ queueSave(); return; }       // มีการเซฟค้างอยู่ ค่อยเซฟรอบถัดไป
+  _saving = true;
   const target = editUid || currentUser.uid;
   try {
     showSaved('⏳ กำลังบันทึก...');
-    D._savedAt  = new Date().toISOString();
+    // ตรวจก่อนว่ามีคนอื่นแก้ข้อมูลนี้หลังจากที่เราโหลดมาหรือยัง
+    const cur = await fbDb.collection('logbooks').doc(target).get();
+    if(cur.exists){
+      const dbSavedAt = cur.data()._savedAt || null;
+      if(_baseSavedAt && dbSavedAt && dbSavedAt !== _baseSavedAt){
+        _saving = false;
+        onSaveConflict(target, cur.data());   // ไม่เขียนทับ — เด้ง modal ให้เลือก
+        return;
+      }
+    }
+    const now = new Date().toISOString();
+    D._savedAt = now;
     if(editUid){
       // Admin editing another user's record: keep the owner's identity, stamp who edited
       D._lastEditedBy = currentUser.email;
-      D._lastEditedAt = D._savedAt;
+      D._lastEditedAt = now;
     } else {
       D._uid      = currentUser.uid;
       D._email    = currentUser.email;
       D._userName = currentUser.displayName || '';
     }
     await fbDb.collection('logbooks').doc(target).set(D);
+    _baseSavedAt = now;                       // เวอร์ชันของเราคือเวอร์ชันล่าสุดแล้ว
     showSaved((editUid?('✓ บันทึกข้อมูลของ '+editName+' — '):'✓ บันทึกแล้ว — ') + new Date().toLocaleTimeString('th-TH'));
   } catch(e){
     showSaved('❌ บันทึกไม่สำเร็จ: ' + e.message);
+  } finally {
+    _saving = false;
+  }
+}
+
+// แสดงหน้าต่างแจ้งเตือนเมื่อข้อมูลถูกแก้จากที่อื่น (ไม่เขียนทับอัตโนมัติ)
+function onSaveConflict(target, dbData){
+  _conflictOpen = true;
+  if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
+  showSaved('⚠️ ข้อมูลถูกแก้จากที่อื่น — พักการบันทึกไว้ก่อน');
+  const who  = dbData._lastEditedBy || dbData._email || 'ผู้ใช้อื่น';
+  const when = dbData._savedAt ? new Date(dbData._savedAt).toLocaleString('th-TH') : '-';
+  const old  = document.getElementById('conflict-modal'); if(old) old.remove();
+  const m = document.createElement('div');
+  m.id = 'conflict-modal';
+  m.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100000;display:flex;align-items:center;justify-content:center;padding:20px';
+  m.innerHTML =
+    '<div style="background:#fff;max-width:460px;width:100%;border-radius:12px;box-shadow:0 10px 40px rgba(0,0,0,.4);overflow:hidden">'
+    + '<div style="background:#c00000;color:#fff;padding:14px 18px;font-weight:800;font-size:15px">⚠️ ข้อมูลถูกแก้ไขจากที่อื่น</div>'
+    + '<div style="padding:18px;font-size:13px;color:#333;line-height:1.6">'
+    +   'ข้อมูลชุดนี้ถูกบันทึกจากที่อื่นหลังจากที่คุณเปิดหน้านี้ '
+    +   '(แก้ล่าสุดโดย <b>'+esc(who)+'</b> เมื่อ <b>'+esc(when)+'</b>)<br><br>'
+    +   'หากบันทึกทับตอนนี้ การแก้ไขของอีกฝ่ายจะหายไป ต้องการทำอย่างไร?'
+    + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:8px;justify-content:flex-end;padding:0 18px 18px">'
+    +   '<button onclick="resolveConflict(\'cancel\')" style="background:#eee;color:#333;border:none;border-radius:6px;padding:9px 14px;font-size:13px;font-weight:600;cursor:pointer">พักไว้ก่อน</button>'
+    +   '<button onclick="resolveConflict(\'reload\')" style="background:#1a6b2e;color:#fff;border:none;border-radius:6px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer">↻ โหลดข้อมูลล่าสุด (ทิ้งที่ฉันแก้)</button>'
+    +   '<button onclick="resolveConflict(\'overwrite\')" style="background:#c00000;color:#fff;border:none;border-radius:6px;padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer">เขียนทับด้วยข้อมูลของฉัน</button>'
+    + '</div></div>';
+  document.body.appendChild(m);
+}
+
+async function resolveConflict(action){
+  const m = document.getElementById('conflict-modal'); if(m) m.remove();
+  _conflictOpen = false;
+  const target = editUid || currentUser.uid;
+  if(action==='reload'){
+    try{
+      const doc = await fbDb.collection('logbooks').doc(target).get();
+      if(doc.exists){
+        D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, doc.data());
+        _baseSavedAt = D._savedAt || null;
+      }
+      renderAll(); calcSum();
+      showSaved('↻ โหลดข้อมูลล่าสุดแล้ว');
+    }catch(e){ showSaved('❌ โหลดใหม่ไม่สำเร็จ: '+e.message); }
+  } else if(action==='overwrite'){
+    try{
+      const doc = await fbDb.collection('logbooks').doc(target).get();   // sync baseline เพื่อให้การเขียนทับผ่าน
+      _baseSavedAt = doc.exists ? (doc.data()._savedAt || null) : null;
+    }catch(e){}
+    saveData();
+  } else {
+    showSaved('พักการบันทึกไว้ — กด 💾 บันทึก อีกครั้งเมื่อพร้อม');
   }
 }
 
@@ -1285,7 +1370,7 @@ function showSaved(msg){ const el=document.getElementById('sind'); if(el){ el.te
 function spro(){
   D.profile.name=gv('pN');D.profile.staffid=gv('pS');
   D.profile.amel=gv('pA');D.profile.position=gv('pP');
-  syncPro(); saveData();
+  syncPro(); queueSave();
 }
 function syncPro(){
   sv('pN',D.profile.name);sv('pS',D.profile.staffid);
@@ -1991,7 +2076,7 @@ function renderAdminTable(data){
       +'<td style="padding:9px 8px;text-align:center"'+tip+'>'+cellWD+'</td>'
       +'<td style="padding:9px 8px;text-align:center"'+tip+'>'+cellTasks+'</td>'
       +'<td style="padding:9px 8px;text-align:center"'+tip+'>'+badge+'</td>'
-      +'<td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'ยังไม่บันทึก')+'</td>'
+      +'<td style="padding:9px 8px;text-align:center;font-size:11px;color:#888">'+(u.savedAt!=='-'?(function(){var d=new Date(u.savedAt);return d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})+'<br><span style="font-size:10px;color:#aaa">'+d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' น.</span>';})():'ยังไม่บันทึก')+'</td>'
       +'<td style="padding:9px 8px;text-align:center"><button class="btn view-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a5fb4;color:#fff;padding:3px 10px;font-size:11px">👁 ดู</button> <button class="btn edit-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#1a6b2e;color:#fff;padding:3px 10px;font-size:11px">✏️ แก้ไข</button> <button class="btn del-user-btn" data-uid="'+encodeURIComponent(u.uid)+'" data-name="'+encodeURIComponent(u.name)+'" style="background:#c00000;color:#fff;padding:3px 10px;font-size:11px">🗑 ลบ</button></td></tr>';
   }).join('');
   tbody.querySelectorAll('.view-user-btn').forEach(btn=>{
@@ -2022,7 +2107,11 @@ function updateAdminStats(data){
   const passCnt=data.filter(adminUserPass).length;
   const sp=document.getElementById('stat-pass');if(sp)sp.textContent=passCnt+' / '+data.length;
   const latest=data.filter(u=>u.savedAt!=='-').sort((a,b)=>b.savedAt.localeCompare(a.savedAt))[0];
-  document.getElementById('stat-lastupdate').textContent=latest?new Date(latest.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'-';
+  const _lu=document.getElementById('stat-lastupdate');
+  if(_lu){
+    if(latest){var _d=new Date(latest.savedAt);_lu.innerHTML=_d.toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'})+' <span style="font-size:13px;color:#aaa">'+_d.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'})+' น.</span>';}
+    else _lu.textContent='-';
+  }
 }
 function filterAdminTable(){
   const q=(document.getElementById('admin-search').value||'').toLowerCase();
@@ -2071,6 +2160,9 @@ async function editUser(uid,name){
     if(!doc.exists){alert('ไม่พบข้อมูล');return;}
     editUid=uid; editName=name;
     D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},doc.data());
+    _baseSavedAt = D._savedAt || null;   // baseline สำหรับตรวจการชนกันของ doc พนักงานคนนี้
+    _conflictOpen = false;
+    if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
     closeUserModal();      // remove modal if open (also renders current D)
     showEditBanner();
     showTab('tl');         // jump to Experience Logbook (editable)
@@ -2079,6 +2171,9 @@ async function editUser(uid,name){
 }
 async function exitEditMode(){
   editUid=null; editName='';
+  _conflictOpen=false;
+  if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
+  const cm=document.getElementById('conflict-modal'); if(cm) cm.remove();
   hideEditBanner();
   await loadData();        // reload the admin's own record
   renderAll();calcSum();
