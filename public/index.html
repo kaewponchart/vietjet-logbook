@@ -179,6 +179,10 @@ table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:var(--red);
              padding:1px 6px;border-radius:3px;line-height:1}
 .dph button:hover{background:#fde8e8}
 .dptitle{font-weight:700;font-size:13px;color:#c00000}
+.dpsel{font-size:12px;font-weight:700;color:#c00000;border:1px solid #e3b7b7;border-radius:5px;padding:3px 4px;background:#fff;cursor:pointer;font-family:inherit}
+.dpsel:hover{background:#fde8e8}
+.dpsel:focus{outline:1px solid #c00000}
+.dpselwrap{display:flex;gap:5px;align-items:center;justify-content:center}
 .dpg{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
 .dph2{font-size:9.5px;font-weight:700;color:#999;text-align:center;padding:2px 0}
 .dpd{text-align:center;padding:5px 1px;border-radius:4px;cursor:pointer;font-size:11px;user-select:none}
@@ -720,7 +724,10 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
           <div class="ppick-pop" id="ppf_pop">
             <div class="dph" style="margin-bottom:7px">
               <button id="ppf_prev" onclick="ppStep(-1)" style="font-size:22px;font-weight:bold;padding:0 12px;min-width:36px;cursor:pointer;background:none;border:none;color:#c00000">&#8249;</button>
-              <span class="dptitle" id="ppf_title"></span>
+              <span class="dpselwrap">
+                <select id="ppf-month" class="dpsel" onchange="ppSetMonth('from',this.value)"></select>
+                <select id="ppf-year" class="dpsel" onchange="ppSetYear('from',this.value)"></select>
+              </span>
               <button id="ppf_next" onclick="ppStep(1)" style="font-size:22px;font-weight:bold;padding:0 12px;min-width:36px;cursor:pointer;background:none;border:none;color:#c00000">&#8250;</button>
             </div>
             <div class="dpg" id="ppf_grid"></div>
@@ -732,7 +739,10 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
           <div class="ppick-pop" id="ppt_pop">
             <div class="dph" style="margin-bottom:7px">
               <button id="ppt_prev" onclick="ppStep(-1)" style="font-size:22px;font-weight:bold;padding:0 12px;min-width:36px;cursor:pointer;background:none;border:none;color:#c00000">&#8249;</button>
-              <span class="dptitle" id="ppt_title"></span>
+              <span class="dpselwrap">
+                <select id="ppt-month" class="dpsel" onchange="ppSetMonth('to',this.value)"></select>
+                <select id="ppt-year" class="dpsel" onchange="ppSetYear('to',this.value)"></select>
+              </span>
               <button id="ppt_next" onclick="ppStep(1)" style="font-size:22px;font-weight:bold;padding:0 12px;min-width:36px;cursor:pointer;background:none;border:none;color:#c00000">&#8250;</button>
             </div>
             <div class="dpg" id="ppt_grid"></div>
@@ -1020,9 +1030,12 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 <!-- Date picker popup (single shared) -->
 <div class="dpop" id="dpop">
   <div class="dph">
-    <button onclick="dpNav(-1)">&#8249;</button>
-    <span class="dptitle" id="dptitle"></span>
-    <button onclick="dpNav(1)">&#8250;</button>
+    <button onclick="dpNav(-1)" title="เดือนก่อนหน้า">&#8249;</button>
+    <span class="dpselwrap">
+      <select id="dp-month" class="dpsel" onchange="dpSetMonth(this.value)"></select>
+      <select id="dp-year" class="dpsel" onchange="dpSetYear(this.value)"></select>
+    </span>
+    <button onclick="dpNav(1)" title="เดือนถัดไป">&#8250;</button>
   </div>
   <div class="dpg" id="dpg"></div>
 </div><!-- end dpop -->
@@ -1137,7 +1150,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.6.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.6.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1451,12 +1464,13 @@ function openPP(which){
   renderPPGrid();
 }
 function ppStep(dir){ppTarget=ppWhich;ppM+=dir;if(ppM>11){ppM=0;ppY++;}if(ppM<0){ppM=11;ppY--;}renderPPGrid();}
+function ppSetMonth(which,m){ppTarget=which;ppWhich=which;ppM=parseInt(m,10);renderPPGrid();}
+function ppSetYear(which,y){ppTarget=which;ppWhich=which;ppY=parseInt(y,10);renderPPGrid();}
 function renderPPGrid(){
   const pf=ppTarget==='from';
-  const titleEl=document.getElementById(pf?'ppf_title':'ppt_title');
   const gridEl=document.getElementById(pf?'ppf_grid':'ppt_grid');
-  if(!titleEl||!gridEl)return;
-  titleEl.textContent=MO2[ppM]+' '+ppY;
+  if(!gridEl)return;
+  dpFillSel(pf?'ppf-month':'ppt-month', pf?'ppf-year':'ppt-year', ppM, ppY);
   const selIso=pf?D.pfrom:D.pto;const selD=selIso?isoToD(selIso):null;const today=new Date();
   let html='';
   ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>html+=`<div class="dph2">${d}</div>`);
@@ -1505,8 +1519,24 @@ function openDP(inp,ev){
 }
 function closeDPop(){document.getElementById('dpop').classList.remove('show');}
 function dpNav(dir){dpM2+=dir;if(dpM2>11){dpM2=0;dpY++;}if(dpM2<0){dpM2=11;dpY--;}renderDP();}
+function dpSetMonth(m){dpM2=parseInt(m,10);renderDP();}
+function dpSetYear(y){dpY=parseInt(y,10);renderDP();}
+// เติม dropdown เดือน (JAN..DEC) และปี (ย้อนหลังได้ไกล) ให้ picker
+function dpFillSel(mId,yId,m,y){
+  const ms=document.getElementById(mId),ys=document.getElementById(yId);
+  if(ms){ if(ms.options.length!==12)ms.innerHTML=MO2.map((mo,i)=>'<option value="'+i+'">'+mo+'</option>').join(''); ms.value=m; }
+  if(ys){
+    const now=new Date().getFullYear();
+    const lo=Math.min(now-60,y), hi=Math.max(now+2,y);   // ครอบคลุมย้อนหลังไกล ๆ
+    if(ys.dataset.lo!=lo||ys.dataset.hi!=hi){
+      let o='';for(let yy=hi;yy>=lo;yy--)o+='<option value="'+yy+'">'+yy+'</option>';
+      ys.innerHTML=o;ys.dataset.lo=lo;ys.dataset.hi=hi;
+    }
+    ys.value=y;
+  }
+}
 function renderDP(){
-  sh('dptitle',MO2[dpM2]+' '+dpY);
+  dpFillSel('dp-month','dp-year',dpM2,dpY);
   const g=document.getElementById('dpg');g.innerHTML='';
   ['Su','Mo','Tu','We','Th','Fr','Sa'].forEach(d=>{const e=document.createElement('div');e.className='dph2';e.textContent=d;g.appendChild(e);});
   const first=new Date(dpY,dpM2,1).getDay(),dim=new Date(dpY,dpM2+1,0).getDate();
