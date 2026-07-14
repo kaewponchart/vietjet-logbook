@@ -1150,7 +1150,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.6.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.6.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1264,6 +1264,7 @@ async function loadData(){
     } else {
       _baseSavedAt = null;
     }
+    _lastSig = contentSig();               // baseline สำหรับ dirty-check
   } catch(e){ console.warn('Load error:',e); }
   setStatus('');
 }
@@ -1272,13 +1273,29 @@ async function loadData(){
 let _baseSavedAt  = null;    // _savedAt ของเวอร์ชันที่เรากำลังถืออยู่บนจอ
 let _conflictOpen = false;   // true = กำลังมี modal แจ้งข้อมูลชนกันค้างอยู่ (พักการบันทึก)
 let _saving       = false;   // กันการเซฟซ้อนกัน
-let _saveTimer    = null;    // ตัวจับเวลา debounce ของ autosave
+let _saveTimer    = null;    // ตัวจับเวลา debounce ของ autosave (โปรไฟล์)
+let _saveAllTimer = null;    // ตัวจับเวลา debounce ของการแก้ในตาราง
+let _lastSig      = null;    // ลายเซ็นเนื้อหาที่บันทึกไปล่าสุด (ใช้ข้ามการเขียนซ้ำที่ไม่เปลี่ยนแปลง)
 
-// autosave แบบหน่วงเวลา (ใช้กับช่องที่พิมพ์ทีละตัวอักษร)
+// ลายเซ็นเฉพาะเนื้อหาจริง (ไม่รวม metadata ที่เปลี่ยนทุกครั้งที่เซฟ)
+function contentSig(){
+  try{ return JSON.stringify({p:D.profile,r:D.rows,t:D.training,m:D.pmode,f:D.pfrom,o:D.pto}); }
+  catch(e){ return Math.random().toString(); }   // ถ้า stringify พลาด ให้ถือว่าเปลี่ยน (เขียนไว้ก่อน)
+}
+
+// autosave แบบหน่วงเวลา (ใช้กับช่องโปรไฟล์ที่พิมพ์ทีละตัวอักษร)
 function queueSave(){
   if(_conflictOpen) return;
   if(_saveTimer) clearTimeout(_saveTimer);
   _saveTimer = setTimeout(()=>{ _saveTimer=null; saveData(); }, 600);
+}
+
+// autosave แบบหน่วงเวลา (ใช้กับการแก้หลายช่องในตาราง — รวมหลายช่องเป็น 1 write)
+function saveAllSoon(){
+  if(_suspendSave || _conflictOpen) return;
+  collectD();                                   // เก็บค่าลง D ทันที (summary/export ใช้ค่าล่าสุดได้)
+  if(_saveAllTimer) clearTimeout(_saveAllTimer);
+  _saveAllTimer = setTimeout(()=>{ _saveAllTimer=null; saveData(); }, 1500);   // หน่วงเฉพาะการเขียนจริง
 }
 
 async function saveData(){
@@ -1288,6 +1305,12 @@ async function saveData(){
   }
   if(_conflictOpen) return;                 // พักไว้จนกว่าผู้ใช้จะเลือกวิธีแก้ปัญหาชนกัน
   if(_saving){ queueSave(); return; }       // มีการเซฟค้างอยู่ ค่อยเซฟรอบถัดไป
+  // ── ข้ามการเขียนถ้าเนื้อหาไม่เปลี่ยนจริง (ประหยัด write + read) ──
+  const sig = contentSig();
+  if(_lastSig!==null && sig===_lastSig){
+    showSaved('✓ เป็นปัจจุบัน — ' + new Date().toLocaleTimeString('th-TH'));
+    return;
+  }
   _saving = true;
   const target = editUid || currentUser.uid;
   try {
@@ -1315,6 +1338,7 @@ async function saveData(){
     }
     await fbDb.collection('logbooks').doc(target).set(D);
     _baseSavedAt = now;                       // เวอร์ชันของเราคือเวอร์ชันล่าสุดแล้ว
+    _lastSig     = sig;                       // จำเนื้อหาที่เพิ่งบันทึก
     showSaved((editUid?('✓ บันทึกข้อมูลของ '+editName+' — '):'✓ บันทึกแล้ว — ') + new Date().toLocaleTimeString('th-TH'));
   } catch(e){
     showSaved('❌ บันทึกไม่สำเร็จ: ' + e.message);
@@ -1360,6 +1384,7 @@ async function resolveConflict(action){
       if(doc.exists){
         D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, doc.data());
         _baseSavedAt = D._savedAt || null;
+        _lastSig = contentSig();
       }
       renderAll(); calcSum();
       showSaved('↻ โหลดข้อมูลล่าสุดแล้ว');
@@ -1692,14 +1717,19 @@ function getTRows(){
 
 // ══ SAVE ALL ════════════════════════════════════════════════════════════════
 let _suspendSave=false;   // true while another user's data is temporarily on screen (admin export)
-function saveAll(){
-  if(_suspendSave)return;
+// เก็บค่าจากหน้าจอลง D (ไม่เขียน DB) — ใช้ร่วมกันทั้งเซฟทันทีและ debounce
+function collectD(){
   D.rows=getRows();D.training=getTRows();
   D.pmode=gv('pmode')||'auto';
   // เก็บข้อมูลโปรไฟล์ด้วย (แก้บั๊ก: กดปุ่มบันทึกแล้วชื่อ/รหัสพนักงานที่แก้ไม่ถูกบันทึก)
   D.profile=D.profile||{};
   D.profile.name=gv('pN');D.profile.staffid=gv('pS');
   D.profile.amel=gv('pA');D.profile.position=gv('pP');
+}
+function saveAll(){
+  if(_suspendSave)return;
+  if(_saveAllTimer){ clearTimeout(_saveAllTimer); _saveAllTimer=null; }   // ยกเลิก debounce ที่ค้าง กันเขียนซ้ำ
+  collectD();
   saveData();
 }
 
@@ -1980,8 +2010,8 @@ function calcSum(){
 
 // ══ AUTO SAVE ON CHANGE ════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('lb').addEventListener('change',()=>saveAll());
-  document.getElementById('tb').addEventListener('change',()=>saveAll());
+  document.getElementById('lb').addEventListener('change',()=>saveAllSoon());
+  document.getElementById('tb').addEventListener('change',()=>saveAllSoon());
   initFirebase();
   // ── version system ──
   initVersionUI();
@@ -2191,6 +2221,7 @@ async function editUser(uid,name){
     editUid=uid; editName=name;
     D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},doc.data());
     _baseSavedAt = D._savedAt || null;   // baseline สำหรับตรวจการชนกันของ doc พนักงานคนนี้
+    _lastSig = contentSig();             // baseline สำหรับ dirty-check
     _conflictOpen = false;
     if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
     closeUserModal();      // remove modal if open (also renders current D)
