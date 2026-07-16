@@ -53,51 +53,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-s
   .btn-google{font-size:15px}
 }
 
-/* ══ MOBILE LAYOUT (จอ ≤600px) — เฉพาะมือถือ ไม่กระทบเดสก์ท็อป ═════════ */
-@media (max-width:600px){
-  .page{padding:6px}
-
-  /* Header ย่อกระชับ */
-  .hbar{grid-template-columns:auto 1fr auto;height:auto;padding:6px 10px;gap:8px;border-radius:8px 8px 0 0}
-  .hbar-logo{height:30px}
-  .hbar-title h1{font-size:10px;letter-spacing:.6px;line-height:1.2}
-  .hbar-ref{display:none}                    /* รหัสเอกสารยาว ซ่อนบนมือถือ */
-  .user-name{max-width:80px;font-size:10px}
-  .btn-logout{font-size:11px;padding:5px 9px}
-
-  /* Tabs เลื่อนแนวนอนเป็น pill */
-  .tabs{gap:6px;padding:6px 6px 0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
-  .tabs::-webkit-scrollbar{display:none}
-  .tab{flex:0 0 auto;white-space:nowrap;padding:8px 12px;font-size:12px;border-radius:16px 16px 0 0}
-  .tc{padding:10px 2px}
-
-  /* ช่องโปรไฟล์ Name/ID/AMEL/Position → 2 คอลัมน์กะทัดรัด */
-  .igrid{grid-template-columns:1fr 1fr;gap:6px 8px;margin-bottom:8px}
-  .ifield label{font-size:8.5px}
-  .ifield input,.ifield select{padding:6px 8px;font-size:12px}
-
-  /* ปุ่มเครื่องมือเล็กลง */
-  .btn{padding:7px 9px;font-size:11px;gap:3px}
-  .br{padding:3px 7px;font-size:10px}
-
-  /* ตารางสูง ~1/3 ของจอ เลื่อนภายในได้ทั้งแนวตั้ง/แนวนอน */
-  .tbl-scroll{max-height:34vh;min-height:0}
-  table.lg,table.ttbl{min-width:760px}       /* กันคอลัมน์ถูกบีบ → เลื่อนแนวนอนแทน */
-
-  /* ตรึงคอลัมน์แรก (Date/ชื่อ) ไว้ซ้ายเสมอ */
-  table.lg thead tr:first-child th:first-child,
-  table.ttbl thead tr:first-child th:first-child,
-  table.admin-tbl thead tr:first-child th:first-child{
-    position:sticky;left:0;z-index:30;background:var(--red);
-  }
-  table.lg tbody td:first-child,
-  table.ttbl tbody td:first-child,
-  table.admin-tbl tbody td:first-child{
-    position:sticky;left:0;z-index:6;background:var(--card);
-    box-shadow:2px 0 4px rgba(0,0,0,.06);
-  }
-}
-
 /* ══ VERSION UPDATE BANNER ═════════════════════════════════════════ */
 #update-banner{
   display:none;position:fixed;left:0;right:0;bottom:0;z-index:9999;
@@ -488,6 +443,52 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 
 
 .fnote{font-size:10px;color:#999;margin-top:8px;font-style:italic}
+/* ══ MOBILE LAYOUT (จอ ≤600px) — วางท้ายสุดเพื่อให้ทับกฎเดสก์ท็อปได้ ═══════ */
+@media (max-width:600px){
+  /* กันไม่ให้ทั้งหน้าล้นออกด้านข้าง (ตารางจะเลื่อนภายในกล่องแทน) */
+  html,body{overflow-x:hidden}
+  .page{padding:6px;max-width:100%;overflow-x:hidden}
+
+  /* Header ย่อกระชับ */
+  .hbar{grid-template-columns:auto 1fr auto!important;height:auto!important;padding:6px 10px!important;gap:8px;border-radius:8px 8px 0 0}
+  .hbar-logo{height:30px!important}
+  .hbar-title h1{font-size:10px!important;letter-spacing:.6px!important;line-height:1.2}
+  .hbar-ref{display:none!important}                    /* รหัสเอกสารยาว ซ่อนบนมือถือ */
+  .user-name{max-width:70px!important;font-size:10px}
+  .btn-logout{font-size:11px;padding:5px 9px}
+
+  /* Tabs เลื่อนแนวนอนเป็น pill */
+  .tabs{gap:6px;padding:6px 6px 0;overflow-x:auto;flex-wrap:nowrap;-webkit-overflow-scrolling:touch}
+  .tabs::-webkit-scrollbar{display:none}
+  .tab{flex:0 0 auto;white-space:nowrap;padding:8px 12px;font-size:12px;border-radius:16px 16px 0 0}
+  .tc{padding:10px 2px}
+
+  /* ช่องโปรไฟล์ Name/ID/AMEL/Position → 2 คอลัมน์กะทัดรัด */
+  .igrid{grid-template-columns:1fr 1fr!important;gap:6px 8px;margin-bottom:8px}
+  .ifield label{font-size:8.5px}
+  .ifield input,.ifield select{padding:6px 8px;font-size:12px;min-width:0}
+
+  /* ปุ่มเครื่องมือเล็กลง + ห่อบรรทัด */
+  .btn{padding:7px 9px;font-size:11px;gap:3px}
+  .br{padding:3px 7px;font-size:10px}
+
+  /* ตารางสูง ~1/3 ของจอ เลื่อนภายในได้ทั้งแนวตั้ง/แนวนอน */
+  .tbl-scroll{max-height:34vh!important;min-height:0!important;overflow:auto!important}
+  table.lg,table.ttbl{min-width:720px}       /* กันคอลัมน์ถูกบีบ → เลื่อนแนวนอนในกล่อง */
+
+  /* ตรึงคอลัมน์แรก (Date/ชื่อ) ไว้ซ้ายเสมอ */
+  table.lg thead tr:first-child th:first-child,
+  table.ttbl thead tr:first-child th:first-child,
+  table.admin-tbl thead tr:first-child th:first-child{
+    position:sticky;left:0;z-index:30;background:var(--red);
+  }
+  table.lg tbody td:first-child,
+  table.ttbl tbody td:first-child,
+  table.admin-tbl tbody td:first-child{
+    position:sticky;left:0;z-index:6;background:var(--card);
+    box-shadow:2px 0 4px rgba(0,0,0,.06);
+  }
+}
 </style>
 </head>
 <body>
@@ -1195,7 +1196,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.7.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.7.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
