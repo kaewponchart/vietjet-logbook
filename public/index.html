@@ -488,6 +488,22 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     position:sticky;left:0;z-index:6;background:var(--card);
     box-shadow:2px 0 4px rgba(0,0,0,.06);
   }
+
+  /* ── Summary Sheet + Admin "ดูข้อมูล" modal: กันฟอนต์ซ้อน/ล้น ── */
+  /* บังคับพาเนลที่วางข้างกัน (grid 2 คอลัมน์) ให้ stack เป็นคอลัมน์เดียว → ตารางได้ความกว้างเต็ม */
+  #ts [style*="grid-template-columns:1fr 1fr"],
+  #mts [style*="grid-template-columns:1fr 1fr"]{
+    grid-template-columns:1fr!important;
+  }
+  /* modal ให้พอดีจอแคบ */
+  #admin-modal{padding:6px!important}
+  #admin-modal>div{max-width:100%!important}
+  /* หัว modal + แถบข้อมูล ให้ห่อบรรทัดแทนที่จะล้น */
+  #admin-modal [style*="justify-content:space-between"]{flex-wrap:wrap;gap:8px}
+  #admin-modal [style*="gap:20px"]{flex-wrap:wrap!important;gap:6px 14px!important}
+  /* ตาราง Logbook/Training ใน modal (คอลัมน์เยอะ) เลื่อนแนวนอนได้ */
+  #mtl,#mtt{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  #mtl table,#mtt table{min-width:720px}
 }
 </style>
 </head>
@@ -1196,7 +1212,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.7.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.7.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
