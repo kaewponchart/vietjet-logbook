@@ -504,6 +504,18 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   /* ตาราง Logbook/Training ใน modal (คอลัมน์เยอะ) เลื่อนแนวนอนได้ */
   #mtl,#mtt{overflow-x:auto;-webkit-overflow-scrolling:touch}
   #mtl table,#mtt table{min-width:720px}
+
+  /* ── Additional Nature table: 6 คอลัมน์แน่นบนมือถือ → บีบความกว้างคงที่ให้พอดี
+        ปล่อยคอลัมน์ Item เป็น auto จะได้ไม่ถูกบีบจนตัวอักษรล้นทับคอลัมน์ Period ── */
+  table.atbl{font-size:10px!important}
+  table.atbl th,table.atbl td{padding:5px 4px!important;vertical-align:middle}
+  table.atbl td:first-child,table.atbl th:first-child{padding-left:8px!important;white-space:normal;line-height:1.25}
+  table.atbl col:nth-child(2){width:60px!important}   /* Period    */
+  table.atbl col:nth-child(3){width:52px!important}   /* Criteria  */
+  table.atbl col:nth-child(4){width:30px!important}   /* Tasks     */
+  table.atbl col:nth-child(5){width:44px!important}   /* Total Hrs */
+  table.atbl col:nth-child(6){width:52px!important}   /* Result    */
+  table.atbl td:nth-child(2){white-space:nowrap;font-size:9.5px!important}   /* Period อยู่บรรทัดเดียว */
 }
 </style>
 </head>
@@ -573,8 +585,8 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <span style="color:#ddd;margin:0 8px">|</span><span id="ssi" style="color:#666">-</span>
       <span style="color:#ddd;margin:0 8px">|</span><span id="spo" style="color:#666">-</span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center">
-      <span style="font-size:11px;color:#888">📅 <span id="spd">-</span></span>
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+      <span style="font-size:11px;color:#888;white-space:nowrap">📅 <span id="spd">-</span></span>
       <button class="btn bb" onclick="calcSum()" style="padding:5px 12px">🔄 คำนวณใหม่</button>
       <button class="btn" style="background:#1a6b2e;color:#fff;padding:5px 12px" onclick="saveAll()">💾 บันทึก</button>
       <button class="btn" style="background:#2c5f2e;color:#fff;padding:5px 12px" onclick="exportPDF('all')">📄 Export PDF</button>
@@ -721,7 +733,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   <!-- ══ SECTION 3: Additional Nature ══ -->
   <div style="background:#fdf9f0;border:1px solid #e8d8c0;border-radius:8px;overflow:hidden">
     <div style="background:#2a2a2a;color:#fff;padding:6px 12px;font-size:11px;font-weight:700">⭐ Additional Nature of Experience</div>
-    <table style="width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed">
+    <table class="atbl" style="width:100%;border-collapse:collapse;font-size:11.5px;table-layout:fixed">
       <colgroup>
         <col style="width:auto">
         <col style="width:100px">
@@ -1212,7 +1224,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.7.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.7.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
