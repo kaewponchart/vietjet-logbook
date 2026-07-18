@@ -455,6 +455,17 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 
 
 .fnote{font-size:10px;color:#999;margin-top:8px;font-style:italic}
+
+/* ══ REFINEMENTS (all screens) ══════════════════════════════════════ */
+/* Admin action column: keep the 3 icon buttons on a single line */
+.admin-tbl td:last-child{white-space:nowrap}
+.view-user-btn,.edit-user-btn,.del-user-btn{white-space:nowrap;vertical-align:middle}
+/* Period bar: tighter, better-proportioned values */
+.pbar .pv{font-size:12px}
+.pbar .pl{font-size:11px}
+/* Summary top action buttons: consistent height/padding */
+.ts-actions .btn{padding:6px 12px;font-size:12px;line-height:1.1}
+
 /* ══ MOBILE LAYOUT (จอ ≤600px) — วางท้ายสุดเพื่อให้ทับกฎเดสก์ท็อปได้ ═══════ */
 @media (max-width:600px){
   /* กันไม่ให้ทั้งหน้าล้นออกด้านข้าง (ตารางจะเลื่อนภายในกล่องแทน) */
@@ -549,6 +560,45 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   table.atbl col:nth-child(5){width:44px!important}   /* Total Hrs */
   table.atbl col:nth-child(6){width:52px!important}   /* Result    */
   table.atbl td:nth-child(2){white-space:nowrap;font-size:9.5px!important}   /* Period อยู่บรรทัดเดียว */
+
+  /* ── Summary Sheet: ย่อส่วนหัว/บล็อกตัวเลขไม่ให้ใหญ่เกินไป ── */
+  .ts-top{gap:6px!important;margin-bottom:8px!important}
+  .ts-ident{font-size:11px!important;width:100%}
+  .ts-actions{width:100%;justify-content:stretch!important;gap:6px!important}
+  .ts-actions>span{flex:1 1 100%;text-align:center;order:-1}
+  .ts-actions .btn{flex:1 1 0;justify-content:center;padding:8px 4px!important;font-size:11px!important;min-height:34px}
+  /* บล็อกตัวเลข Working Days / Tasks ให้กระชับ */
+  .sum-compliance [id$="_big"]{font-size:22px!important}
+  .sum-compliance div[style*="padding:12px 16px"]{padding:9px 8px!important}
+  .sum-compliance div[style*="font-size:11px;font-weight:700"]{font-size:10px!important}
+
+  /* ── Period bar (Experience Period) ทุกแท็บ: จัดสัดส่วนใหม่ให้เรียบร้อย ── */
+  .pbar{padding:8px 10px!important;gap:5px 8px!important;align-items:center}
+  .pbar .pl{font-size:11px!important}
+  .pbar .pv{font-size:12px!important}
+  .pcustom{margin-left:0!important;width:100%;gap:6px!important;padding-top:6px;border-top:1px dashed #f0d5d0}
+  .pcustom label{font-size:10px!important}
+  .pcustom select{font-size:11px;padding:4px 7px}
+  .pdate-fields{flex-wrap:wrap;gap:5px!important}
+
+  /* ── Guideline table: ลดขนาดฟอนต์/ระยะห่างบนมือถือ ── */
+  table.gtbl{font-size:10.5px!important}
+  table.gtbl th{padding:6px 8px!important}
+  table.gtbl td{padding:7px 8px!important;line-height:1.45}
+  table.gtbl td:first-child{padding:7px 4px!important}
+
+  /* ── Admin Dashboard: หัวข้อไม่ให้ใหญ่/ตกบรรทัด + แถบช่วงเวลาเรียบร้อย ── */
+  .admin-head{flex-wrap:wrap;gap:8px!important;margin-bottom:12px!important}
+  .admin-head h2{font-size:13px!important;line-height:1.25;flex:1 1 auto}
+  .admin-head .btn{font-size:11px;padding:6px 10px}
+  .admin-period{padding:8px 10px!important;gap:6px 8px!important}
+  .admin-period>span:first-child{font-size:12px!important}
+  .admin-period select,.admin-period input{font-size:11px!important;padding:5px 8px!important}
+  .admin-period #admin-period-note{margin-left:0!important;flex:1 1 100%;font-size:10px!important}
+
+  /* ── ปุ่มจัดการ 3 ปุ่มในตาราง Admin: อยู่บรรทัดเดียว ไอคอนกระชับ ── */
+  .admin-tbl td:last-child{white-space:nowrap!important}
+  .view-user-btn,.edit-user-btn,.del-user-btn{padding:4px 8px!important;font-size:11px!important;gap:3px}
 }
 </style>
 </head>
@@ -612,13 +662,13 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 <div id="ts" class="tc">
 
   <!-- Top info row -->
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
-    <div style="font-size:13px;color:#333">
+  <div class="ts-top" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+    <div class="ts-ident" style="font-size:13px;color:#333">
       <b id="sn" style="color:#9a0000">-</b>
       <span style="color:#ddd;margin:0 8px">|</span><span id="ssi" style="color:#666">-</span>
       <span style="color:#ddd;margin:0 8px">|</span><span id="spo" style="color:#666">-</span>
     </div>
-    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
+    <div class="ts-actions" style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end">
       <span style="font-size:11px;color:#888;white-space:nowrap">📅 <span id="spd">-</span></span>
       <button class="btn bb" onclick="calcSum()" style="padding:5px 12px">🔄 คำนวณใหม่</button>
       <button class="btn" style="background:#1a6b2e;color:#fff;padding:5px 12px" onclick="saveAll()">💾 บันทึก</button>
@@ -627,7 +677,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   </div>
 
   <!-- ══ SECTION 1: Type Compliance ══ -->
-  <div style="margin-bottom:14px">
+  <div class="sum-compliance" style="margin-bottom:14px">
     <div style="font-size:11px;font-weight:700;color:#9a0000;text-transform:uppercase;letter-spacing:.8px;margin-bottom:8px;padding-bottom:4px;border-bottom:2px solid #e31837">
       Experience Compliance
     </div>
@@ -953,7 +1003,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   <h3 style="color:#9a0000;margin-bottom:10px;font-size:15px;letter-spacing:.5px">Guideline — Experience Individual Logbook (TVJ-QA-F-057)</h3>
 
   <!-- Guideline table -->
-  <table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px">
+  <table class="gtbl" style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px">
     <thead>
       <tr style="background:#b00000;color:#fff">
         <th style="padding:7px 12px;width:45px;text-align:center">No.</th>
@@ -1151,12 +1201,12 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 
 <!-- ══ ADMIN TAB ══════════════════════════════════════════════════════════ -->
 <div id="ta" class="tc">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+  <div class="admin-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <h2 style="color:#1a3a6b;font-size:16px">👑 Admin Dashboard — ข้อมูลพนักงานทั้งหมด</h2>
     <button class="btn" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 โหลดข้อมูล</button>
   </div>
   <!-- Admin custom date period -->
-  <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+  <div class="admin-period" style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span style="font-size:13px;font-weight:700;color:#1a3a6b">📅 ช่วงเวลา:</span>
     <select id="admin-pmode" onchange="onAdminPM()" style="border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:13px">
       <option value="all">ทั้งหมด (All time)</option>
@@ -1257,7 +1307,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.8.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.8.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
