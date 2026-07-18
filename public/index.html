@@ -233,8 +233,8 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 .row-hidden{display:none}
 
 /* ══ SUMMARY ════════════════════════════════════════════════════════ */
-.rp{display:inline-block;background:#e8f0e6;color:#2e6d33;border-radius:20px;padding:4px 15px;font-size:12px;font-weight:700}
-.rf{display:inline-block;background:var(--red-soft);color:var(--red-d);border-radius:20px;padding:4px 15px;font-size:12px;font-weight:700}
+.rp{display:inline-block;background:#e8f0e6;color:#2e6d33;border-radius:20px;padding:4px 15px;font-size:12px;font-weight:700;white-space:nowrap}
+.rf{display:inline-block;background:var(--red-soft);color:var(--red-d);border-radius:20px;padding:4px 15px;font-size:12px;font-weight:700;white-space:nowrap}
 .grc{display:inline-block;width:24px;height:24px;border-radius:50%;text-align:center;line-height:24px;font-weight:700;font-size:12px}
 .grA{background:#1565c0;color:#fff}.grB{background:#2e7d32;color:#fff}
 .grC{background:#e65100;color:#fff}.grD{background:var(--red);color:#fff}
@@ -501,13 +501,13 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   .tbar>.btn{flex:1 1 calc(50% - 6px);padding:7px 8px!important}
   .tbar>span{flex:1 1 100%!important;margin:4px 0 0!important;text-align:center}
 
-  /* การ์ดสถิติ Admin: 2 คอลัมน์ กระชับ ไม่กินพื้นที่เกินครึ่งจอ */
-  #admin-stats{grid-template-columns:repeat(2,1fr)!important;gap:6px!important;margin-bottom:8px!important}
-  #admin-stats>div{padding:8px 6px!important}
-  #admin-stats>div>div:first-child{font-size:17px!important;white-space:nowrap;line-height:1.1}
-  #admin-stats>div>div:last-child{font-size:9.5px!important;line-height:1.2}
-  #admin-stats>div:last-child{grid-column:1/-1;padding:6px!important}   /* การ์ดวันที่เต็มกว้าง แต่บาง */
-  #admin-stats #stat-lastupdate{font-size:12px!important;white-space:normal}
+  /* การ์ดสถิติ Admin: บรรทัดเดียว 5 คอลัมน์ */
+  #admin-stats{grid-template-columns:repeat(5,1fr)!important;gap:4px!important;margin-bottom:8px!important}
+  #admin-stats>div{padding:7px 3px!important}
+  #admin-stats>div>div:first-child{font-size:15px!important;white-space:nowrap;line-height:1.05}
+  #admin-stats>div>div:last-child{font-size:8px!important;line-height:1.15;white-space:normal}
+  #admin-stats>div:last-child{grid-column:auto!important;padding:7px 3px!important}
+  #admin-stats #stat-lastupdate{font-size:9px!important;white-space:normal;line-height:1.1}
 
   /* กล่องเกณฑ์การประเมิน: ย่อให้เล็กลง คืนพื้นที่ให้ตาราง */
   .crit-note{font-size:9.5px!important;line-height:1.4!important;padding:7px 10px!important;margin-bottom:8px!important}
@@ -558,8 +558,10 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   table.atbl col:nth-child(3){width:52px!important}   /* Criteria  */
   table.atbl col:nth-child(4){width:30px!important}   /* Tasks     */
   table.atbl col:nth-child(5){width:44px!important}   /* Total Hrs */
-  table.atbl col:nth-child(6){width:52px!important}   /* Result    */
+  table.atbl col:nth-child(6){width:58px!important}   /* Result    */
   table.atbl td:nth-child(2){white-space:nowrap;font-size:9.5px!important}   /* Period อยู่บรรทัดเดียว */
+  /* ไอคอน Pass/Fail: บรรทัดเดียว พอดีคอลัมน์แคบ */
+  table.atbl .rp,table.atbl .rf{padding:2px 7px!important;font-size:9px!important;letter-spacing:-.2px}
 
   /* ── Summary Sheet: ย่อส่วนหัว/บล็อกตัวเลขไม่ให้ใหญ่เกินไป ── */
   .ts-top{gap:6px!important;margin-bottom:8px!important}
@@ -1307,7 +1309,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.8.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.8.4';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
