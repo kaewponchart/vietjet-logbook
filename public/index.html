@@ -1309,7 +1309,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.8.6';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.8.8';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1454,7 +1454,7 @@ function saveAllSoon(){
   if(_suspendSave || _conflictOpen) return;
   collectD();                                   // เก็บค่าลง D ทันที (summary/export ใช้ค่าล่าสุดได้)
   if(_saveAllTimer) clearTimeout(_saveAllTimer);
-  _saveAllTimer = setTimeout(()=>{ _saveAllTimer=null; saveData(); }, 1500);   // หน่วงเฉพาะการเขียนจริง
+  _saveAllTimer = setTimeout(()=>{ _saveAllTimer=null; saveData(); }, 4000);   // หน่วง 4 วิ รวมการแก้หลายครั้งเป็น 1 write
 }
 
 async function saveData(){
@@ -1632,7 +1632,7 @@ function onPM(){
     if(D.pfrom)setPPDisp('from',D.pfrom);
     if(D.pto)setPPDisp('to',D.pto);
   } else { if(pd)pd.style.display='none'; }
-  updatePeriodUI();saveAll();
+  updatePeriodUI();saveAllSoon();
 }
 
 // Period picker
@@ -1677,7 +1677,7 @@ function pickPP(iso){
     if(!toD||toD<fd){D.pto=dToIso(autoTo);setPPDisp('to',D.pto);}
   } else {D.pto=iso;setPPDisp('to',iso);}
   document.querySelectorAll('.ppick-pop').forEach(p=>p.classList.remove('show'));
-  updatePeriodUI();saveAll();calcSum();
+  updatePeriodUI();saveAllSoon();calcSum();
 }
 document.addEventListener('click',e=>{
   if(!e.target.closest('.ppick')&&!e.target.closest('.dpop'))
@@ -1832,7 +1832,7 @@ function addRow(r){
     <td class="del-col"><button class="btn br" onclick="delR(this)">✕</button></td>`;
   document.getElementById('lb').appendChild(tr);
 }
-function delR(btn){if(confirm('ลบแถวนี้?')){btn.closest('tr').remove();saveAll();}}
+function delR(btn){if(confirm('ลบแถวนี้?')){btn.closest('tr').remove();saveAllSoon();}}
 function getRows(){
   const rows=[];
   document.querySelectorAll('#lb tr').forEach(tr=>{
@@ -1891,6 +1891,17 @@ function saveAll(){
   collectD();
   saveData();
 }
+
+// เขียนงานที่ค้างอยู่ทันที (ใช้ตอนสลับแท็บ/ปิดหน้า) — saveData มีตัวข้ามการเขียนซ้ำอยู่แล้ว ถ้าไม่มีอะไรเปลี่ยนก็ไม่เขียน
+function flushSave(){
+  if(_suspendSave||_conflictOpen)return;
+  if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
+  if(_saveAllTimer){ clearTimeout(_saveAllTimer); _saveAllTimer=null; }
+  collectD();
+  saveData();
+}
+document.addEventListener('visibilitychange',()=>{ if(document.visibilityState==='hidden') flushSave(); });
+window.addEventListener('pagehide', flushSave);
 
 // ══ EXPORT / IMPORT JSON ═══════════════════════════════════════════════════
 function exportData(){
@@ -2191,6 +2202,54 @@ document.addEventListener('DOMContentLoaded',()=>{
 // ══ ADMIN FUNCTIONS ═══════════════════════════════════════════════════════
 const ADMIN_EMAILS = ['kaew.ponchart@gmail.com','chayanis.jamjunya@gmail.com','kingfubuki@gmail.com','wachira.workmail@gmail.com'];
 function isAdmin(){return !!(currentUser && currentUser.email && ADMIN_EMAILS.includes(currentUser.email.toLowerCase()));}
+
+/* ══════════ แจ้งเตือนเมื่อสถานะหล่นจาก "ผ่าน→ไม่ผ่าน" (ตรวจตอนโหลดหน้า Admin) ══════════ */
+const ALERT_ENDPOINT = '';   // ← วาง URL ของ Google Apps Script Web App (ลงท้าย /exec) ที่ deploy แล้ว
+const ALERT_SECRET   = '';   // ← ตั้งรหัสลับ ให้ตรงกับตัวแปร SECRET ในสคริปต์ Apps Script
+
+// สถานะ "ตอนนี้" แบบคงที่ (24 เดือนล่าสุดถึงวันนี้) — ไม่อิงช่วงเวลา custom บนหน้าจอ กันเตือนผิดพลาด
+function alertStatusOf(u){
+  const to=new Date();to.setHours(23,59,59,999);
+  const from=new Date(to);from.setMonth(from.getMonth()-24);from.setHours(0,0,0,0);
+  return compCore(u.rowsArr,u.trainingArr,from,to).pass1 ? 'pass' : 'fail';
+}
+// เทียบกับสถานะล่าสุดที่เก็บไว้ ถ้าใครเปลี่ยนผ่าน→ไม่ผ่าน จึงส่งเมล แล้วอัปเดตสถานะ (กันเตือนซ้ำ)
+async function checkStatusAlerts(users){
+  if(!fbDb||!Array.isArray(users)||!users.length)return;
+  try{
+    const ref=fbDb.collection('meta').doc('alertState');
+    const snap=await ref.get();
+    const prev=(snap.exists&&snap.data()&&snap.data().statuses)||{};
+    const now={};const drops=[];
+    users.forEach(u=>{
+      const s=alertStatusOf(u);
+      now[u.uid]=s;
+      if(prev[u.uid]==='pass'&&s==='fail'){drops.push({name:u.name,staffId:u.staffId,position:u.position});}
+    });
+    // เขียน meta เฉพาะเมื่อสถานะเปลี่ยนจริง (กันการเขียนทุกครั้งที่เปิดหน้า Admin)
+    const sigNow=JSON.stringify(Object.keys(now).sort().map(k=>k+':'+now[k]));
+    const sigPrev=JSON.stringify(Object.keys(prev).sort().map(k=>k+':'+prev[k]));
+    if(!snap.exists||sigNow!==sigPrev){
+      await ref.set({statuses:now,updatedAt:new Date().toISOString(),updatedBy:(currentUser&&currentUser.email)||''});
+    }
+    if(drops.length){await sendComplianceAlert(drops);toastMsg('📧 พบสถานะหล่น '+drops.length+' คน — ส่งแจ้งเตือนอีเมลแล้ว');}
+  }catch(e){console.warn('[alert] ตรวจสถานะไม่สำเร็จ:',e&&e.message);}
+}
+async function sendComplianceAlert(drops){
+  if(!ALERT_ENDPOINT){console.warn('[alert] ยังไม่ได้ตั้ง ALERT_ENDPOINT — ข้ามการส่งเมล');return;}
+  const payload={secret:ALERT_SECRET,type:'compliance_drop',when:new Date().toISOString(),count:drops.length,staff:drops};
+  try{
+    await fetch(ALERT_ENDPOINT,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain;charset=utf-8'},body:JSON.stringify(payload)});
+  }catch(e){console.warn('[alert] ส่งเมลไม่สำเร็จ:',e&&e.message);}
+}
+// toast เล็กๆ ไม่บล็อกหน้าจอ
+function toastMsg(text){
+  const t=document.createElement('div');t.textContent=text;
+  t.style.cssText='position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#1a3a6b;color:#fff;padding:11px 18px;border-radius:10px;font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25);z-index:9999;opacity:0;transition:opacity .25s;max-width:90vw;text-align:center';
+  document.body.appendChild(t);
+  requestAnimationFrame(()=>{t.style.opacity='1';});
+  setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},4200);
+}
 let allUsersData = [];
 let editUid=null, editName='';           // when set, admin is editing this user's record
 let _adminViewUid='', _adminViewName=''; // user currently open in the admin modal
@@ -2253,6 +2312,7 @@ async function loadAllUsers(){
     });
     populatePosFilter(allUsersData);
     filterAdminTable();updateAdminStats(allUsersData);
+    checkStatusAlerts(allUsersData);   // ตรวจสถานะหล่นผ่าน→ไม่ผ่าน แล้วแจ้งเตือน (ไม่บล็อกการแสดงตาราง)
   }catch(e){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:#c00000">Error: '+e.message+'</td></tr>';}
 }
 // ── ช่วงเวลาที่ใช้ประเมินในหน้า Admin: custom range ถ้าตั้งไว้, ไม่งั้น 24 เดือนล่าสุด ──
