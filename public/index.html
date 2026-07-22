@@ -1314,7 +1314,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.8.9';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.9.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1500,7 +1500,10 @@ async function saveData(){
       D._email    = currentUser.email;
       D._userName = currentUser.displayName || '';
     }
-    await fbDb.collection('logbooks').doc(target).set(D);
+    // เขียนเวลาจากเซิร์ฟเวอร์ Firestore ด้วย (แม่นยำ ไม่ขึ้นกับนาฬิกาเครื่องผู้ใช้)
+    // _savedAt (ISO ฝั่ง client) ยังใช้ตรวจการชนกันเหมือนเดิม, _savedAtServer ใช้แสดงผลจริง
+    const payload = Object.assign({}, D, {_savedAtServer: firebase.firestore.FieldValue.serverTimestamp()});
+    await fbDb.collection('logbooks').doc(target).set(payload);
     _baseSavedAt = now;                       // เวอร์ชันของเราคือเวอร์ชันล่าสุดแล้ว
     _lastSig     = sig;                       // จำเนื้อหาที่เพิ่งบันทึก
     showSaved((editUid?('✓ บันทึกข้อมูลของ '+editName+' — '):'✓ บันทึกแล้ว — ') + new Date().toLocaleTimeString('th-TH'));
@@ -2315,7 +2318,8 @@ async function loadAllUsers(){
       allUsersData.push({uid:doc.id,name:(d.profile&&d.profile.name)||d._userName||'-',
         staffId:(d.profile&&d.profile.staffid)||'-',position:(d.profile&&d.profile.position)||'-',
         rows:(d.rows||[]).length,rowsArr:(d.rows||[]),trainingArr:(d.training||[]),
-        savedAt:d._savedAt||'-',email:d._email||'-'});
+        savedAt:(d._savedAtServer&&typeof d._savedAtServer.toDate==='function')?d._savedAtServer.toDate().toISOString():(d._savedAt||'-'),
+        email:d._email||'-'});
     });
     populatePosFilter(allUsersData);
     filterAdminTable();updateAdminStats(allUsersData);
@@ -2604,7 +2608,7 @@ function showUserModal(userData,name){
       <div style="background:#f5c000;padding:12px 20px;display:flex;justify-content:space-between;align-items:center">
         <div>
           <div style="font-size:15px;font-weight:800;color:#7a0000;letter-spacing:1px">EXPERIENCE INDIVIDUAL LOGBOOK — ADMIN VIEW</div>
-          <div style="font-size:11px;color:#9a5800">👁 ดูข้อมูลของ: <strong>${esc((userData.profile&&userData.profile.name)||name)}</strong> | Staff ID: ${esc((userData.profile&&userData.profile.staffid)||'-')} | บันทึกล่าสุด: ${userData._savedAt?new Date(userData._savedAt).toLocaleString('th-TH'):'-'}</div>
+          <div style="font-size:11px;color:#9a5800">👁 ดูข้อมูลของ: <strong>${esc((userData.profile&&userData.profile.name)||name)}</strong> | Staff ID: ${esc((userData.profile&&userData.profile.staffid)||'-')} | บันทึกล่าสุด: ${(userData._savedAtServer&&typeof userData._savedAtServer.toDate==='function')?userData._savedAtServer.toDate().toLocaleString('th-TH'):(userData._savedAt?new Date(userData._savedAt).toLocaleString('th-TH'):'-')}</div>
         </div>
         <div style="display:flex;gap:8px">
           <button onclick="editUser(_adminViewUid,_adminViewName)" style="background:#1a6b2e;color:#fff;border:none;border-radius:6px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">✏️ แก้ไขข้อมูล</button>
