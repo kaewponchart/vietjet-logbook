@@ -1205,7 +1205,11 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 <div id="ta" class="tc">
   <div class="admin-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <h2 style="color:#1a3a6b;font-size:16px">👑 Admin Dashboard — ข้อมูลพนักงานทั้งหมด</h2>
-    <button class="btn" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 โหลดข้อมูล</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminCSV()">📊 Excel (CSV)</button>
+      <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminPDF()">📄 PDF</button>
+      <button class="btn" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 โหลดข้อมูล</button>
+    </div>
   </div>
   <!-- Admin custom date period -->
   <div class="admin-period" style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
@@ -1263,6 +1267,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <option value="fail">✗ ไม่ผ่านเกณฑ์</option>
     </select>
   </div>
+  <div id="admin-filter-count" style="font-size:12px;color:#666;margin:0 0 10px;min-height:16px"></div>
 
   <!-- Criteria note -->
   <div class="crit-note" style="background:#f4f7fd;border:1px solid #d5e0f5;border-radius:8px;padding:8px 14px;margin-bottom:10px;font-size:11px;color:#445;line-height:1.7">
@@ -1276,14 +1281,14 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     <table class="admin-tbl" style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
         <tr style="background:#1a3a6b;color:#fff">
-          <th style="padding:10px 12px;text-align:left">ชื่อ-นามสกุล</th>
-          <th style="padding:10px 8px;text-align:center">Staff ID</th>
-          <th style="padding:10px 8px;text-align:center">Position</th>
-          <th style="padding:10px 8px;text-align:center">บันทึก (แถว)</th>
-          <th style="padding:10px 8px;text-align:center" title="1st Type Working Days (รวมเครดิต Training +20%)">WD<br><small style="font-weight:400">1st Type</small></th>
-          <th style="padding:10px 8px;text-align:center" title="1st Type Tasks (จำนวนวันที่มีงาน)">Tasks<br><small style="font-weight:400">1st Type</small></th>
-          <th style="padding:10px 8px;text-align:center">สถานะ</th>
-          <th style="padding:10px 8px;text-align:center">บันทึกล่าสุด</th>
+          <th data-k="name" onclick="sortAdmin('name')" style="padding:10px 12px;text-align:left;cursor:pointer;user-select:none">ชื่อ-นามสกุล <span class="sort-ind" id="sa-name"></span></th>
+          <th data-k="staffId" onclick="sortAdmin('staffId')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">Staff ID <span class="sort-ind" id="sa-staffId"></span></th>
+          <th data-k="position" onclick="sortAdmin('position')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">Position <span class="sort-ind" id="sa-position"></span></th>
+          <th data-k="rows" onclick="sortAdmin('rows')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">บันทึก (แถว) <span class="sort-ind" id="sa-rows"></span></th>
+          <th data-k="wd" onclick="sortAdmin('wd')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none" title="1st Type Working Days (รวมเครดิต Training +20%)">WD<br><small style="font-weight:400">1st Type</small> <span class="sort-ind" id="sa-wd"></span></th>
+          <th data-k="tasks" onclick="sortAdmin('tasks')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none" title="1st Type Tasks (จำนวนวันที่มีงาน)">Tasks<br><small style="font-weight:400">1st Type</small> <span class="sort-ind" id="sa-tasks"></span></th>
+          <th data-k="status" onclick="sortAdmin('status')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">สถานะ <span class="sort-ind" id="sa-status"></span></th>
+          <th data-k="savedAt" onclick="sortAdmin('savedAt')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">บันทึกล่าสุด <span class="sort-ind" id="sa-savedAt"></span></th>
           <th style="padding:10px 8px;text-align:center">จัดการ</th>
         </tr>
       </thead>
@@ -1309,7 +1314,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.8.8';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.8.9';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2251,6 +2256,8 @@ function toastMsg(text){
   setTimeout(()=>{t.style.opacity='0';setTimeout(()=>t.remove(),300);},4200);
 }
 let allUsersData = [];
+let _adminView = [];               // แถวที่กำลังแสดง (หลังกรอง+เรียง) — ใช้ตอน export
+let _adminSort = {k:null,dir:1};   // สถานะการเรียงคอลัมน์
 let editUid=null, editName='';           // when set, admin is editing this user's record
 let _adminViewUid='', _adminViewName=''; // user currently open in the admin modal
 let adminPeriod={mode:'all',from:'',to:''};
@@ -2378,6 +2385,62 @@ function adminUserPass(u){
   // เกณฑ์เดียวกันทุก position (TCAR 8 Part 145.A.35): ≥100 WD หรือ ≥180 Tasks
   return adminUserComp(u).pass1;
 }
+
+// ── ส่งออกรายชื่อที่กำลังแสดง (หลังกรอง+เรียง) ────────────────────────────────
+function _csvCell(v){v=String(v==null?'':v);return /[",\r\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;}
+function exportAdminCSV(){
+  const rows=_adminView||[];
+  if(!rows.length){alert('ไม่มีข้อมูลให้ส่งออก — กด "โหลดข้อมูล" ก่อน');return;}
+  const ar=getAdminRange();
+  const head=['#','ชื่อ-นามสกุล','Staff ID','Position','บันทึก (แถว)','WD (1st Type)','Tasks (1st Type)','สถานะ','บันทึกล่าสุด'];
+  const lines=[head.map(_csvCell).join(',')];
+  rows.forEach((u,i)=>{
+    const c=adminUserComp(u);
+    const rec=ar?rowsInAdminRange(u.rowsArr):u.rows;
+    const saved=(u.savedAt&&u.savedAt!=='-')?new Date(u.savedAt).toLocaleString('th-TH'):'ยังไม่บันทึก';
+    lines.push([i+1,u.name,u.staffId,u.position,rec,c.wd1t,c.t1,(c.pass1?'ผ่าน':'ไม่ผ่าน'),saved].map(_csvCell).join(','));
+  });
+  const csv='\ufeff'+lines.join('\r\n');   // BOM เพื่อให้ Excel อ่านภาษาไทยถูกต้อง
+  const blob=new Blob([csv],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download='Admin_Compliance_'+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();a.remove();
+  toastMsg('📊 ส่งออก '+rows.length+' รายการเป็น CSV แล้ว');
+}
+function exportAdminPDF(){
+  const rows=_adminView||[];
+  if(!rows.length){alert('ไม่มีข้อมูลให้ส่งออก — กด "โหลดข้อมูล" ก่อน');return;}
+  const ar=getAdminRange();
+  const periodTxt=((document.getElementById('admin-period-note')||{}).textContent||'').trim();
+  const passCnt=rows.filter(u=>adminUserComp(u).pass1).length;
+  const body=rows.map((u,i)=>{
+    const c=adminUserComp(u);
+    const rec=ar?rowsInAdminRange(u.rowsArr):u.rows;
+    const saved=(u.savedAt&&u.savedAt!=='-')?new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}):'-';
+    return '<tr><td class="c">'+(i+1)+'</td><td>'+esc(u.name)+'</td><td class="c">'+esc(u.staffId)+'</td><td>'+esc(u.position)+'</td>'
+      +'<td class="c">'+rec+'</td><td class="c">'+c.wd1t+'</td><td class="c">'+c.t1+'</td>'
+      +'<td class="c" style="color:'+(c.pass1?'#1a6b2e':'#c00000')+';font-weight:700">'+(c.pass1?'ผ่าน':'ไม่ผ่าน')+'</td><td class="c">'+saved+'</td></tr>';
+  }).join('');
+  const now=new Date().toLocaleString('th-TH');
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>Admin Compliance Report</title><style>'
+    +'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;padding:22px;color:#222}'
+    +'h1{font-size:17px;color:#1a3a6b;margin:0 0 4px}.sub{font-size:11px;color:#666;margin:1px 0}'
+    +'table{width:100%;border-collapse:collapse;font-size:11px;margin-top:12px}'
+    +'th,td{border:1px solid #bbb;padding:5px 7px}th{background:#1a3a6b;color:#fff}td.c,th{text-align:center}'
+    +'tbody tr:nth-child(even){background:#f6f8fc}'
+    +'@page{size:A4 landscape;margin:12mm}</style></head><body>'
+    +'<h1>Experience Individual Logbook — Compliance Report</h1>'
+    +'<p class="sub">TVJ-QA-F-057'+(periodTxt?' · '+esc(periodTxt):'')+'</p>'
+    +'<p class="sub">รวม '+rows.length+' รายการ · ผ่านเกณฑ์ '+passCnt+' · ไม่ผ่าน '+(rows.length-passCnt)+' · ออกรายงาน '+now+'</p>'
+    +'<table><thead><tr><th>#</th><th>ชื่อ-นามสกุล</th><th>Staff ID</th><th>Position</th><th>บันทึก</th><th>WD</th><th>Tasks</th><th>สถานะ</th><th>อัปเดต</th></tr></thead><tbody>'
+    +body+'</tbody></table>'
+    +'<p style="font-size:10px;color:#888;margin-top:14px">เกณฑ์ TCAR 8 Part 145.A.35: ผ่านเมื่อ ≥100 Working Days หรือ ≥180 Tasks อย่างใดอย่างหนึ่ง</p>'
+    +'</body></html>';
+  const w=window.open('','_blank');
+  if(!w){alert('เบราว์เซอร์บล็อก popup — กรุณาอนุญาต popup ของเว็บนี้แล้วลองใหม่');return;}
+  w.document.write(html);w.document.close();w.focus();
+  setTimeout(()=>{try{w.print();}catch(e){}},400);
+}
 function updateAdminStats(data){
   const ar=getAdminRange();const cnt=u=>ar?rowsInAdminRange(u.rowsArr):u.rows;
   document.getElementById('stat-total').textContent=data.length;
@@ -2393,15 +2456,65 @@ function updateAdminStats(data){
   }
 }
 function filterAdminTable(){
-  const q=(document.getElementById('admin-search').value||'').toLowerCase();
+  const rawq=(document.getElementById('admin-search').value||'');
+  const q=rawq.toLowerCase();
   const pos=(document.getElementById('admin-pos')||{}).value||'';
   const st=(document.getElementById('admin-status')||{}).value||'';
-  renderAdminTable(allUsersData.filter(u=>{
+  let arr=allUsersData.filter(u=>{
     if(q&&!(u.name.toLowerCase().includes(q)||u.staffId.toLowerCase().includes(q)))return false;
     if(pos&&(u.position||'-')!==pos)return false;
     if(st){const p=adminUserPass(u);if(st==='pass'&&!p)return false;if(st==='fail'&&p)return false;}
     return true;
-  }));
+  });
+  if(_adminSort.k){
+    const k=_adminSort.k,dir=_adminSort.dir;
+    arr=arr.slice().sort((a,b)=>{
+      let va=adminSortVal(a,k),vb=adminSortVal(b,k);
+      if(typeof va==='number'&&typeof vb==='number')return (va-vb)*dir;
+      return String(va).localeCompare(String(vb),'th')*dir;
+    });
+  }
+  _adminView=arr;
+  renderAdminTable(arr);
+  updateAdminFilterCount(arr.length,allUsersData.length,rawq,pos,st);
+}
+// ค่าที่ใช้เรียงลำดับแต่ละคอลัมน์
+function adminSortVal(u,k){
+  const ar=getAdminRange();
+  switch(k){
+    case 'name':return (u.name||'').toLowerCase();
+    case 'staffId':return (u.staffId||'').toLowerCase();
+    case 'position':return (u.position||'').toLowerCase();
+    case 'rows':return ar?rowsInAdminRange(u.rowsArr):u.rows;
+    case 'wd':return adminUserComp(u).wd1t;
+    case 'tasks':return adminUserComp(u).t1;
+    case 'status':return adminUserComp(u).pass1?1:0;
+    case 'savedAt':return (u.savedAt&&u.savedAt!=='-')?u.savedAt:'';
+    default:return '';
+  }
+}
+function sortAdmin(k){
+  if(_adminSort.k===k)_adminSort.dir*=-1; else {_adminSort.k=k;_adminSort.dir=1;}
+  filterAdminTable();updateSortIndicators();
+}
+function updateSortIndicators(){
+  ['name','staffId','position','rows','wd','tasks','status','savedAt'].forEach(k=>{
+    const el=document.getElementById('sa-'+k);if(!el)return;
+    el.textContent=_adminSort.k===k?(_adminSort.dir>0?'▲':'▼'):'';
+  });
+}
+function updateAdminFilterCount(shown,total,rawq,pos,st){
+  const el=document.getElementById('admin-filter-count');if(!el)return;
+  if(!total){el.textContent='';return;}
+  if(rawq||pos||st){
+    const parts=[];
+    if(pos)parts.push('Position: '+pos);
+    if(st)parts.push('สถานะ: '+(st==='pass'?'ผ่าน':'ไม่ผ่าน'));
+    if(rawq)parts.push('ค้นหา: "'+rawq+'"');
+    el.innerHTML='🔎 กรองแล้วพบ <b>'+shown+'</b> จาก '+total+' รายการ <span style="color:#999">('+parts.join(' · ')+')</span>';
+  } else {
+    el.innerHTML='แสดงทั้งหมด <b>'+total+'</b> รายการ';
+  }
 }
 async function viewUser(uid,name){
   try{
