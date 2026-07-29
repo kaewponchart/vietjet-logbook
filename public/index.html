@@ -832,7 +832,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <th style="padding:6px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #e0cc90">Period</th>
         <th style="padding:6px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #e0cc90">Criteria</th>
         <th style="padding:6px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #e0cc90">Tasks</th>
-        <th style="padding:6px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #e0cc90">Total Hrs</th>
+        <th style="padding:6px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #e0cc90">Total Hrs<br><small id="aHrsMode" style="font-weight:400;color:#999;font-size:9px">ทั้งหมด</small></th>
         <th style="padding:6px 8px;text-align:center;font-size:10px;color:#666;font-weight:600;border-bottom:1px solid #e0cc90">Result</th>
       </tr>
       <tr style="border-bottom:1px solid #ede4d0"><td style="padding:6px 12px">Borescope Inspection</td><td style="text-align:center;font-size:11px;color:#888">Current year</td><td style="text-align:center">≥ 4 tasks</td><td style="text-align:center;font-weight:600" id="ab"></td><td style="text-align:center;color:#aaa">—</td><td style="text-align:center" id="abr"></td></tr>
@@ -842,7 +842,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <tr style="border-bottom:1px solid #ede4d0"><td style="padding:6px 12px">NDT – UT (Ultrasonic)</td><td style="text-align:center;font-size:11px;color:#888">Prev. 12 mo.</td><td style="text-align:center">≥ 1</td><td style="text-align:center;font-weight:600" id="aut"></td><td style="text-align:center;font-weight:600" id="autH">-</td><td style="text-align:center" id="autr"></td></tr>
       <tr style="background:#f8f4ea"><td style="padding:6px 12px">Specialized Service – Structure</td><td style="text-align:center;font-size:11px;color:#888">Prev. 12 mo.</td><td style="text-align:center">≥ 1</td><td style="text-align:center;font-weight:600" id="ast"></td><td style="text-align:center;color:#aaa">—</td><td style="text-align:center" id="astr"></td></tr>
     </table>
-      <p class="fnote" style="margin-top:6px">* NDT (ET/PT/MT/UT): <b>Total Hrs</b> = ชั่วโมงสะสม<b>ทั้งหมด</b>ที่บันทึกของแต่ละ method (ไม่จำกัดช่วงเวลา) — ส่วน <b>Tasks</b> และ <b>Result</b> ประเมินจากงานใน 12 เดือนล่าสุดนับจากวันที่ To</p>
+      <p class="fnote" id="ndtNote" style="margin-top:6px">* NDT (ET/PT/MT/UT): <b>Total Hrs</b> = ชั่วโมงสะสม<b>ทั้งหมด</b>ที่บันทึกของแต่ละ method (ไม่จำกัดช่วงเวลา) — ส่วน <b>Tasks</b> และ <b>Result</b> ประเมินจากงานใน 12 เดือนล่าสุดนับจากวันที่ To</p>
   </div>
 
 </div>
@@ -1314,7 +1314,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.9.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.9.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2178,7 +2178,15 @@ function calcSum(){
     sh('g'+id+'g','<span class="grc gr'+g+'">'+g+'</span>');
     const bar=document.getElementById('gb_'+id);if(bar)bar.style.width=Math.round(cnts[i]/mx*100)+'%';
   });
-  function ndtHrsAll(m){return vr.filter(r=>r.skill&&r.skill.includes(m)).reduce((s,r)=>s+parseFloat(r.dur||0),0);}
+  // NDT Total Hrs — ค่า default: ชั่วโมงสะสม "ทั้งหมด" ไม่สนว่าลงบันทึกเมื่อไร
+  // ถ้ามีการกำหนดช่วงเวลาเอง (custom period หรือ Admin override): คิดเฉพาะงานในช่วงนั้น
+  const ndtCustom=(D.pmode==='custom'&&D.pfrom&&D.pto);
+  const ndtSrc=ndtCustom?rp:vr;
+  function ndtHrsAll(m){return ndtSrc.filter(r=>r.skill&&r.skill.includes(m)).reduce((s,r)=>s+parseFloat(r.dur||0),0);}
+  sh('aHrsMode',ndtCustom?'ตามช่วง':'ทั้งหมด');
+  sh('ndtNote',ndtCustom
+    ?'* NDT (ET/PT/MT/UT): <b>Total Hrs</b> = ชั่วโมงเฉพาะ<b>ช่วงเวลาที่เลือก</b> ('+fmtD(fr)+' — '+fmtD(to)+') — ส่วน <b>Tasks</b> และ <b>Result</b> ประเมินจากงานใน 12 เดือนล่าสุดนับจากวันที่ To'
+    :'* NDT (ET/PT/MT/UT): <b>Total Hrs</b> = ชั่วโมงสะสม<b>ทั้งหมด</b>ที่บันทึกของแต่ละ method (ไม่จำกัดช่วงเวลา) — ส่วน <b>Tasks</b> และ <b>Result</b> ประเมินจากงานใน 12 เดือนล่าสุดนับจากวันที่ To');
   const bsi=c.bsi,et=c.et,pt=c.pt,mt=c.mt,ut=c.ut,st2=c.st2;
   sh('ab',bsi);sh('abr',res(bsi>=4));
   sh('aet',et);sh('aetH',ndtHrsAll('(ET)').toFixed(1));sh('aetr',res(et>=1));
