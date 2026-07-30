@@ -1208,10 +1208,12 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     <div style="display:flex;gap:8px;flex-wrap:wrap">
       <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminCSV()">📊 Excel (CSV)</button>
       <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminPDF()">📄 PDF</button>
+      <button class="btn" style="background:#0b5566;color:#fff" onclick="openBackup()">💾 สำรอง/กู้คืน</button>
       <button class="btn" style="background:#7a0000;color:#fff" onclick="openTrash()">🗑 ถังขยะ</button>
       <button class="btn" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 โหลดข้อมูล</button>
     </div>
   </div>
+  <input type="file" id="restore-file" accept=".json,application/json" style="display:none" onchange="handleRestoreFile(event)">
   <!-- Admin custom date period -->
   <div class="admin-period" style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
     <span style="font-size:13px;font-weight:700;color:#1a3a6b">📅 ช่วงเวลา:</span>
@@ -1315,7 +1317,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.9.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.9.4';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2641,6 +2643,163 @@ async function purgeUser(it){
     toastMsg('ลบถาวร "'+nm+'" แล้ว');
     await renderTrash();
   }catch(e){alert('ลบไม่สำเร็จ: '+e.message);}
+}
+
+// ══ สำรองข้อมูล / กู้คืนทั้งระบบ ═════════════════════════════════════════════
+let _restorePlan=null;   // ข้อมูลจากไฟล์ backup ที่อ่านแล้ว เตรียมรอกู้คืน
+
+// Firestore Timestamp -> ISO เพื่อเก็บลง JSON ได้ (และแปลงกลับตอนกู้คืน)
+function _plainDoc(d){
+  const o=Object.assign({},d);
+  if(o._savedAtServer&&typeof o._savedAtServer.toDate==='function')o._savedAtServerISO=o._savedAtServer.toDate().toISOString();
+  delete o._savedAtServer;
+  return o;
+}
+function _rehydrateDoc(o){
+  const d=Object.assign({},o);
+  if(d._savedAtServerISO){
+    const t=new Date(d._savedAtServerISO);
+    if(!isNaN(t.getTime()))d._savedAtServer=firebase.firestore.Timestamp.fromDate(t);
+    delete d._savedAtServerISO;
+  }
+  return d;
+}
+function closeBackup(){const m=document.getElementById('backup-modal');if(m)m.remove();_restorePlan=null;}
+function openBackup(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  closeBackup();
+  const modal=document.createElement('div');
+  modal.id='backup-modal';
+  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:10000;overflow-y:auto;padding:20px';
+  modal.innerHTML='<div style="background:#fff;max-width:940px;margin:0 auto;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3)">'
+    +'<div style="background:#0b5566;color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center">'
+    +'<div style="font-size:14px;font-weight:800">💾 สำรองข้อมูล / กู้คืนทั้งระบบ</div>'
+    +'<button id="backup-close" class="btn" style="background:#fff;color:#0b5566">✕ ปิด</button></div>'
+    +'<div style="padding:16px">'
+    +'<div style="border:1px solid #cfe0e4;background:#f4fafb;border-radius:8px;padding:14px;margin-bottom:14px">'
+      +'<div style="font-weight:800;font-size:13px;color:#0b5566;margin-bottom:6px">1) สำรองข้อมูล (Backup)</div>'
+      +'<p style="font-size:12px;color:#666;line-height:1.6;margin:0 0 10px">ดึงข้อมูลพนักงานทุกคนออกมาเป็นไฟล์ JSON ไฟล์เดียว รวมรายละเอียดทุกบรรทัดและ Training ทั้งหมด '
+      +'แนะนำให้ทำสัปดาห์ละครั้ง แล้วเก็บไฟล์ไว้บน SharePoint หรือ Drive ของบริษัท</p>'
+      +'<button class="btn" id="btn-do-backup" style="background:#0b5566;color:#fff">⬇ ดาวน์โหลดไฟล์สำรองทั้งระบบ</button>'
+      +'<span id="backup-stat" style="font-size:12px;color:#666;margin-left:10px"></span>'
+    +'</div>'
+    +'<div style="border:1px solid #e8d6a8;background:#fffdf5;border-radius:8px;padding:14px">'
+      +'<div style="font-weight:800;font-size:13px;color:#8a6d1a;margin-bottom:6px">2) กู้คืนจากไฟล์ (Restore)</div>'
+      +'<p style="font-size:12px;color:#666;line-height:1.6;margin:0 0 10px">เลือกไฟล์สำรอง ระบบจะเทียบกับข้อมูลปัจจุบันให้ดูก่อนว่าใครหายไป ใครต่างกัน '
+      +'แล้วให้คุณติ๊กเลือกเฉพาะคนที่ต้องการกู้คืน <b>จะไม่เขียนทับอะไรจนกว่าคุณจะกดยืนยัน</b></p>'
+      +'<button class="btn" id="btn-pick-restore" style="background:#8a6d1a;color:#fff">📂 เลือกไฟล์สำรอง…</button>'
+      +'<div id="restore-area" style="margin-top:12px"></div>'
+    +'</div></div></div>';
+  document.body.appendChild(modal);
+  document.getElementById('backup-close').onclick=closeBackup;
+  document.getElementById('btn-do-backup').onclick=backupAll;
+  document.getElementById('btn-pick-restore').onclick=()=>document.getElementById('restore-file').click();
+  modal.addEventListener('click',e=>{if(e.target===modal)closeBackup();});
+}
+async function backupAll(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  const st=document.getElementById('backup-stat');
+  const setSt=t=>{if(st)st.textContent=t;};
+  setSt('กำลังดึงข้อมูล…');
+  try{
+    const snap=await fbDb.collection('logbooks').get();
+    const out={_meta:{app:'TVJ Experience Individual Logbook',form:'TVJ-QA-F-057',
+      appVersion:APP_VERSION,exportedAt:new Date().toISOString(),
+      exportedBy:(currentUser&&currentUser.email)||'-',count:snap.size},logbooks:{}};
+    let rowCnt=0;
+    snap.forEach(d=>{const v=d.data()||{};rowCnt+=(v.rows||[]).length;out.logbooks[d.id]=_plainDoc(v);});
+    const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
+    const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+    a.download='TVJ_Logbook_FULL_BACKUP_'+new Date().toISOString().slice(0,10)+'.json';
+    document.body.appendChild(a);a.click();a.remove();
+    setSt('✓ สำเร็จ — '+snap.size+' คน, '+rowCnt.toLocaleString()+' บรรทัด, '+(blob.size/1048576).toFixed(2)+' MB');
+    toastMsg('💾 สำรองข้อมูลสำเร็จ '+snap.size+' คน');
+  }catch(e){setSt('');alert('สำรองข้อมูลไม่สำเร็จ: '+e.message);}
+}
+async function handleRestoreFile(evt){
+  const f=evt.target.files[0];if(!f)return;
+  evt.target.value='';
+  const area=document.getElementById('restore-area');
+  if(area)area.innerHTML='<span style="font-size:12px;color:#666">กำลังอ่านไฟล์และเทียบข้อมูล…</span>';
+  const rd=new FileReader();
+  rd.onload=async e=>{
+    let bk=null;
+    try{bk=JSON.parse(e.target.result);}catch(err){if(area)area.innerHTML='<span style="color:#c00000;font-size:12px">ไฟล์ไม่ใช่ JSON ที่ถูกต้อง</span>';return;}
+    if(!bk||!bk.logbooks||typeof bk.logbooks!=='object'){
+      if(area)area.innerHTML='<span style="color:#c00000;font-size:12px">ไฟล์นี้ไม่ใช่ไฟล์สำรองทั้งระบบ (ต้องมีส่วน logbooks) — ถ้าเป็นไฟล์สำรองรายคน ให้ใช้ปุ่ม Import ในหน้า Logbook แทน</span>';return;
+    }
+    try{
+      const snap=await fbDb.collection('logbooks').get();
+      const cur={};snap.forEach(d=>{cur[d.id]=d.data()||{};});
+      const items=[];
+      Object.keys(bk.logbooks).forEach(uid=>{
+        const b=bk.logbooks[uid]||{},c=cur[uid];
+        const bp=b.profile||{},cp=c?(c.profile||{}):{};
+        const bRows=(b.rows||[]).length,cRows=c?(c.rows||[]).length:0;
+        let st='same';
+        if(!c)st='missing';
+        else if(bRows!==cRows||(b._savedAt||'')!==(c._savedAt||''))st='diff';
+        items.push({uid:uid,name:bp.name||cp.name||'(ไม่มีชื่อ)',staffid:bp.staffid||cp.staffid||'-',
+          bRows:bRows,cRows:cRows,st:st,doc:b});
+      });
+      items.sort((a,b)=>({missing:0,diff:1,same:2})[a.st]-({missing:0,diff:1,same:2})[b.st]||a.name.localeCompare(b.name,'th'));
+      _restorePlan=items;
+      const nMiss=items.filter(i=>i.st==='missing').length,nDiff=items.filter(i=>i.st==='diff').length;
+      const badge=t=>t==='missing'?'<span style="color:#c00000;font-weight:700">หายไปจากระบบ</span>'
+        :t==='diff'?'<span style="color:#b8860b;font-weight:700">ข้อมูลต่างกัน</span>'
+        :'<span style="color:#999">เหมือนกัน</span>';
+      let h='<div style="font-size:12px;color:#444;margin-bottom:8px">ไฟล์สำรองวันที่ <b>'
+        +esc(((bk._meta&&bk._meta.exportedAt)||'-').slice(0,19).replace('T',' '))+'</b> · มี '+items.length+' คน'
+        +' · <span style="color:#c00000">หายไป '+nMiss+'</span> · <span style="color:#b8860b">ต่างกัน '+nDiff+'</span></div>'
+        +'<div style="max-height:320px;overflow:auto;border:1px solid #eee;border-radius:6px">'
+        +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
+        +'<tr style="background:#f5f5f5;position:sticky;top:0"><th style="padding:6px 8px">เลือก</th>'
+        +'<th style="padding:6px 8px;text-align:left">ชื่อ</th><th style="padding:6px 8px">Staff ID</th>'
+        +'<th style="padding:6px 8px">แถวในไฟล์</th><th style="padding:6px 8px">แถวในระบบ</th><th style="padding:6px 8px">สถานะ</th></tr>';
+      items.forEach((it,i)=>{
+        h+='<tr style="border-bottom:1px solid #f0f0f0'+(it.st==='same'?';opacity:.55':'')+'">'
+          +'<td style="padding:6px 8px;text-align:center"><input type="checkbox" class="rs-ck" data-i="'+i+'"'
+          +(it.st==='missing'?' checked':'')+'></td>'
+          +'<td style="padding:6px 8px">'+esc(it.name)+'</td>'
+          +'<td style="padding:6px 8px;text-align:center">'+esc(it.staffid)+'</td>'
+          +'<td style="padding:6px 8px;text-align:center;font-weight:700">'+it.bRows+'</td>'
+          +'<td style="padding:6px 8px;text-align:center">'+(it.st==='missing'?'—':it.cRows)+'</td>'
+          +'<td style="padding:6px 8px;text-align:center">'+badge(it.st)+'</td></tr>';
+      });
+      h+='</table></div>'
+        +'<div style="margin-top:10px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
+        +'<button class="btn" id="rs-go" style="background:#c00000;color:#fff">♻ กู้คืนรายการที่เลือก</button>'
+        +'<span id="rs-count" style="font-size:12px;color:#666"></span></div>'
+        +'<p style="font-size:11px;color:#999;margin-top:8px">* ระบบติ๊กให้ล่วงหน้าเฉพาะคนที่ <b>หายไปจากระบบ</b> ซึ่งปลอดภัยที่สุด '
+        +'ถ้าติ๊กคนที่ "ข้อมูลต่างกัน" ข้อมูลปัจจุบันของคนนั้นจะถูกเขียนทับด้วยข้อมูลในไฟล์</p>';
+      area.innerHTML=h;
+      const upd=()=>{const n=area.querySelectorAll('.rs-ck:checked').length;
+        const c=document.getElementById('rs-count');if(c)c.textContent='เลือกไว้ '+n+' รายการ';};
+      area.querySelectorAll('.rs-ck').forEach(ck=>ck.onchange=upd);
+      document.getElementById('rs-go').onclick=doRestore;
+      upd();
+    }catch(err){if(area)area.innerHTML='<span style="color:#c00000;font-size:12px">เทียบข้อมูลไม่สำเร็จ: '+esc(err.message)+'</span>';}
+  };
+  rd.readAsText(f);
+}
+async function doRestore(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  if(!_restorePlan){alert('ยังไม่ได้เลือกไฟล์สำรอง');return;}
+  const area=document.getElementById('restore-area');
+  const picked=[];
+  area.querySelectorAll('.rs-ck:checked').forEach(ck=>picked.push(_restorePlan[+ck.dataset.i]));
+  if(!picked.length){alert('ยังไม่ได้เลือกรายการที่จะกู้คืน');return;}
+  const nOver=picked.filter(p=>p.st!=='missing').length;
+  let msg='กู้คืน '+picked.length+' รายการ?';
+  if(nOver)msg+='\n\n⚠️ ในจำนวนนี้มี '+nOver+' รายการที่มีข้อมูลอยู่ในระบบแล้ว และจะถูกเขียนทับด้วยข้อมูลในไฟล์';
+  if(!confirm(msg))return;
+  try{
+    const batch=fbDb.batch();
+    picked.forEach(p=>batch.set(fbDb.collection('logbooks').doc(p.uid),_rehydrateDoc(p.doc)));
+    await batch.commit();   // เขียนทีเดียวพร้อมกัน ถ้าพลาดคือไม่เขียนเลย ไม่มีสภาพครึ่งๆ กลางๆ
+    toastMsg('♻ กู้คืนสำเร็จ '+picked.length+' รายการ');
+    closeBackup();loadAllUsers();
+  }catch(e){alert('กู้คืนไม่สำเร็จ: '+e.message);}
 }
 
 async function editUser(uid,name){
