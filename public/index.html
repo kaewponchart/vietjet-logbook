@@ -376,6 +376,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     width:100%!important;
   }
   table.lg col.cb{width:0!important}
+  table.lg col.ca{width:2.8%!important}   /* Sign: แคบลง คืนพื้นที่ให้คอลัมน์เนื้อหา */
   table.lg th{
     background:#333!important;color:#fff!important;
     padding:2px 1px!important;font-size:3px!important;
@@ -962,7 +963,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <th rowspan="2">Type of Maint.<br>&amp; Location</th>
         <th colspan="5">Activity</th>
         <th rowspan="2">Dur.<br>(HRS)</th>
-        <th rowspan="2">Signature</th>
+        <th rowspan="2">Sign</th>
         <th rowspan="2" class="del-col">Del</th>
       </tr>
       <tr><th>1st</th><th>2nd</th><th>3rd</th><th>4th</th><th>5th</th></tr>
@@ -991,7 +992,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <th style="width:90px">Provider</th>
       <th style="width:70px">Duration (HRS)</th>
       <th style="width:110px">Remark</th>
-      <th style="width:60px">Signature</th>
+      <th style="width:42px">Sign</th>
       <th style="width:26px" class="del-col">Del</th>
     </tr></thead>
     <tbody id="tb"></tbody>
@@ -1317,7 +1318,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.9.6';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.9.7';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
