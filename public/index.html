@@ -1317,7 +1317,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.9.5';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.9.6';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2882,10 +2882,10 @@ function showUserModal(userData,name){
   // Create modal
   const modal=document.createElement('div');
   modal.id='admin-modal';
-  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9999;overflow-y:auto;padding:20px';
+  modal.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:9999;overflow-y:auto;padding:10px 14px';
   
   modal.innerHTML=`
-    <div style="background:#f7f3ea;max-width:1400px;margin:0 auto;border-radius:12px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3)">
+    <div style="background:#f7f3ea;max-width:none;width:100%;margin:0 auto;border-radius:10px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3)">
       <!-- Modal Header -->
       <div style="background:#f5c000;padding:12px 20px;display:flex;justify-content:space-between;align-items:center">
         <div>
