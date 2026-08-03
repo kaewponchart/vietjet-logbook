@@ -370,7 +370,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
      print width without changing their ratio to each other. Only the hidden
      Del column (cb) is zeroed out so its space isn't wasted. */
   table.lg{
-    font-size:4px!important;
+    font-size:3px!important;
     table-layout:fixed!important;
     border-collapse:collapse!important;
     width:100%!important;
@@ -378,14 +378,14 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   table.lg col.cb{width:0!important}
   table.lg th{
     background:#333!important;color:#fff!important;
-    padding:3px 2px!important;font-size:4px!important;
+    padding:2px 1px!important;font-size:3px!important;
     border:1px solid #555!important;
     word-break:normal!important;
     overflow-wrap:break-word!important;
     white-space:normal!important;
   }
   table.lg td{
-    padding:3px 2px!important;
+    padding:2px 1px!important;
     height:auto!important;
     border:1px solid #ccc!important;
     background:#fff!important;color:#000!important;
@@ -396,8 +396,8 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   table.lg tr:nth-child(even) td{background:#f5f5f5!important}
   table.lg td input,table.lg td select{
     height:auto!important;
-    min-height:18px!important;
-    font-size:4px!important;
+    min-height:10px!important;
+    font-size:3px!important;
     background:transparent!important;
     border:none!important;
     color:#000!important;
@@ -414,7 +414,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   table.lg td .print-hide,table.ttbl td .print-hide{display:none!important}
   .print-full{
     display:block!important;white-space:normal!important;word-break:normal!important;
-    overflow-wrap:break-word!important;font-size:4px!important;line-height:1.25!important;
+    overflow-wrap:break-word!important;font-size:3px!important;line-height:1.15!important;
     color:#000!important;width:100%!important;text-align:inherit!important;padding:0!important;
   }
   table.ttbl .print-full{font-size:8px!important}
@@ -1317,7 +1317,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.9.4';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.9.5';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2062,6 +2062,29 @@ function _printSwapOff(x){
   x.hidden.forEach(el=>{el.classList.remove('print-hide');el.style.display='';});
 }
 
+// ── เฉพาะตอนพิมพ์: ซ่อนแถวที่อยู่นอกช่วงเวลาที่เลือก + เรียงวันเก่าไปใหม่ ──
+// (แก้เฉพาะ DOM ชั่วคราว แล้วคืนสภาพเดิมทั้งหมดหลังพิมพ์เสร็จ ข้อมูลจริงไม่ถูกแตะ)
+function _printRowsOn(){
+  const tb=document.getElementById('lb');
+  if(!tb)return null;
+  const p=getPeriod(),fr=p.from.getTime(),to=p.to.getTime();
+  const orig=Array.from(tb.children);
+  const keyOf=tr=>{const i=tr.querySelector('input.di');const d=i?pDate(i.value):null;return d?d.getTime():NaN;};
+  const hidden=[];
+  orig.forEach(tr=>{
+    const t=keyOf(tr);
+    if(isNaN(t)||t<fr||t>to){tr.style.display='none';hidden.push(tr);}   // นอกช่วง หรือไม่มีวันที่
+  });
+  const vis=orig.filter(tr=>hidden.indexOf(tr)<0).sort((a,b)=>keyOf(a)-keyOf(b));
+  vis.forEach(tr=>tb.appendChild(tr));                                   // เรียงใหม่: เก่าสุดอยู่บน
+  return {tb,orig,hidden};
+}
+function _printRowsOff(x){
+  if(!x)return;
+  x.hidden.forEach(tr=>tr.style.display='');
+  x.orig.forEach(tr=>x.tb.appendChild(tr));                              // คืนลำดับเดิมทุกแถว
+}
+
 function exportPDF(tabId){
   const PRINT_TABS = tabId === 'all' ? ['ts','tl','tt'] : [tabId];
 
@@ -2082,11 +2105,13 @@ function exportPDF(tabId){
     });
 
     const _sw=_printSwapOn();
+    const _pr=_printRowsOn();
     const _origTitle=document.title;
     const _staffId=(D.profile&&D.profile.staffid)?D.profile.staffid.trim():'';
     document.title=_staffId?(_staffId+' - Experience Logbook'):'Experience Logbook';
     window.print();
     document.title=_origTitle;
+    _printRowsOff(_pr);
     _printSwapOff(_sw);
 
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
@@ -2108,11 +2133,13 @@ function exportUserPDF(){
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
     ['ts','tl','tt'].forEach(id=>{const el=document.getElementById(id);if(el)el.classList.add('print-active');});
     const _sw=_printSwapOn();
+    const _pr=_printRowsOn();
     const _origTitle=document.title;
     const _staffId=(D.profile&&D.profile.staffid)?D.profile.staffid.trim():'';
     document.title=_staffId?(_staffId+' - Experience Logbook'):'Experience Logbook';
     window.print();
     document.title=_origTitle;
+    _printRowsOff(_pr);
     _printSwapOff(_sw);
     document.querySelectorAll('.tc').forEach(t=>t.classList.remove('print-active'));
     D=savedD;renderAll();calcSum();                // restore admin's own data on the page
