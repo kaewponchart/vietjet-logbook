@@ -214,6 +214,8 @@ table.lg td input,table.lg td select{width:100%;border:none;background:transpare
                                       font-size:11px;padding:3px 3px;color:var(--ink);height:38px}
 table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2px var(--red-soft);background:#fff;border-radius:4px}
 .c0{width:7.13%}.c1{width:10.69%}.c2{width:7.94%}.c3{width:6.32%}.c4{width:12.15%}
+/* ป้ายชื่อปุ่มแบบย่อ ใช้เฉพาะจอมือถือ */
+.bl-s{display:none}
 .c5{width:5.83%}.c6{width:6.15%}.c7{width:7.13%}.c8{width:5.18%}.c9{width:4.21%}.ca{width:4.45%}.cb{width:2.11%}
 
 /* Training table */
@@ -593,7 +595,12 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   /* ── Admin Dashboard: หัวข้อไม่ให้ใหญ่/ตกบรรทัด + แถบช่วงเวลาเรียบร้อย ── */
   .admin-head{flex-wrap:wrap;gap:8px!important;margin-bottom:12px!important}
   .admin-head h2{font-size:13px!important;line-height:1.25;flex:1 1 auto}
-  .admin-head .btn{font-size:11px;padding:6px 10px}
+  /* ปุ่มทั้งหมดอยู่แถวเดียว ไม่ห่อบรรทัด — ใช้ป้ายชื่อแบบย่อ */
+  .admin-btns{flex-wrap:nowrap!important;gap:4px!important;width:100%}
+  .admin-head .btn{font-size:10px!important;padding:6px 4px!important;
+    flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .admin-head .bl-f{display:none}
+  .admin-head .bl-s{display:inline}
   .admin-period{padding:8px 10px!important;gap:6px 8px!important}
   .admin-period>span:first-child{font-size:12px!important}
   .admin-period select,.admin-period input{font-size:11px!important;padding:5px 8px!important}
@@ -1206,12 +1213,12 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 <div id="ta" class="tc">
   <div class="admin-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <h2 style="color:#1a3a6b;font-size:16px">👑 Admin Dashboard — ข้อมูลพนักงานทั้งหมด</h2>
-    <div style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminCSV()">📊 Excel (CSV)</button>
-      <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminPDF()">📄 PDF</button>
-      <button class="btn" style="background:#0b5566;color:#fff" onclick="openBackup()">💾 สำรอง/กู้คืน</button>
-      <button class="btn" style="background:#7a0000;color:#fff" onclick="openTrash()">🗑 ถังขยะ</button>
-      <button class="btn" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 โหลดข้อมูล</button>
+    <div class="admin-btns" style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminCSV()">📊 <span class="bl-f">Excel (CSV)</span><span class="bl-s">CSV</span></button>
+      <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminPDF()">📄 <span class="bl-f">PDF</span><span class="bl-s">PDF</span></button>
+      <button class="btn" style="background:#0b5566;color:#fff" onclick="openBackup()">💾 <span class="bl-f">สำรอง/กู้คืน</span><span class="bl-s">สำรอง</span></button>
+      <button class="btn" style="background:#7a0000;color:#fff" onclick="openTrash()">🗑 <span class="bl-f">ถังขยะ</span><span class="bl-s">ถัง</span></button>
+      <button class="btn" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 <span class="bl-f">โหลดข้อมูล</span><span class="bl-s">โหลด</span></button>
     </div>
   </div>
   <input type="file" id="restore-file" accept=".json,application/json" style="display:none" onchange="handleRestoreFile(event)">
@@ -1318,7 +1325,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.9.7';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.9.8';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
