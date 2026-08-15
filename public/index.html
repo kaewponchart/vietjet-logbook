@@ -1279,6 +1279,11 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     </select>
   </div>
   <div id="admin-filter-count" style="font-size:12px;color:#666;margin:0 0 10px;min-height:16px"></div>
+  <div id="bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fff4f4;border:1px solid #f0c8c8;border-radius:8px;padding:8px 12px;margin:0 0 10px">
+    <span id="bulk-stat" style="font-size:12px;color:#7a0000;font-weight:700"></span>
+    <button class="btn" style="background:#c00000;color:#fff;font-size:12px;padding:4px 12px" onclick="bulkDelete()">🗑 ลบที่เลือกไปถังขยะ</button>
+    <button class="btn" style="background:#e8e8e8;color:#444;font-size:12px;padding:4px 12px" onclick="clearSel()">ล้างการเลือก</button>
+  </div>
 
   <!-- Criteria note -->
   <div class="crit-note" style="background:#f4f7fd;border:1px solid #d5e0f5;border-radius:8px;padding:8px 14px;margin-bottom:10px;font-size:11px;color:#445;line-height:1.7">
@@ -1292,6 +1297,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     <table class="admin-tbl" style="width:100%;border-collapse:collapse;font-size:12px">
       <thead>
         <tr style="background:#1a3a6b;color:#fff">
+          <th style="padding:10px 6px;text-align:center;width:34px"><input type="checkbox" id="ck-all" onclick="toggleSelAll(this)" title="เลือก/ยกเลิกทั้งหมดที่แสดงอยู่"></th>
           <th data-k="name" onclick="sortAdmin('name')" style="padding:10px 12px;text-align:left;cursor:pointer;user-select:none">ชื่อ-นามสกุล <span class="sort-ind" id="sa-name"></span></th>
           <th data-k="staffId" onclick="sortAdmin('staffId')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">Staff ID <span class="sort-ind" id="sa-staffId"></span></th>
           <th data-k="position" onclick="sortAdmin('position')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">Position <span class="sort-ind" id="sa-position"></span></th>
@@ -1325,7 +1331,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '2.9.8';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '2.9.9';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2311,6 +2317,8 @@ function toastMsg(text){
 let allUsersData = [];
 let _adminView = [];               // แถวที่กำลังแสดง (หลังกรอง+เรียง) — ใช้ตอน export
 let _adminSort = {k:null,dir:1};   // สถานะการเรียงคอลัมน์
+const _selUids = new Set();        // uid ที่ถูกติ๊กเลือกไว้ (คงอยู่แม้กรอง/เรียงใหม่)
+let _trashItems = [];              // รายการในถังขยะที่แสดงอยู่
 let editUid=null, editName='';           // when set, admin is editing this user's record
 let _adminViewUid='', _adminViewName=''; // user currently open in the admin modal
 let adminPeriod={mode:'all',from:'',to:''};
@@ -2395,7 +2403,7 @@ function populatePosFilter(data){
 }
 function renderAdminTable(data){
   const tbody=document.getElementById('admin-tbody');
-  if(!data.length){tbody.innerHTML='<tr><td colspan="9" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
+  if(!data.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
   const nb=(v,req)=>'<span style="font-weight:700;color:'+(v>=req?'#2e7d32':'#c00000')+'">'+v+'</span><small style="color:#aaa">/'+req+'</small>';
   const mkBadge=(pass,sub)=>(pass
     ?'<span style="display:inline-block;white-space:nowrap;background:#e4f3e5;color:#2e7d32;border:1px solid #a5d6a7;border-radius:12px;padding:2px 10px;font-size:11px;font-weight:700">✓ ผ่าน</span>'
@@ -2409,6 +2417,7 @@ function renderAdminTable(data){
     const badge=mkBadge(c.pass1,'');
     const tip='';
     return '<tr style="'+(i%2?'background:#fdf8f0':'')+'">'
+      +'<td style="padding:9px 6px;text-align:center"><input type="checkbox" class="ck-u" data-uid="'+encodeURIComponent(u.uid)+'"'+(_selUids.has(u.uid)?' checked':'')+'></td>'
       +'<td style="padding:9px 12px;font-weight:600;color:#1a3a6b">'+esc(u.name)+'</td>'
       +'<td style="padding:9px 8px;text-align:center">'+esc(u.staffId)+'</td>'
       +'<td style="padding:9px 8px;text-align:center;font-size:11px">'+esc(u.position)+'</td>'
@@ -2434,6 +2443,67 @@ function renderAdminTable(data){
       deleteUser(decodeURIComponent(this.dataset.uid),decodeURIComponent(this.dataset.name));
     });
   });
+  tbody.querySelectorAll('.ck-u').forEach(ck=>ck.onchange=function(){
+    const uid=decodeURIComponent(this.dataset.uid);
+    if(this.checked)_selUids.add(uid);else _selUids.delete(uid);
+    updateBulkBar();
+  });
+  updateBulkBar();
+}
+
+// ══ เลือกหลายรายการพร้อมกัน ═══════════════════════════════════════════════
+function _chunk(a,n){const o=[];for(let i=0;i<a.length;i+=n)o.push(a.slice(i,i+n));return o;}
+function clearSel(){
+  _selUids.clear();
+  document.querySelectorAll('#admin-tbody .ck-u').forEach(c=>c.checked=false);
+  updateBulkBar();
+}
+function toggleSelAll(el){
+  (_adminView||[]).forEach(u=>{if(el.checked)_selUids.add(u.uid);else _selUids.delete(u.uid);});
+  document.querySelectorAll('#admin-tbody .ck-u').forEach(c=>c.checked=el.checked);
+  updateBulkBar();
+}
+function updateBulkBar(){
+  const bar=document.getElementById('bulk-bar');if(!bar)return;
+  const n=_selUids.size;
+  bar.style.display=n?'flex':'none';
+  const view=_adminView||[];
+  const shown=view.filter(u=>_selUids.has(u.uid)).length;
+  const st=document.getElementById('bulk-stat');
+  if(st)st.textContent='เลือกไว้ '+n+' รายการ'+(shown<n?'  (มี '+(n-shown)+' รายการที่ถูกกรองซ่อนอยู่)':'');
+  const all=document.getElementById('ck-all');
+  if(all)all.checked=view.length>0&&shown===view.length;
+}
+async function bulkDelete(){
+  if(!isAdmin()){alert('ไม่มีสิทธิ์ลบข้อมูล');return;}
+  const uids=Array.from(_selUids);
+  if(!uids.length){alert('ยังไม่ได้เลือกรายการ');return;}
+  if(editUid&&uids.indexOf(editUid)>=0){alert('มีพนักงานที่กำลังอยู่ในโหมดแก้ไข กรุณาออกจากโหมดแก้ไขก่อนลบ');return;}
+  const nameOf=u=>{const f=allUsersData.find(x=>x.uid===u);return f?f.name:u;};
+  const names=uids.map(nameOf);
+  if(!confirm('ย้ายข้อมูลของ '+uids.length+' คนไปถังขยะ?\n\n'
+    +names.slice(0,10).join('\n')+(names.length>10?'\n…และอีก '+(names.length-10)+' คน':'')
+    +'\n\nกู้คืนได้ภายหลังจากปุ่ม 🗑 ถังขยะ'))return;
+  try{
+    let done=0;
+    for(const grp of _chunk(uids,100)){          // แบ่งชุดละ 100 คน (200 ops) กันชน limit ของ batch
+      const batch=fbDb.batch();let n=0;
+      for(const uid of grp){
+        const snap=await fbDb.collection('logbooks').doc(uid).get();
+        if(!snap.exists)continue;
+        const data=snap.data()||{};
+        data._del={name:nameOf(uid),byEmail:(currentUser&&currentUser.email)||'-',
+                   at:firebase.firestore.FieldValue.serverTimestamp()};
+        batch.set(fbDb.collection('deletedLogbooks').doc(uid),data);
+        batch.delete(fbDb.collection('logbooks').doc(uid));
+        n++;
+      }
+      if(n){await batch.commit();done+=n;}
+    }
+    _selUids.clear();
+    toastMsg('🗑 ย้าย '+done+' รายการไปถังขยะแล้ว');
+    loadAllUsers();
+  }catch(e){alert('ลบไม่สำเร็จ: '+e.message);}
 }
 function adminUserPass(u){
   // เกณฑ์เดียวกันทุก position (TCAR 8 Part 145.A.35): ≥100 WD หรือ ≥180 Tasks
@@ -2627,13 +2697,22 @@ async function renderTrash(){
     const items=[];snap.forEach(d=>items.push({uid:d.id,v:d.data()||{}}));
     if(!items.length){body.innerHTML='<div style="text-align:center;padding:24px;color:#999">ถังขยะว่าง</div>';return;}
     items.sort((a,b)=>_delAt(b.v)-_delAt(a.v));
-    let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
-      +'<tr style="background:#f0ead8"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+    _trashItems=items;
+    let h='<div id="trash-bulk" style="display:none;align-items:center;gap:8px;flex-wrap:wrap;background:#fff8f0;border:1px solid #e8d0b0;border-radius:8px;padding:8px 12px;margin-bottom:10px">'
+      +'<span id="trash-stat" style="font-size:12px;color:#7a4a00;font-weight:700"></span>'
+      +'<button class="btn" id="tb-res" style="background:#1a6b2e;color:#fff;font-size:12px;padding:4px 12px">♻ กู้คืนที่เลือก</button>'
+      +'<button class="btn" id="tb-del" style="background:#c00000;color:#fff;font-size:12px;padding:4px 12px">✕ ลบถาวรที่เลือก</button>'
+      +'</div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<tr style="background:#f0ead8">'
+      +'<th style="padding:8px;text-align:center;width:34px"><input type="checkbox" id="tk-all" title="เลือกทั้งหมด"></th>'
+      +'<th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
       +'<th style="padding:8px">Staff ID</th><th style="padding:8px">แถว</th>'
       +'<th style="padding:8px">ลบเมื่อ</th><th style="padding:8px">ลบโดย</th><th style="padding:8px">จัดการ</th></tr>';
     items.forEach((it,i)=>{
       const p=it.v.profile||{},dl=it.v._del||{},when=_delAt(it.v);
       h+='<tr style="border-bottom:1px solid #eee">'
+        +'<td style="padding:8px;text-align:center"><input type="checkbox" class="tk" data-i="'+i+'"></td>'
         +'<td style="padding:8px">'+esc(p.name||dl.name||'-')+'</td>'
         +'<td style="padding:8px;text-align:center">'+esc(p.staffid||'-')+'</td>'
         +'<td style="padding:8px;text-align:center;font-weight:700;color:#c00000">'+((it.v.rows||[]).length)+'</td>'
@@ -2648,12 +2727,80 @@ async function renderTrash(){
     body.innerHTML=h;
     body.querySelectorAll('.tr-res').forEach(b=>b.onclick=()=>restoreUser(items[+b.dataset.i]));
     body.querySelectorAll('.tr-del').forEach(b=>b.onclick=()=>purgeUser(items[+b.dataset.i]));
+    const cks=body.querySelectorAll('.tk');
+    const updTB=()=>{
+      const n=body.querySelectorAll('.tk:checked').length;
+      const bar=document.getElementById('trash-bulk');
+      if(bar)bar.style.display=n?'flex':'none';
+      const st=document.getElementById('trash-stat');
+      if(st)st.textContent='เลือกไว้ '+n+' รายการ';
+      const all=document.getElementById('tk-all');
+      if(all)all.checked=cks.length>0&&n===cks.length;
+    };
+    cks.forEach(c=>c.onchange=updTB);
+    const allck=document.getElementById('tk-all');
+    if(allck)allck.onclick=function(){cks.forEach(c=>c.checked=this.checked);updTB();};
+    const bres=document.getElementById('tb-res'),bdel=document.getElementById('tb-del');
+    if(bres)bres.onclick=bulkRestore;
+    if(bdel)bdel.onclick=bulkPurge;
+    updTB();
   }catch(e){
     body.innerHTML='<div style="color:#c00000;padding:12px;line-height:1.6">โหลดถังขยะไม่สำเร็จ: '+esc(e.message)
       +'<br><small style="color:#888">ถ้าขึ้น permission denied แปลว่ายังไม่ได้เพิ่มกฎ Firestore ของ deletedLogbooks</small></div>';
   }
 }
 function _trashName(it){return(it.v.profile&&it.v.profile.name)||(it.v._del&&it.v._del.name)||it.uid;}
+function _trashPicked(){
+  const out=[];
+  document.querySelectorAll('#trash-body .tk:checked').forEach(c=>{
+    const it=_trashItems[+c.dataset.i];if(it)out.push(it);
+  });
+  return out;
+}
+async function bulkRestore(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  const picked=_trashPicked();
+  if(!picked.length){alert('ยังไม่ได้เลือกรายการ');return;}
+  try{
+    let over=0;
+    for(const it of picked){                       // เช็คก่อนว่าใครมีข้อมูลชุดใหม่อยู่แล้ว
+      const c=await fbDb.collection('logbooks').doc(it.uid).get();
+      if(c.exists)over++;
+    }
+    let msg='กู้คืน '+picked.length+' รายการ?';
+    if(over)msg+='\n\n⚠️ ในจำนวนนี้มี '+over+' รายการที่มีข้อมูลอยู่ในระบบแล้ว และจะถูกเขียนทับ';
+    if(!confirm(msg))return;
+    for(const grp of _chunk(picked,100)){
+      const batch=fbDb.batch();
+      grp.forEach(it=>{
+        const data=Object.assign({},it.v);delete data._del;
+        batch.set(fbDb.collection('logbooks').doc(it.uid),data);
+        batch.delete(fbDb.collection('deletedLogbooks').doc(it.uid));
+      });
+      await batch.commit();
+    }
+    toastMsg('♻ กู้คืน '+picked.length+' รายการเรียบร้อยแล้ว');
+    await renderTrash();loadAllUsers();
+  }catch(e){alert('กู้คืนไม่สำเร็จ: '+e.message);}
+}
+async function bulkPurge(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  const picked=_trashPicked();
+  if(!picked.length){alert('ยังไม่ได้เลือกรายการ');return;}
+  const names=picked.map(_trashName);
+  if(!confirm('⚠️ ลบถาวร '+picked.length+' รายการ?\n\n'
+    +names.slice(0,10).join('\n')+(names.length>10?'\n…และอีก '+(names.length-10)+' คน':'')
+    +'\n\nหลังจากนี้จะกู้คืนไม่ได้อีกเลย'))return;
+  try{
+    for(const grp of _chunk(picked,200)){
+      const batch=fbDb.batch();
+      grp.forEach(it=>batch.delete(fbDb.collection('deletedLogbooks').doc(it.uid)));
+      await batch.commit();
+    }
+    toastMsg('ลบถาวร '+picked.length+' รายการแล้ว');
+    await renderTrash();
+  }catch(e){alert('ลบไม่สำเร็จ: '+e.message);}
+}
 async function restoreUser(it){
   const nm=_trashName(it);
   try{
