@@ -1362,7 +1362,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.2.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.2.4';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2605,7 +2605,7 @@ function _dqRender(){
 function renderMonBar(){
   const bar=document.getElementById('mon-bar');if(!bar)return;
   if(!allUsersData||!allUsersData.length){bar.innerHTML='';return;}
-  const risk=riskList(30).length, dq=dqScan().length;
+  const risk=riskList(30).length, idle=idleList(30).length, dq=dqScan().length;
   const chip=(icon,label,n,unit,fn,ok)=>{
     const c=ok?['#eaf5ea','#b6ddb8','#2e7d32']:['#fff6e5','#e8c98a','#8a5a00'];
     return '<button class="btn" onclick="'+fn+'" style="background:'+c[0]+';border:1px solid '+c[1]
@@ -2614,7 +2614,7 @@ function renderMonBar(){
   };
   bar.innerHTML=
      chip('⚠️','เสี่ยงหลุดใน 30 วัน',risk,'คน','openRisk()',risk===0)
-    +'<button class="btn" onclick="openIdle()" style="background:#f2f4f7;border:1px solid #ccd3dd;color:#44506a;font-size:12px;padding:7px 12px">💤 ไม่เคลื่อนไหว</button>'
+    +chip('💤','ไม่เคลื่อนไหว 30 วัน+',idle,'คน','openIdle(30)',idle===0)
     +chip('🔍','จุดข้อมูลไม่สมบูรณ์',dq,'จุด','openDQ()',dq===0)
     +'<button class="btn" onclick="monthlyReport()" style="background:#1a3a6b;color:#fff;font-size:12px;padding:7px 12px">📅 รายงานประจำเดือน</button>';
 }
@@ -2632,7 +2632,7 @@ function idleList(days){
     return ta-tb;
   });
 }
-let _idleDays=60;
+let _idleDays=30;
 function openIdle(d){
   _idleDays=d||_idleDays;
   const list=idleList(_idleDays);
