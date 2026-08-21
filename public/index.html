@@ -171,8 +171,12 @@ table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:var(--red);
      display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:hover{filter:brightness(.96)}
 /* เมนูเครื่องมือ */
-.tmi{display:block;width:100%;text-align:left;background:#fff;border:none;cursor:pointer;
-  padding:10px 14px;font-size:12.5px;color:#333;font-weight:600;transition:background .12s}
+.tmi{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;
+  background:#fff;border:none;cursor:pointer;padding:10px 14px;font-size:12.5px;color:#333;
+  font-weight:600;transition:background .12s;white-space:nowrap}
+.tmh{padding:7px 14px 4px;font-size:10px;font-weight:800;color:#9aa3b2;letter-spacing:.4px;
+  background:#fafbfd;border-top:1px solid #eee;text-transform:uppercase}
+#tools-btn{flex-wrap:wrap}
 .tmi:hover{background:#f2f5fa}
 .tmi:active{background:#e6ecf5}
 /* ── ความลื่นไหล / การตอบสนอง ─────────────────────────────────────────── */
@@ -630,15 +634,11 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   /* ── Admin Dashboard: หัวข้อไม่ให้ใหญ่/ตกบรรทัด + แถบช่วงเวลาเรียบร้อย ── */
   .admin-head{flex-wrap:wrap;gap:8px!important;margin-bottom:12px!important}
   .admin-head h2{font-size:13px!important;line-height:1.25;flex:1 1 auto}
-  /* มือถือ: ป้ายสถานะเต็มแถวบน แล้วปุ่มคำสั่งแบ่งครึ่งแถวล่าง */
-  .admin-btns{flex-wrap:wrap!important;gap:6px!important;width:100%}
-  #mon-bar{width:100%;gap:5px!important}
-  #mon-bar .btn{flex:1 1 0;min-width:0;font-size:9.5px!important;padding:6px 3px!important;
-    justify-content:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .admin-btns>div:not(#mon-bar){flex:1 1 0;min-width:0}
-  .admin-head #tools-btn,.admin-head #btn-reload{width:100%;font-size:11px!important;
-    padding:8px 6px!important;justify-content:center;flex:1 1 0}
-  #tools-menu{min-width:180px!important}
+  /* มือถือ: ปุ่มเดียวเต็มแถว เมนูกางเต็มความกว้าง */
+  .admin-btns{width:100%}
+  .admin-head #tools-btn{width:100%;font-size:11.5px!important;padding:9px 8px!important;justify-content:center}
+  #tools-menu{left:0;right:0;min-width:0!important}
+  .tmi{font-size:12px!important;padding:11px 13px!important}
   .admin-period{padding:8px 10px!important;gap:6px 8px!important}
   .admin-period>span:first-child{font-size:12px!important}
   .admin-period select,.admin-period input{font-size:11px!important;padding:5px 8px!important}
@@ -1251,20 +1251,23 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 <div id="ta" class="tc">
   <div class="admin-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <h2 style="color:#1a3a6b;font-size:16px">👑 Admin Dashboard — ข้อมูลพนักงานทั้งหมด</h2>
-    <div class="admin-btns" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-      <div id="mon-bar" style="display:flex;gap:6px;flex-wrap:wrap"></div>
-      <div style="position:relative">
-        <button class="btn" id="tools-btn" onclick="toggleTools(event)" style="background:#3d4b63;color:#fff">⚙️ เครื่องมือ ▾</button>
-        <div id="tools-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:500;background:#fff;border:1px solid #dcdcdc;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.18);min-width:216px;overflow:hidden;text-align:left">
-          <button class="tmi" onclick="_tool(exportAdminCSV)">📊 ส่งออก Excel (CSV)</button>
-          <button class="tmi" onclick="_tool(exportAdminPDF)">📄 ส่งออก PDF</button>
-          <button class="tmi" onclick="_tool(monthlyReport)">📅 รายงานประจำเดือน</button>
-          <div style="height:1px;background:#eee"></div>
-          <button class="tmi" onclick="_tool(openBackup)">💾 สำรอง / กู้คืนข้อมูล</button>
-          <button class="tmi" onclick="_tool(openTrash)">🗑 ถังขยะ</button>
-        </div>
+    <div class="admin-btns" style="position:relative">
+      <button class="btn" id="tools-btn" onclick="toggleTools(event)" style="background:#3d4b63;color:#fff;padding:7px 13px">
+        <span>⚙️ เครื่องมือ</span><span id="tools-status"></span><span style="opacity:.7;margin-left:4px">▾</span></button>
+      <div id="tools-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:500;background:#fff;border:1px solid #dcdcdc;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.18);min-width:262px;overflow:hidden;text-align:left">
+        <div class="tmh">ตรวจสอบสถานะ</div>
+        <button class="tmi" onclick="_tool(openRisk)"><span>⚠️ เสี่ยงหลุดใน 30 วัน</span><span id="mi-risk"></span></button>
+        <button class="tmi" onclick="_tool(function(){openIdle(30)})"><span>💤 ไม่เคลื่อนไหว 30 วัน</span><span id="mi-idle"></span></button>
+        <button class="tmi" onclick="_tool(openDQ)"><span>🔍 ข้อมูลไม่สมบูรณ์</span><span id="mi-dq"></span></button>
+        <div class="tmh">ส่งออกรายงาน</div>
+        <button class="tmi" onclick="_tool(exportAdminCSV)"><span>📊 ส่งออก Excel (CSV)</span></button>
+        <button class="tmi" onclick="_tool(exportAdminPDF)"><span>📄 ส่งออก PDF</span></button>
+        <button class="tmi" onclick="_tool(monthlyReport)"><span>📅 รายงานประจำเดือน</span></button>
+        <div class="tmh">จัดการข้อมูล</div>
+        <button class="tmi" onclick="_tool(loadAllUsers)"><span>🔄 โหลดข้อมูลใหม่</span></button>
+        <button class="tmi" onclick="_tool(openBackup)"><span>💾 สำรอง / กู้คืนข้อมูล</span></button>
+        <button class="tmi" onclick="_tool(openTrash)"><span>🗑 ถังขยะ</span></button>
       </div>
-      <button class="btn" id="btn-reload" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 โหลดข้อมูล</button>
     </div>
   </div>
   <input type="file" id="restore-file" accept=".json,application/json" style="display:none" onchange="handleRestoreFile(event)">
@@ -1377,7 +1380,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.3.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.4.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2628,19 +2631,21 @@ function _tool(fn){closeTools();if(typeof fn==='function')fn();}
 document.addEventListener('click',closeTools);
 
 function renderMonBar(){
-  const bar=document.getElementById('mon-bar');if(!bar)return;
-  if(!allUsersData||!allUsersData.length){bar.innerHTML='';return;}
+  const st=document.getElementById('tools-status');if(!st)return;
+  const set=(id,html)=>{const e=document.getElementById(id);if(e)e.innerHTML=html;};
+  if(!allUsersData||!allUsersData.length){
+    st.innerHTML='';['mi-risk','mi-idle','mi-dq'].forEach(i=>set(i,''));return;
+  }
   const risk=riskList(30).length, idle=idleList(30).length, dq=dqScan().length;
-  const chip=(icon,label,n,tip,fn,ok)=>{
-    const c=ok?['#eaf5ea','#b6ddb8','#2e7d32']:['#fff6e5','#e8c98a','#8a5a00'];
-    return '<button class="btn" onclick="'+fn+'" title="'+tip+'" style="background:'+c[0]+';border:1px solid '+c[1]
-      +';color:'+c[2]+';font-size:11.5px;padding:6px 10px">'+icon+' '+label
-      +' <b style="font-size:13px">'+n.toLocaleString('th-TH')+'</b></button>';
-  };
-  bar.innerHTML=
-     chip('⚠️','เสี่ยงหลุด 30 วัน',risk,'ผ่านอยู่ตอนนี้ แต่จะหลุดเกณฑ์ใน 30 วันถ้าไม่ลงงานเพิ่ม','openRisk()',risk===0)
-    +chip('💤','ไม่เคลื่อนไหว 30 วัน',idle,'ไม่ได้อัปเดตข้อมูลเกิน 30 วัน','openIdle(30)',idle===0)
-    +chip('🔍','ข้อมูลไม่สมบูรณ์',dq,'จุดที่ข้อมูลอาจไม่ครบถ้วน','openDQ()',dq===0);
+  // ป้ายเล็กบนปุ่ม — เหลืองเมื่อมีเรื่องต้องดู, จางเมื่อเป็นศูนย์
+  const pill=(icon,n,ok)=>'<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;'
+    +'background:'+(ok?'rgba(255,255,255,.16)':'#ffd479')+';color:'+(ok?'#e8ecf3':'#5c3d00')
+    +';border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800">'+icon+' '+n.toLocaleString('th-TH')+'</span>';
+  st.innerHTML=pill('⚠️',risk,risk===0)+pill('💤',idle,idle===0)+pill('🔍',dq,dq===0);
+  // ป้ายในเมนู
+  const mb=(n,ok)=>'<span style="background:'+(ok?'#eaf5ea':'#fff2d6')+';color:'+(ok?'#2e7d32':'#8a5a00')
+    +';border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:800">'+n.toLocaleString('th-TH')+'</span>';
+  set('mi-risk',mb(risk,risk===0));set('mi-idle',mb(idle,idle===0));set('mi-dq',mb(dq,dq===0));
 }
 
 // ══ คนที่ไม่เคลื่อนไหว ═════════════════════════════════════════════════════
