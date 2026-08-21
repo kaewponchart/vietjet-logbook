@@ -170,6 +170,11 @@ table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:var(--red);
 .btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;
      display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:hover{filter:brightness(.96)}
+/* เมนูเครื่องมือ */
+.tmi{display:block;width:100%;text-align:left;background:#fff;border:none;cursor:pointer;
+  padding:10px 14px;font-size:12.5px;color:#333;font-weight:600;transition:background .12s}
+.tmi:hover{background:#f2f5fa}
+.tmi:active{background:#e6ecf5}
 /* ── ความลื่นไหล / การตอบสนอง ─────────────────────────────────────────── */
 .btn,.tab{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
 .btn:active{transform:scale(.96);filter:brightness(.9)}
@@ -625,12 +630,15 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   /* ── Admin Dashboard: หัวข้อไม่ให้ใหญ่/ตกบรรทัด + แถบช่วงเวลาเรียบร้อย ── */
   .admin-head{flex-wrap:wrap;gap:8px!important;margin-bottom:12px!important}
   .admin-head h2{font-size:13px!important;line-height:1.25;flex:1 1 auto}
-  /* ปุ่มทั้งหมดอยู่แถวเดียว ไม่ห่อบรรทัด — ใช้ป้ายชื่อแบบย่อ */
-  .admin-btns{flex-wrap:nowrap!important;gap:4px!important;width:100%}
-  .admin-head .btn{font-size:10px!important;padding:6px 4px!important;
-    flex:1 1 0;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-  .admin-head .bl-f{display:none}
-  .admin-head .bl-s{display:inline}
+  /* มือถือ: ป้ายสถานะเต็มแถวบน แล้วปุ่มคำสั่งแบ่งครึ่งแถวล่าง */
+  .admin-btns{flex-wrap:wrap!important;gap:6px!important;width:100%}
+  #mon-bar{width:100%;gap:5px!important}
+  #mon-bar .btn{flex:1 1 0;min-width:0;font-size:9.5px!important;padding:6px 3px!important;
+    justify-content:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .admin-btns>div:not(#mon-bar){flex:1 1 0;min-width:0}
+  .admin-head #tools-btn,.admin-head #btn-reload{width:100%;font-size:11px!important;
+    padding:8px 6px!important;justify-content:center;flex:1 1 0}
+  #tools-menu{min-width:180px!important}
   .admin-period{padding:8px 10px!important;gap:6px 8px!important}
   .admin-period>span:first-child{font-size:12px!important}
   .admin-period select,.admin-period input{font-size:11px!important;padding:5px 8px!important}
@@ -1243,12 +1251,20 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 <div id="ta" class="tc">
   <div class="admin-head" style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
     <h2 style="color:#1a3a6b;font-size:16px">👑 Admin Dashboard — ข้อมูลพนักงานทั้งหมด</h2>
-    <div class="admin-btns" style="display:flex;gap:8px;flex-wrap:wrap">
-      <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminCSV()">📊 <span class="bl-f">Excel (CSV)</span><span class="bl-s">CSV</span></button>
-      <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportAdminPDF()">📄 <span class="bl-f">PDF</span><span class="bl-s">PDF</span></button>
-      <button class="btn" style="background:#0b5566;color:#fff" onclick="openBackup()">💾 <span class="bl-f">สำรอง/กู้คืน</span><span class="bl-s">สำรอง</span></button>
-      <button class="btn" style="background:#7a0000;color:#fff" onclick="openTrash()">🗑 <span class="bl-f">ถังขยะ</span><span class="bl-s">ถัง</span></button>
-      <button class="btn" id="btn-reload" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 <span class="bl-f">โหลดข้อมูล</span><span class="bl-s">โหลด</span></button>
+    <div class="admin-btns" style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+      <div id="mon-bar" style="display:flex;gap:6px;flex-wrap:wrap"></div>
+      <div style="position:relative">
+        <button class="btn" id="tools-btn" onclick="toggleTools(event)" style="background:#3d4b63;color:#fff">⚙️ เครื่องมือ ▾</button>
+        <div id="tools-menu" style="display:none;position:absolute;right:0;top:calc(100% + 6px);z-index:500;background:#fff;border:1px solid #dcdcdc;border-radius:10px;box-shadow:0 10px 28px rgba(0,0,0,.18);min-width:216px;overflow:hidden;text-align:left">
+          <button class="tmi" onclick="_tool(exportAdminCSV)">📊 ส่งออก Excel (CSV)</button>
+          <button class="tmi" onclick="_tool(exportAdminPDF)">📄 ส่งออก PDF</button>
+          <button class="tmi" onclick="_tool(monthlyReport)">📅 รายงานประจำเดือน</button>
+          <div style="height:1px;background:#eee"></div>
+          <button class="tmi" onclick="_tool(openBackup)">💾 สำรอง / กู้คืนข้อมูล</button>
+          <button class="tmi" onclick="_tool(openTrash)">🗑 ถังขยะ</button>
+        </div>
+      </div>
+      <button class="btn" id="btn-reload" style="background:#1a3a6b;color:#fff" onclick="loadAllUsers()">🔄 โหลดข้อมูล</button>
     </div>
   </div>
   <input type="file" id="restore-file" accept=".json,application/json" style="display:none" onchange="handleRestoreFile(event)">
@@ -1309,7 +1325,6 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     </select>
   </div>
   <div id="admin-filter-count" style="font-size:12px;color:#666;margin:0 0 10px;min-height:16px"></div>
-  <div id="mon-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px"></div>
   <div id="bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fff4f4;border:1px solid #f0c8c8;border-radius:8px;padding:8px 12px;margin:0 0 10px">
     <span id="bulk-stat" style="font-size:12px;color:#7a0000;font-weight:700"></span>
     <button class="btn" style="background:#c00000;color:#fff;font-size:12px;padding:4px 12px" onclick="bulkDelete()">🗑 ลบที่เลือกไปถังขยะ</button>
@@ -1362,7 +1377,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.2.4';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.3.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2602,21 +2617,30 @@ function _dqRender(){
 }
 
 // ══ แผงตรวจสอบ (แสดงตลอด — เขียวคือไม่มีปัญหา) ═════════════════════════════
+// ── เมนูเครื่องมือ ──
+function toggleTools(e){
+  if(e)e.stopPropagation();
+  const m=document.getElementById('tools-menu');if(!m)return;
+  m.style.display=(m.style.display==='block')?'none':'block';
+}
+function closeTools(){const m=document.getElementById('tools-menu');if(m)m.style.display='none';}
+function _tool(fn){closeTools();if(typeof fn==='function')fn();}
+document.addEventListener('click',closeTools);
+
 function renderMonBar(){
   const bar=document.getElementById('mon-bar');if(!bar)return;
   if(!allUsersData||!allUsersData.length){bar.innerHTML='';return;}
   const risk=riskList(30).length, idle=idleList(30).length, dq=dqScan().length;
-  const chip=(icon,label,n,unit,fn,ok)=>{
+  const chip=(icon,label,n,tip,fn,ok)=>{
     const c=ok?['#eaf5ea','#b6ddb8','#2e7d32']:['#fff6e5','#e8c98a','#8a5a00'];
-    return '<button class="btn" onclick="'+fn+'" style="background:'+c[0]+';border:1px solid '+c[1]
-      +';color:'+c[2]+';font-size:12px;padding:7px 12px">'+icon+' '+label
-      +' <b style="font-size:13.5px">'+n+'</b> '+unit+'</button>';
+    return '<button class="btn" onclick="'+fn+'" title="'+tip+'" style="background:'+c[0]+';border:1px solid '+c[1]
+      +';color:'+c[2]+';font-size:11.5px;padding:6px 10px">'+icon+' '+label
+      +' <b style="font-size:13px">'+n.toLocaleString('th-TH')+'</b></button>';
   };
   bar.innerHTML=
-     chip('⚠️','เสี่ยงหลุดใน 30 วัน',risk,'คน','openRisk()',risk===0)
-    +chip('💤','ไม่เคลื่อนไหว 30 วัน+',idle,'คน','openIdle(30)',idle===0)
-    +chip('🔍','จุดข้อมูลไม่สมบูรณ์',dq,'จุด','openDQ()',dq===0)
-    +'<button class="btn" onclick="monthlyReport()" style="background:#1a3a6b;color:#fff;font-size:12px;padding:7px 12px">📅 รายงานประจำเดือน</button>';
+     chip('⚠️','เสี่ยงหลุด 30 วัน',risk,'ผ่านอยู่ตอนนี้ แต่จะหลุดเกณฑ์ใน 30 วันถ้าไม่ลงงานเพิ่ม','openRisk()',risk===0)
+    +chip('💤','ไม่เคลื่อนไหว 30 วัน',idle,'ไม่ได้อัปเดตข้อมูลเกิน 30 วัน','openIdle(30)',idle===0)
+    +chip('🔍','ข้อมูลไม่สมบูรณ์',dq,'จุดที่ข้อมูลอาจไม่ครบถ้วน','openDQ()',dq===0);
 }
 
 // ══ คนที่ไม่เคลื่อนไหว ═════════════════════════════════════════════════════
@@ -3088,6 +3112,7 @@ function _lockScroll(){
 // ── กด Esc เพื่อปิดหน้าต่างบนสุด ──
 document.addEventListener('keydown',function(e){
   if(e.key!=='Escape')return;
+  closeTools();
   if(document.getElementById('info-modal')&&_closeInfo){_closeInfo();return;}
   if(document.getElementById('backup-modal')){closeBackup();return;}
   if(document.getElementById('trash-modal')){closeTrash();return;}
