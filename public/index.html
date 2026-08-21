@@ -1362,7 +1362,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.2.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.2.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2489,7 +2489,7 @@ function dqScan(){
   (allUsersData||[]).forEach(u=>{
     const seen={},perDay={};
     (u.rowsArr||[]).forEach((r,i)=>{
-      const add=k=>issues.push({k:k,name:u.name,staffId:u.staffId,row:i+1,date:r.date||'-',
+      const add=k=>issues.push({k:k,name:u.name,staffId:u.staffId,pos:u.position||'-',row:i+1,date:r.date||'-',
                                 ref:r.workref||'',desc:(r.desc||'').slice(0,40)});
       const d=r.date?pDate(r.date):null;
       const blank=!r.date&&!r.actype&&!r.workref&&!r.desc&&!r.dur&&!r.skill;
@@ -2504,7 +2504,7 @@ function dqScan(){
       if(d&&!isNaN(dur)&&dur>0){const dk=r.date;perDay[dk]=(perDay[dk]||0)+dur;}
     });
     Object.keys(perDay).forEach(dk=>{
-      if(perDay[dk]>24)issues.push({k:'over24',name:u.name,staffId:u.staffId,row:'-',date:dk,
+      if(perDay[dk]>24)issues.push({k:'over24',name:u.name,staffId:u.staffId,pos:u.position||'-',row:'-',date:dk,
         ref:'',desc:'รวม '+perDay[dk].toFixed(1)+' ชม. ในวันเดียว'});
     });
   });
@@ -2518,194 +2518,87 @@ function updateDQBanner(){
   const t=document.getElementById('dq-txt');
   if(t)t.textContent='🔍 ตรวจพบ '+iss.length.toLocaleString('th-TH')+' จุดที่ข้อมูลอาจไม่สมบูรณ์ จากพนักงาน '+ppl+' คน';
 }
+let _dqIss=[],_dqView=[];
 function openDQ(){
-  const iss=dqScan();
-  if(!iss.length){alert('ไม่พบปัญหาคุณภาพข้อมูล ✓');return;}
-  let h='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px">'
+  _dqIss=dqScan();
+  if(!_dqIss.length){alert('ไม่พบปัญหาคุณภาพข้อมูล ✓');return;}
+  // สรุปตามประเภท — กดที่แถวเพื่อกรองเฉพาะประเภทนั้นได้เลย
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:14px">'
     +'<tr style="background:#eef2fa"><th style="padding:8px;text-align:left">ประเภทปัญหา</th>'
     +'<th style="padding:8px">จำนวน</th><th style="padding:8px;text-align:left">ผลกระทบ</th></tr>';
   DQ_TYPES.forEach(t=>{
-    const n=iss.filter(i=>i.k===t.k).length;if(!n)return;
-    h+='<tr style="border-bottom:1px solid #eee"><td style="padding:8px;font-weight:600">'+t.t+'</td>'
-      +'<td style="padding:8px;text-align:center;font-weight:700;color:#c00000">'+n+'</td>'
+    const n=_dqIss.filter(i=>i.k===t.k).length;if(!n)return;
+    h+='<tr style="border-bottom:1px solid #eee;cursor:pointer" onclick="_dqSetType(\''+t.k+'\')" title="กดเพื่อกรองเฉพาะประเภทนี้">'
+      +'<td style="padding:8px;font-weight:600;color:#1a5fb4;text-decoration:underline">'+t.t+'</td>'
+      +'<td style="padding:8px;text-align:center;font-weight:700;color:#c00000">'+n.toLocaleString('th-TH')+'</td>'
       +'<td style="padding:8px;font-size:11px;color:#777">'+t.why+'</td></tr>';
   });
   h+='</table>';
-  const lim=iss.slice(0,300);
-  h+='<div style="font-size:12px;font-weight:700;color:#1a3a6b;margin-bottom:6px">รายละเอียด'
-    +(iss.length>300?' (แสดง 300 จาก '+iss.length+' — ดาวน์โหลด CSV เพื่อดูทั้งหมด)':'')+'</div>'
-    +'<table style="width:100%;border-collapse:collapse;font-size:11.5px">'
+  // แถบกรอง
+  const poss=Array.from(new Set(_dqIss.map(i=>i.pos))).sort();
+  h+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f9fc;border:1px solid #dde5f0;'
+    +'border-radius:8px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:2">'
+    +'<input id="dq-q" placeholder="🔍 ค้นหาชื่อ หรือ Staff ID..." style="flex:1 1 220px;min-width:0;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+    +'<select id="dq-type" style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff"><option value="">ทุกประเภทปัญหา</option>'
+    +DQ_TYPES.filter(t=>_dqIss.some(i=>i.k===t.k)).map(t=>'<option value="'+t.k+'">'+t.t+'</option>').join('')+'</select>'
+    +'<select id="dq-pos" style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff"><option value="">ทุก Position</option>'
+    +poss.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')+'</select>'
+    +'<button class="btn" id="dq-clear" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้าง</button>'
+    +'</div><div id="dq-count" style="font-size:12px;color:#666;margin-bottom:6px"></div><div id="dq-list"></div>';
+  _openInfoModal('🔍 รายงานคุณภาพข้อมูล ('+_dqIss.length.toLocaleString('th-TH')+' จุด)','#1a3a6b',h,()=>{
+    const head=['ชื่อ-นามสกุล','Staff ID','Position','แถวที่','วันที่','ประเภทปัญหา','Work Ref.','งาน'];
+    const lines=[head.map(_csvCell).join(',')];
+    _dqView.forEach(i=>{const ty=DQ_TYPES.find(t=>t.k===i.k);
+      lines.push([i.name,i.staffId,i.pos,i.row,i.date,(ty?ty.t:i.k),i.ref,i.desc].map(_csvCell).join(','));});
+    _dlCSV(lines,'DataQuality_');
+  },true);
+  ['dq-q','dq-type','dq-pos'].forEach(id=>{
+    const el=document.getElementById(id);if(!el)return;
+    el.addEventListener(id==='dq-q'?'input':'change',_dqRender);
+  });
+  const cl=document.getElementById('dq-clear');
+  if(cl)cl.onclick=()=>{['dq-q','dq-type','dq-pos'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});_dqRender();};
+  _dqRender();
+}
+function _dqSetType(k){
+  const el=document.getElementById('dq-type');
+  if(el){el.value=k;_dqRender();el.scrollIntoView({behavior:'smooth',block:'center'});}
+}
+function _dqRender(){
+  const box=document.getElementById('dq-list');if(!box)return;
+  const q=((document.getElementById('dq-q')||{}).value||'').toLowerCase().trim();
+  const ty=(document.getElementById('dq-type')||{}).value||'';
+  const po=(document.getElementById('dq-pos')||{}).value||'';
+  _dqView=_dqIss.filter(i=>{
+    if(ty&&i.k!==ty)return false;
+    if(po&&i.pos!==po)return false;
+    if(q&&!((i.name||'').toLowerCase().includes(q)||(i.staffId||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+  const cnt=document.getElementById('dq-count');
+  const LIM=600, show=_dqView.slice(0,LIM);
+  if(cnt)cnt.innerHTML=(q||ty||po)
+    ? 'กรองแล้วพบ <b>'+_dqView.length.toLocaleString('th-TH')+'</b> จาก '+_dqIss.length.toLocaleString('th-TH')+' จุด'
+      +(_dqView.length>LIM?' <span style="color:#b8860b">(แสดง '+LIM+' รายการแรก)</span>':'')
+      +' · ปุ่ม CSV ด้านบนจะส่งออกเฉพาะที่กรองไว้'
+    : 'แสดงทั้งหมด <b>'+_dqIss.length.toLocaleString('th-TH')+'</b> จุด'
+      +(_dqIss.length>LIM?' <span style="color:#b8860b">(แสดง '+LIM+' รายการแรก — ใช้ตัวกรองเพื่อดูเฉพาะที่ต้องการ)</span>':'');
+  if(!_dqView.length){box.innerHTML='<div style="text-align:center;padding:26px;color:#999">ไม่พบรายการตามเงื่อนไขที่กรอง</div>';return;}
+  let h='<table style="width:100%;border-collapse:collapse;font-size:11.5px">'
     +'<tr style="background:#f5f5f5"><th style="padding:6px;text-align:left">ชื่อ</th><th style="padding:6px">Staff ID</th>'
-    +'<th style="padding:6px">แถวที่</th><th style="padding:6px">วันที่</th>'
+    +'<th style="padding:6px">Position</th><th style="padding:6px">แถวที่</th><th style="padding:6px">วันที่</th>'
     +'<th style="padding:6px;text-align:left">ปัญหา</th><th style="padding:6px;text-align:left">งาน</th></tr>';
-  lim.forEach(i=>{
-    const ty=DQ_TYPES.find(t=>t.k===i.k);
-    h+='<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:6px">'+esc(i.name)+'</td>'
+  show.forEach(i=>{
+    const t=DQ_TYPES.find(x=>x.k===i.k);
+    h+='<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:6px;font-weight:600;color:#1a3a6b">'+esc(i.name)+'</td>'
       +'<td style="padding:6px;text-align:center">'+esc(i.staffId)+'</td>'
+      +'<td style="padding:6px;text-align:center;font-size:10.5px;color:#777">'+esc(i.pos)+'</td>'
       +'<td style="padding:6px;text-align:center;color:#888">'+i.row+'</td>'
       +'<td style="padding:6px;text-align:center">'+esc(i.date)+'</td>'
-      +'<td style="padding:6px;color:#c00000">'+esc(ty?ty.t:i.k)+'</td>'
+      +'<td style="padding:6px;color:#c00000">'+esc(t?t.t:i.k)+'</td>'
       +'<td style="padding:6px;color:#777">'+esc(i.desc||i.ref)+'</td></tr>';
   });
-  h+='</table>';
-  _openInfoModal('🔍 รายงานคุณภาพข้อมูล ('+iss.length.toLocaleString('th-TH')+' จุด)','#1a3a6b',h,()=>{
-    const head=['ชื่อ-นามสกุล','Staff ID','แถวที่','วันที่','ประเภทปัญหา','Work Ref.','งาน'];
-    const lines=[head.map(_csvCell).join(',')];
-    iss.forEach(i=>{const ty=DQ_TYPES.find(t=>t.k===i.k);
-      lines.push([i.name,i.staffId,i.row,i.date,(ty?ty.t:i.k),i.ref,i.desc].map(_csvCell).join(','));});
-    _dlCSV(lines,'DataQuality_');
-  },true);   // true = เปิดแบบเต็มจอ
-}
-
-// ══ แผงตรวจสอบ (แสดงตลอด — เขียวคือไม่มีปัญหา) ═════════════════════════════
-function renderMonBar(){
-  const bar=document.getElementById('mon-bar');if(!bar)return;
-  if(!allUsersData||!allUsersData.length){bar.innerHTML='';return;}
-  const risk=riskList(30).length, qual=qualList(true).length,
-        idle=idleList(60).length, dq=dqScan().length;
-  const chip=(icon,label,n,unit,fn,ok)=>{
-    const c=ok?['#eaf5ea','#b6ddb8','#2e7d32']:['#fff6e5','#e8c98a','#8a5a00'];
-    return '<button class="btn" onclick="'+fn+'" style="background:'+c[0]+';border:1px solid '+c[1]
-      +';color:'+c[2]+';font-size:12px;padding:7px 12px">'+icon+' '+label
-      +' <b style="font-size:13.5px">'+n+'</b> '+unit+'</button>';
-  };
-  bar.innerHTML=
-     chip('⚠️','เสี่ยงหลุดใน 30 วัน',risk,'คน','openRisk()',risk===0)
-    +chip('🎯','คุณสมบัติขาดต่ออายุ',qual,'คน','openQual()',qual===0)
-    +chip('💤','ไม่เคลื่อนไหว 60 วัน+',idle,'คน','openIdle()',idle===0)
-    +chip('🔍','จุดข้อมูลไม่สมบูรณ์',dq,'จุด','openDQ()',dq===0)
-    +'<button class="btn" onclick="monthlyReport()" style="background:#1a3a6b;color:#fff;font-size:12px;padding:7px 12px">📅 รายงานประจำเดือน</button>';
-}
-
-// ══ คุณสมบัติเฉพาะทาง: NDT (ET/PT/MT/UT) + Borescope + Structure ═══════════
-// นับเฉพาะคนที่ "เคยทำงานประเภทนั้น" เท่านั้น — คนที่ไม่เคยทำเลยถือว่าไม่เกี่ยวข้อง
-// ไม่งั้นช่างที่ไม่เคยทำ NDT ทั้งชีวิตจะขึ้นว่าขาดคุณสมบัติทั้งหมด ซึ่งไม่มีความหมาย
-const QUAL_DEFS=[
-  {k:'et', t:'NDT — ET', req:'≥1 ใน 12 เดือน', has:r=>r.skill&&r.skill.includes('(ET)'), get:c=>c.et,  need:1},
-  {k:'pt', t:'NDT — PT', req:'≥1 ใน 12 เดือน', has:r=>r.skill&&r.skill.includes('(PT)'), get:c=>c.pt,  need:1},
-  {k:'mt', t:'NDT — MT', req:'≥1 ใน 12 เดือน', has:r=>r.skill&&r.skill.includes('(MT)'), get:c=>c.mt,  need:1},
-  {k:'ut', t:'NDT — UT', req:'≥1 ใน 12 เดือน', has:r=>r.skill&&r.skill.includes('(UT)'), get:c=>c.ut,  need:1},
-  {k:'bsi',t:'Borescope (BSI)', req:'≥4 ในปีนี้', has:r=>r.skill&&r.skill.includes('BSI'), get:c=>c.bsi, need:4},
-  {k:'st', t:'Structure', req:'≥1 ใน 12 เดือน',
-    has:r=>r.actype&&r.actype.includes('Specialized Service - Structure'), get:c=>c.st2, need:1}
-];
-function qualList(onlyLapsed){
-  const out=[];
-  (allUsersData||[]).forEach(u=>{
-    const c=adminUserComp(u),rows=u.rowsArr||[];
-    const st={};let lapsed=0,relevant=0;
-    QUAL_DEFS.forEach(q=>{
-      const ever=rows.some(q.has), now=q.get(c)||0;
-      if(!ever){st[q.k]={s:'na',n:now};return;}
-      relevant++;
-      if(now>=q.need)st[q.k]={s:'ok',n:now}; else {st[q.k]={s:'bad',n:now};lapsed++;}
-    });
-    if(onlyLapsed&&!lapsed)return;
-    out.push({u:u,st:st,lapsed:lapsed,relevant:relevant});
-  });
-  out.sort((a,b)=>b.lapsed-a.lapsed||a.u.name.localeCompare(b.u.name,'th'));
-  return out;
-}
-function openQual(){
-  const all=qualList(false), lap=qualList(true);
-  if(!all.length){alert('ยังไม่มีข้อมูล');return;}
-  const cell=o=>o.s==='na'?'<span style="color:#ccc">—</span>'
-    :o.s==='ok'?'<span style="color:#2e7d32;font-weight:700">✓ '+o.n+'</span>'
-    :'<span style="color:#c00000;font-weight:700">✗ '+o.n+'</span>';
-  let h='<div style="background:#f4f7fc;border:1px solid #d4e0f0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#33507a;line-height:1.7">'
-    +'<b>เกณฑ์:</b> '+QUAL_DEFS.map(q=>q.t+' '+q.req).join(' · ')+'<br>'
-    +'<b>✓</b> = ครบ · <b style="color:#c00000">✗</b> = เคยทำแต่ตอนนี้ขาดต่ออายุ · <b style="color:#999">—</b> = ไม่เคยทำงานประเภทนี้ (ไม่เกี่ยวข้อง)<br>'
-    +'พบคนที่ขาดต่ออายุอย่างน้อย 1 ด้าน <b style="color:#c00000">'+lap.length+'</b> คน จากทั้งหมด '+all.length+' คน</div>';
-  h+='<table style="width:100%;border-collapse:collapse;font-size:12px">'
-    +'<tr style="background:#eef2fa"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
-    +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
-    +QUAL_DEFS.map(q=>'<th style="padding:8px">'+q.t.replace(' — ','<br>')+'</th>').join('')
-    +'<th style="padding:8px">ขาด</th></tr>';
-  all.forEach(r=>{
-    h+='<tr style="border-bottom:1px solid #f0f0f0'+(r.lapsed?';background:#fffaf5':'')+'">'
-      +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(r.u.name)+'</td>'
-      +'<td style="padding:7px 8px;text-align:center">'+esc(r.u.staffId)+'</td>'
-      +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(r.u.position)+'</td>'
-      +QUAL_DEFS.map(q=>'<td style="padding:7px 8px;text-align:center">'+cell(r.st[q.k])+'</td>').join('')
-      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:'+(r.lapsed?'#c00000':'#ccc')+'">'+(r.lapsed||'-')+'</td></tr>';
-  });
-  h+='</table>';
-  _openInfoModal('🎯 คุณสมบัติเฉพาะทาง — NDT / Borescope / Structure','#1a3a6b',h,()=>{
-    const head=['ชื่อ-นามสกุล','Staff ID','Position'].concat(QUAL_DEFS.map(q=>q.t)).concat(['จำนวนที่ขาด']);
-    const lines=[head.map(_csvCell).join(',')];
-    all.forEach(r=>lines.push([r.u.name,r.u.staffId,r.u.position]
-      .concat(QUAL_DEFS.map(q=>{const o=r.st[q.k];return o.s==='na'?'ไม่เกี่ยวข้อง':(o.s==='ok'?'ครบ ':'ขาด ')+o.n;}))
-      .concat([r.lapsed]).map(_csvCell).join(',')));
-    _dlCSV(lines,'Qualification_');
-  },true);
-}
-
-// ══ คนที่ไม่เคลื่อนไหว ═════════════════════════════════════════════════════
-function idleList(days){
-  const cut=Date.now()-days*86400000;
-  return (allUsersData||[]).filter(u=>{
-    if(!u.savedAt||u.savedAt==='-')return true;
-    const t=new Date(u.savedAt).getTime();
-    return isNaN(t)||t<cut;
-  }).sort((a,b)=>{
-    const ta=(!a.savedAt||a.savedAt==='-')?0:new Date(a.savedAt).getTime();
-    const tb=(!b.savedAt||b.savedAt==='-')?0:new Date(b.savedAt).getTime();
-    return ta-tb;
-  });
-}
-let _idleDays=60;
-function openIdle(d){
-  _idleDays=d||_idleDays;
-  const list=idleList(_idleDays);
-  const btn=n=>'<button class="btn" onclick="openIdle('+n+')" style="font-size:12px;padding:5px 12px;background:'
-    +(_idleDays===n?'#1a3a6b;color:#fff':'#e8e8e8;color:#444')+'">'+n+' วัน</button>';
-  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
-    +'<span style="font-size:12px;color:#666">ไม่อัปเดตเกิน:</span>'+btn(30)+btn(60)+btn(90)
-    +'<button class="btn" id="idle-copy" style="background:#2c5f2e;color:#fff;font-size:12px;padding:5px 12px;margin-left:auto">📋 คัดลอกอีเมลทั้งหมด</button></div>';
-  if(!list.length){h+='<div style="text-align:center;padding:26px;color:#2e7d32;font-weight:700">✓ ทุกคนอัปเดตข้อมูลภายใน '+_idleDays+' วัน</div>';}
-  else{
-    h+='<table style="width:100%;border-collapse:collapse;font-size:12px">'
-      +'<tr style="background:#f0f0f0"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
-      +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
-      +'<th style="padding:8px">บันทึกล่าสุด</th><th style="padding:8px">ไม่อัปเดต</th>'
-      +'<th style="padding:8px;text-align:left">อีเมล</th></tr>';
-    list.forEach(u=>{
-      const never=(!u.savedAt||u.savedAt==='-');
-      const days=never?null:Math.floor((Date.now()-new Date(u.savedAt).getTime())/86400000);
-      h+='<tr style="border-bottom:1px solid #f0f0f0">'
-        +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(u.name)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+esc(u.staffId)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(u.position)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+(never?'<span style="color:#c00000">ยังไม่เคยบันทึก</span>':new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}))+'</td>'
-        +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:#c00000">'+(never?'-':days+' วัน')+'</td>'
-        +'<td style="padding:7px 8px;font-size:11px;color:#666">'+esc(u.email||'-')+'</td></tr>';
-    });
-    h+='</table>';
-  }
-  _openInfoModal('💤 ไม่เคลื่อนไหวเกิน '+_idleDays+' วัน ('+list.length+' คน)','#7a5a00',h,()=>{
-    const lines=[['ชื่อ-นามสกุล','Staff ID','Position','บันทึกล่าสุด','อีเมล'].map(_csvCell).join(',')];
-    list.forEach(u=>lines.push([u.name,u.staffId,u.position,
-      (!u.savedAt||u.savedAt==='-')?'ยังไม่เคยบันทึก':new Date(u.savedAt).toLocaleString('th-TH'),u.email||''].map(_csvCell).join(',')));
-    _dlCSV(lines,'Inactive_'+_idleDays+'d_');
-  },true);
-  const cp=document.getElementById('idle-copy');
-  if(cp)cp.onclick=()=>_copyEmails(list);
-}
-function _copyEmails(list){
-  const mails=list.map(u=>u.email).filter(e=>e&&e!=='-'&&e.includes('@'));
-  if(!mails.length){alert('ไม่มีอีเมลให้คัดลอก');return;}
-  const txt=mails.join('; ');
-  const done=()=>toastMsg('📋 คัดลอกอีเมล '+mails.length+' รายการแล้ว — วางใน Outlook ได้เลย');
-  if(navigator.clipboard&&navigator.clipboard.writeText){
-    navigator.clipboard.writeText(txt).then(done).catch(()=>_copyFallback(txt,done));
-  }else _copyFallback(txt,done);
-}
-function _copyFallback(txt,done){
-  const ta=document.createElement('textarea');
-  ta.value=txt;ta.style.cssText='position:fixed;top:-1000px';
-  document.body.appendChild(ta);ta.select();
-  try{document.execCommand('copy');done();}catch(e){alert('คัดลอกไม่สำเร็จ กรุณาคัดลอกเอง:\n\n'+txt);}
-  ta.remove();
+  box.innerHTML=h+'</table>';
 }
 
 // ══ กลุ่มเสี่ยงหลุดเกณฑ์ใน 30 วัน ═══════════════════════════════════════════
@@ -2767,7 +2660,7 @@ function monthlyReport(){
   const pass=data.filter(adminUserPass).length, fail=total-pass;
   const rate=total?Math.round(pass/total*1000)/10:0;
   const withData=data.filter(u=>u.rows>0).length;
-  const risk=riskList(30), lap=qualList(true), idle=idleList(60), dq=dqScan();
+  const risk=riskList(30), idle=idleList(60), dq=dqScan();
   const periodTxt=((document.getElementById('admin-period-note')||{}).textContent||'').trim();
 
   // แยกตาม Position
@@ -2777,12 +2670,6 @@ function monthlyReport(){
     const o=byPos[p],r=o.n?Math.round(o.p/o.n*1000)/10:0;
     return '<tr><td>'+esc(p)+'</td><td class="c">'+o.n+'</td><td class="c" style="color:#1a6b2e">'+o.p+'</td>'
       +'<td class="c" style="color:#c00000">'+(o.n-o.p)+'</td><td class="c"><b>'+r+'%</b></td></tr>';
-  }).join('');
-
-  // คุณสมบัติที่ขาดต่ออายุ แยกตามด้าน
-  const qCnt=QUAL_DEFS.map(q=>{
-    const n=lap.filter(r=>r.st[q.k]&&r.st[q.k].s==='bad').length;
-    return '<tr><td>'+q.t+' <span style="color:#888">('+q.req+')</span></td><td class="c"><b style="color:'+(n?'#c00000':'#1a6b2e')+'">'+n+'</b></td></tr>';
   }).join('');
 
   // คุณภาพข้อมูล แยกประเภท
@@ -2817,11 +2704,8 @@ function monthlyReport(){
     +(risk.length?'<table><thead><tr><th style="text-align:left">ชื่อ-นามสกุล</th><th>Staff ID</th><th>WD (วันนี้ → 30 วัน)</th><th>Tasks (วันนี้ → 30 วัน)</th></tr></thead><tbody>'
         +riskRows+'</tbody></table>'+(risk.length>15?'<p class="sub">* แสดง 15 อันดับแรก จากทั้งหมด '+risk.length+' คน</p>':'')
       :'<p class="sub">ไม่มีผู้เข้าข่าย</p>')
-    +'<h2>3. คุณสมบัติเฉพาะทางที่ขาดต่ออายุ — '+lap.length+' คน</h2>'
-    +'<table><thead><tr><th style="text-align:left">ด้าน</th><th>จำนวนคนที่ขาด</th></tr></thead><tbody>'+qCnt+'</tbody></table>'
-    +'<p class="sub">* นับเฉพาะผู้ที่เคยปฏิบัติงานประเภทนั้นมาก่อน</p>'
-    +'<h2>4. ผู้ไม่อัปเดตข้อมูลเกิน 60 วัน — '+idle.length+' คน</h2>'
-    +'<h2>5. คุณภาพข้อมูล — '+dq.length.toLocaleString('th-TH')+' จุด</h2>'
+    +'<h2>3. ผู้ไม่อัปเดตข้อมูลเกิน 60 วัน — '+idle.length+' คน</h2>'
+    +'<h2>4. คุณภาพข้อมูล — '+dq.length.toLocaleString('th-TH')+' จุด</h2>'
     +(dqRows?'<table><thead><tr><th style="text-align:left">ประเภท</th><th>จำนวน</th></tr></thead><tbody>'+dqRows+'</tbody></table>':'<p class="sub">ไม่พบปัญหา</p>')
     +'<p class="sub" style="margin-top:14px">เกณฑ์ TCAR 8 Part 145.A.35: ผ่านเมื่อครบ ≥100 Working Days หรือ ≥180 Tasks อย่างใดอย่างหนึ่ง ภายในช่วงประเมิน</p>'
     +'<p class="sub">ลงนามผู้จัดทำ ____________________  ผู้ตรวจสอบ ____________________  วันที่ ____________</p>'
