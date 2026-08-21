@@ -1309,14 +1309,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     </select>
   </div>
   <div id="admin-filter-count" style="font-size:12px;color:#666;margin:0 0 10px;min-height:16px"></div>
-  <div id="risk-banner" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fff6e5;border:1px solid #e8c98a;border-radius:8px;padding:9px 13px;margin:0 0 10px">
-    <span id="risk-txt" style="font-size:12.5px;color:#8a5a00;font-weight:700"></span>
-    <button class="btn" style="background:#b8860b;color:#fff;font-size:12px;padding:4px 12px" onclick="openRisk()">ดูรายชื่อ</button>
-  </div>
-  <div id="dq-banner" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#eef4ff;border:1px solid #b9cdf0;border-radius:8px;padding:9px 13px;margin:0 0 10px">
-    <span id="dq-txt" style="font-size:12.5px;color:#1a3a6b;font-weight:700"></span>
-    <button class="btn" style="background:#1a5fb4;color:#fff;font-size:12px;padding:4px 12px" onclick="openDQ()">ดูรายละเอียด</button>
-  </div>
+  <div id="mon-bar" style="display:flex;gap:8px;flex-wrap:wrap;margin:0 0 12px"></div>
   <div id="bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fff4f4;border:1px solid #f0c8c8;border-radius:8px;padding:8px 12px;margin:0 0 10px">
     <span id="bulk-stat" style="font-size:12px;color:#7a0000;font-weight:700"></span>
     <button class="btn" style="background:#c00000;color:#fff;font-size:12px;padding:4px 12px" onclick="bulkDelete()">🗑 ลบที่เลือกไปถังขยะ</button>
@@ -1369,7 +1362,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.1.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.2.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2423,7 +2416,7 @@ async function loadAllUsers(){
     });
     populatePosFilter(allUsersData);
     filterAdminTable();updateAdminStats(allUsersData);
-    updateRiskBanner();updateDQBanner();
+    renderMonBar();
     checkStatusAlerts(allUsersData);   // ตรวจสถานะหล่นผ่าน→ไม่ผ่าน แล้วแจ้งเตือน (ไม่บล็อกการแสดงตาราง)
   }catch(e){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#c00000">Error: '+e.message+'</td></tr>';}
   finally{if(_rb)_rb.disabled=false;}
@@ -2564,6 +2557,157 @@ function openDQ(){
   },true);   // true = เปิดแบบเต็มจอ
 }
 
+// ══ แผงตรวจสอบ (แสดงตลอด — เขียวคือไม่มีปัญหา) ═════════════════════════════
+function renderMonBar(){
+  const bar=document.getElementById('mon-bar');if(!bar)return;
+  if(!allUsersData||!allUsersData.length){bar.innerHTML='';return;}
+  const risk=riskList(30).length, qual=qualList(true).length,
+        idle=idleList(60).length, dq=dqScan().length;
+  const chip=(icon,label,n,unit,fn,ok)=>{
+    const c=ok?['#eaf5ea','#b6ddb8','#2e7d32']:['#fff6e5','#e8c98a','#8a5a00'];
+    return '<button class="btn" onclick="'+fn+'" style="background:'+c[0]+';border:1px solid '+c[1]
+      +';color:'+c[2]+';font-size:12px;padding:7px 12px">'+icon+' '+label
+      +' <b style="font-size:13.5px">'+n+'</b> '+unit+'</button>';
+  };
+  bar.innerHTML=
+     chip('⚠️','เสี่ยงหลุดใน 30 วัน',risk,'คน','openRisk()',risk===0)
+    +chip('🎯','คุณสมบัติขาดต่ออายุ',qual,'คน','openQual()',qual===0)
+    +chip('💤','ไม่เคลื่อนไหว 60 วัน+',idle,'คน','openIdle()',idle===0)
+    +chip('🔍','จุดข้อมูลไม่สมบูรณ์',dq,'จุด','openDQ()',dq===0)
+    +'<button class="btn" onclick="monthlyReport()" style="background:#1a3a6b;color:#fff;font-size:12px;padding:7px 12px">📅 รายงานประจำเดือน</button>';
+}
+
+// ══ คุณสมบัติเฉพาะทาง: NDT (ET/PT/MT/UT) + Borescope + Structure ═══════════
+// นับเฉพาะคนที่ "เคยทำงานประเภทนั้น" เท่านั้น — คนที่ไม่เคยทำเลยถือว่าไม่เกี่ยวข้อง
+// ไม่งั้นช่างที่ไม่เคยทำ NDT ทั้งชีวิตจะขึ้นว่าขาดคุณสมบัติทั้งหมด ซึ่งไม่มีความหมาย
+const QUAL_DEFS=[
+  {k:'et', t:'NDT — ET', req:'≥1 ใน 12 เดือน', has:r=>r.skill&&r.skill.includes('(ET)'), get:c=>c.et,  need:1},
+  {k:'pt', t:'NDT — PT', req:'≥1 ใน 12 เดือน', has:r=>r.skill&&r.skill.includes('(PT)'), get:c=>c.pt,  need:1},
+  {k:'mt', t:'NDT — MT', req:'≥1 ใน 12 เดือน', has:r=>r.skill&&r.skill.includes('(MT)'), get:c=>c.mt,  need:1},
+  {k:'ut', t:'NDT — UT', req:'≥1 ใน 12 เดือน', has:r=>r.skill&&r.skill.includes('(UT)'), get:c=>c.ut,  need:1},
+  {k:'bsi',t:'Borescope (BSI)', req:'≥4 ในปีนี้', has:r=>r.skill&&r.skill.includes('BSI'), get:c=>c.bsi, need:4},
+  {k:'st', t:'Structure', req:'≥1 ใน 12 เดือน',
+    has:r=>r.actype&&r.actype.includes('Specialized Service - Structure'), get:c=>c.st2, need:1}
+];
+function qualList(onlyLapsed){
+  const out=[];
+  (allUsersData||[]).forEach(u=>{
+    const c=adminUserComp(u),rows=u.rowsArr||[];
+    const st={};let lapsed=0,relevant=0;
+    QUAL_DEFS.forEach(q=>{
+      const ever=rows.some(q.has), now=q.get(c)||0;
+      if(!ever){st[q.k]={s:'na',n:now};return;}
+      relevant++;
+      if(now>=q.need)st[q.k]={s:'ok',n:now}; else {st[q.k]={s:'bad',n:now};lapsed++;}
+    });
+    if(onlyLapsed&&!lapsed)return;
+    out.push({u:u,st:st,lapsed:lapsed,relevant:relevant});
+  });
+  out.sort((a,b)=>b.lapsed-a.lapsed||a.u.name.localeCompare(b.u.name,'th'));
+  return out;
+}
+function openQual(){
+  const all=qualList(false), lap=qualList(true);
+  if(!all.length){alert('ยังไม่มีข้อมูล');return;}
+  const cell=o=>o.s==='na'?'<span style="color:#ccc">—</span>'
+    :o.s==='ok'?'<span style="color:#2e7d32;font-weight:700">✓ '+o.n+'</span>'
+    :'<span style="color:#c00000;font-weight:700">✗ '+o.n+'</span>';
+  let h='<div style="background:#f4f7fc;border:1px solid #d4e0f0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#33507a;line-height:1.7">'
+    +'<b>เกณฑ์:</b> '+QUAL_DEFS.map(q=>q.t+' '+q.req).join(' · ')+'<br>'
+    +'<b>✓</b> = ครบ · <b style="color:#c00000">✗</b> = เคยทำแต่ตอนนี้ขาดต่ออายุ · <b style="color:#999">—</b> = ไม่เคยทำงานประเภทนี้ (ไม่เกี่ยวข้อง)<br>'
+    +'พบคนที่ขาดต่ออายุอย่างน้อย 1 ด้าน <b style="color:#c00000">'+lap.length+'</b> คน จากทั้งหมด '+all.length+' คน</div>';
+  h+='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#eef2fa"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+    +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
+    +QUAL_DEFS.map(q=>'<th style="padding:8px">'+q.t.replace(' — ','<br>')+'</th>').join('')
+    +'<th style="padding:8px">ขาด</th></tr>';
+  all.forEach(r=>{
+    h+='<tr style="border-bottom:1px solid #f0f0f0'+(r.lapsed?';background:#fffaf5':'')+'">'
+      +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(r.u.name)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+esc(r.u.staffId)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(r.u.position)+'</td>'
+      +QUAL_DEFS.map(q=>'<td style="padding:7px 8px;text-align:center">'+cell(r.st[q.k])+'</td>').join('')
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:'+(r.lapsed?'#c00000':'#ccc')+'">'+(r.lapsed||'-')+'</td></tr>';
+  });
+  h+='</table>';
+  _openInfoModal('🎯 คุณสมบัติเฉพาะทาง — NDT / Borescope / Structure','#1a3a6b',h,()=>{
+    const head=['ชื่อ-นามสกุล','Staff ID','Position'].concat(QUAL_DEFS.map(q=>q.t)).concat(['จำนวนที่ขาด']);
+    const lines=[head.map(_csvCell).join(',')];
+    all.forEach(r=>lines.push([r.u.name,r.u.staffId,r.u.position]
+      .concat(QUAL_DEFS.map(q=>{const o=r.st[q.k];return o.s==='na'?'ไม่เกี่ยวข้อง':(o.s==='ok'?'ครบ ':'ขาด ')+o.n;}))
+      .concat([r.lapsed]).map(_csvCell).join(',')));
+    _dlCSV(lines,'Qualification_');
+  },true);
+}
+
+// ══ คนที่ไม่เคลื่อนไหว ═════════════════════════════════════════════════════
+function idleList(days){
+  const cut=Date.now()-days*86400000;
+  return (allUsersData||[]).filter(u=>{
+    if(!u.savedAt||u.savedAt==='-')return true;
+    const t=new Date(u.savedAt).getTime();
+    return isNaN(t)||t<cut;
+  }).sort((a,b)=>{
+    const ta=(!a.savedAt||a.savedAt==='-')?0:new Date(a.savedAt).getTime();
+    const tb=(!b.savedAt||b.savedAt==='-')?0:new Date(b.savedAt).getTime();
+    return ta-tb;
+  });
+}
+let _idleDays=60;
+function openIdle(d){
+  _idleDays=d||_idleDays;
+  const list=idleList(_idleDays);
+  const btn=n=>'<button class="btn" onclick="openIdle('+n+')" style="font-size:12px;padding:5px 12px;background:'
+    +(_idleDays===n?'#1a3a6b;color:#fff':'#e8e8e8;color:#444')+'">'+n+' วัน</button>';
+  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
+    +'<span style="font-size:12px;color:#666">ไม่อัปเดตเกิน:</span>'+btn(30)+btn(60)+btn(90)
+    +'<button class="btn" id="idle-copy" style="background:#2c5f2e;color:#fff;font-size:12px;padding:5px 12px;margin-left:auto">📋 คัดลอกอีเมลทั้งหมด</button></div>';
+  if(!list.length){h+='<div style="text-align:center;padding:26px;color:#2e7d32;font-weight:700">✓ ทุกคนอัปเดตข้อมูลภายใน '+_idleDays+' วัน</div>';}
+  else{
+    h+='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<tr style="background:#f0f0f0"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+      +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
+      +'<th style="padding:8px">บันทึกล่าสุด</th><th style="padding:8px">ไม่อัปเดต</th>'
+      +'<th style="padding:8px;text-align:left">อีเมล</th></tr>';
+    list.forEach(u=>{
+      const never=(!u.savedAt||u.savedAt==='-');
+      const days=never?null:Math.floor((Date.now()-new Date(u.savedAt).getTime())/86400000);
+      h+='<tr style="border-bottom:1px solid #f0f0f0">'
+        +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(u.name)+'</td>'
+        +'<td style="padding:7px 8px;text-align:center">'+esc(u.staffId)+'</td>'
+        +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(u.position)+'</td>'
+        +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+(never?'<span style="color:#c00000">ยังไม่เคยบันทึก</span>':new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}))+'</td>'
+        +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:#c00000">'+(never?'-':days+' วัน')+'</td>'
+        +'<td style="padding:7px 8px;font-size:11px;color:#666">'+esc(u.email||'-')+'</td></tr>';
+    });
+    h+='</table>';
+  }
+  _openInfoModal('💤 ไม่เคลื่อนไหวเกิน '+_idleDays+' วัน ('+list.length+' คน)','#7a5a00',h,()=>{
+    const lines=[['ชื่อ-นามสกุล','Staff ID','Position','บันทึกล่าสุด','อีเมล'].map(_csvCell).join(',')];
+    list.forEach(u=>lines.push([u.name,u.staffId,u.position,
+      (!u.savedAt||u.savedAt==='-')?'ยังไม่เคยบันทึก':new Date(u.savedAt).toLocaleString('th-TH'),u.email||''].map(_csvCell).join(',')));
+    _dlCSV(lines,'Inactive_'+_idleDays+'d_');
+  },true);
+  const cp=document.getElementById('idle-copy');
+  if(cp)cp.onclick=()=>_copyEmails(list);
+}
+function _copyEmails(list){
+  const mails=list.map(u=>u.email).filter(e=>e&&e!=='-'&&e.includes('@'));
+  if(!mails.length){alert('ไม่มีอีเมลให้คัดลอก');return;}
+  const txt=mails.join('; ');
+  const done=()=>toastMsg('📋 คัดลอกอีเมล '+mails.length+' รายการแล้ว — วางใน Outlook ได้เลย');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(()=>_copyFallback(txt,done));
+  }else _copyFallback(txt,done);
+}
+function _copyFallback(txt,done){
+  const ta=document.createElement('textarea');
+  ta.value=txt;ta.style.cssText='position:fixed;top:-1000px';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');done();}catch(e){alert('คัดลอกไม่สำเร็จ กรุณาคัดลอกเอง:\n\n'+txt);}
+  ta.remove();
+}
+
 // ══ กลุ่มเสี่ยงหลุดเกณฑ์ใน 30 วัน ═══════════════════════════════════════════
 // หน้าต่างประเมินเป็นแบบกลิ้ง 24 เดือน งานเก่าจึงหลุดออกจากช่วงเมื่อเวลาผ่านไป
 // คำนวณว่า "ถ้าไม่ลงงานเพิ่มอีกเลย" อีก 30 วันข้างหน้าใครจะตกต่ำกว่าเกณฑ์
@@ -2616,6 +2760,78 @@ function openRisk(){
   _openInfoModal('⚠️ กลุ่มเสี่ยงหลุดเกณฑ์ภายใน 30 วัน ('+list.length+' คน)','#8a5a00',h,
     ()=>_riskCSV(list));
 }
+// ══ รายงานประจำเดือน 1 คลิก (A4 สำหรับแนบ Minutes of Meeting) ══════════════
+function monthlyReport(){
+  if(!allUsersData||!allUsersData.length){alert('ยังไม่มีข้อมูล — กด "โหลดข้อมูล" ก่อน');return;}
+  const data=allUsersData, total=data.length;
+  const pass=data.filter(adminUserPass).length, fail=total-pass;
+  const rate=total?Math.round(pass/total*1000)/10:0;
+  const withData=data.filter(u=>u.rows>0).length;
+  const risk=riskList(30), lap=qualList(true), idle=idleList(60), dq=dqScan();
+  const periodTxt=((document.getElementById('admin-period-note')||{}).textContent||'').trim();
+
+  // แยกตาม Position
+  const byPos={};
+  data.forEach(u=>{const p=u.position||'-';byPos[p]=byPos[p]||{n:0,p:0};byPos[p].n++;if(adminUserPass(u))byPos[p].p++;});
+  const posRows=Object.keys(byPos).sort().map(p=>{
+    const o=byPos[p],r=o.n?Math.round(o.p/o.n*1000)/10:0;
+    return '<tr><td>'+esc(p)+'</td><td class="c">'+o.n+'</td><td class="c" style="color:#1a6b2e">'+o.p+'</td>'
+      +'<td class="c" style="color:#c00000">'+(o.n-o.p)+'</td><td class="c"><b>'+r+'%</b></td></tr>';
+  }).join('');
+
+  // คุณสมบัติที่ขาดต่ออายุ แยกตามด้าน
+  const qCnt=QUAL_DEFS.map(q=>{
+    const n=lap.filter(r=>r.st[q.k]&&r.st[q.k].s==='bad').length;
+    return '<tr><td>'+q.t+' <span style="color:#888">('+q.req+')</span></td><td class="c"><b style="color:'+(n?'#c00000':'#1a6b2e')+'">'+n+'</b></td></tr>';
+  }).join('');
+
+  // คุณภาพข้อมูล แยกประเภท
+  const dqRows=DQ_TYPES.map(t=>{
+    const n=dq.filter(i=>i.k===t.k).length;if(!n)return '';
+    return '<tr><td>'+t.t+'</td><td class="c"><b style="color:#c00000">'+n+'</b></td></tr>';
+  }).join('');
+
+  const riskRows=risk.slice(0,15).map(r=>'<tr><td>'+esc(r.u.name)+'</td><td class="c">'+esc(r.u.staffId)+'</td>'
+    +'<td class="c">'+r.cur.wd1t+' → <b style="color:#c00000">'+r.pj.wd1t+'</b></td>'
+    +'<td class="c">'+r.cur.t1+' → <b style="color:#c00000">'+r.pj.t1+'</b></td></tr>').join('');
+
+  const box=(t,v,c)=>'<div class="bx"><div class="bn" style="color:'+c+'">'+v+'</div><div class="bl">'+t+'</div></div>';
+  const html='<!doctype html><html><head><meta charset="utf-8"><title>SSQA Monthly Report</title><style>'
+    +'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;padding:20px;color:#222}'
+    +'h1{font-size:17px;color:#1a3a6b;margin:0 0 3px}h2{font-size:12.5px;color:#1a3a6b;margin:16px 0 5px;border-bottom:1.5px solid #1a3a6b;padding-bottom:3px}'
+    +'.sub{font-size:10.5px;color:#666;margin:1px 0}'
+    +'.row{display:flex;gap:8px;margin-top:10px}.bx{flex:1;border:1px solid #ddd;border-radius:6px;padding:8px;text-align:center}'
+    +'.bn{font-size:19px;font-weight:800}.bl{font-size:9px;color:#777;margin-top:1px}'
+    +'table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px}'
+    +'th,td{border:1px solid #ccc;padding:4px 6px}th{background:#1a3a6b;color:#fff}td.c,th{text-align:center}'
+    +'tbody tr:nth-child(even){background:#f7f9fc}'
+    +'@page{size:A4 portrait;margin:12mm}</style></head><body>'
+    +'<h1>SSQA Compliance Monitoring — รายงานประจำเดือน</h1>'
+    +'<p class="sub">Experience Individual Logbook · TVJ-QA-F-057'+(periodTxt?' · '+esc(periodTxt):'')+'</p>'
+    +'<p class="sub">ออกรายงาน '+new Date().toLocaleString('th-TH')+' โดย '+esc((currentUser&&currentUser.email)||'-')+'</p>'
+    +'<div class="row">'+box('พนักงานทั้งหมด',total,'#1a3a6b')+box('มีข้อมูล',withData,'#1a3a6b')
+      +box('ผ่านเกณฑ์',pass,'#1a6b2e')+box('ไม่ผ่าน',fail,'#c00000')+box('อัตราผ่าน',rate+'%','#1a3a6b')+'</div>'
+    +'<h2>1. สรุปตาม Position</h2>'
+    +'<table><thead><tr><th style="text-align:left">Position</th><th>ทั้งหมด</th><th>ผ่าน</th><th>ไม่ผ่าน</th><th>อัตราผ่าน</th></tr></thead><tbody>'+posRows+'</tbody></table>'
+    +'<h2>2. กลุ่มเสี่ยงหลุดเกณฑ์ภายใน 30 วัน — '+risk.length+' คน</h2>'
+    +(risk.length?'<table><thead><tr><th style="text-align:left">ชื่อ-นามสกุล</th><th>Staff ID</th><th>WD (วันนี้ → 30 วัน)</th><th>Tasks (วันนี้ → 30 วัน)</th></tr></thead><tbody>'
+        +riskRows+'</tbody></table>'+(risk.length>15?'<p class="sub">* แสดง 15 อันดับแรก จากทั้งหมด '+risk.length+' คน</p>':'')
+      :'<p class="sub">ไม่มีผู้เข้าข่าย</p>')
+    +'<h2>3. คุณสมบัติเฉพาะทางที่ขาดต่ออายุ — '+lap.length+' คน</h2>'
+    +'<table><thead><tr><th style="text-align:left">ด้าน</th><th>จำนวนคนที่ขาด</th></tr></thead><tbody>'+qCnt+'</tbody></table>'
+    +'<p class="sub">* นับเฉพาะผู้ที่เคยปฏิบัติงานประเภทนั้นมาก่อน</p>'
+    +'<h2>4. ผู้ไม่อัปเดตข้อมูลเกิน 60 วัน — '+idle.length+' คน</h2>'
+    +'<h2>5. คุณภาพข้อมูล — '+dq.length.toLocaleString('th-TH')+' จุด</h2>'
+    +(dqRows?'<table><thead><tr><th style="text-align:left">ประเภท</th><th>จำนวน</th></tr></thead><tbody>'+dqRows+'</tbody></table>':'<p class="sub">ไม่พบปัญหา</p>')
+    +'<p class="sub" style="margin-top:14px">เกณฑ์ TCAR 8 Part 145.A.35: ผ่านเมื่อครบ ≥100 Working Days หรือ ≥180 Tasks อย่างใดอย่างหนึ่ง ภายในช่วงประเมิน</p>'
+    +'<p class="sub">ลงนามผู้จัดทำ ____________________  ผู้ตรวจสอบ ____________________  วันที่ ____________</p>'
+    +'</body></html>';
+  const w=window.open('','_blank');
+  if(!w){alert('เบราว์เซอร์บล็อก popup — กรุณาอนุญาต popup ของเว็บนี้แล้วลองใหม่');return;}
+  w.document.write(html);w.document.close();w.focus();
+  setTimeout(()=>{try{w.print();}catch(e){}},450);
+}
+
 function _riskCSV(list){
   const head=['ชื่อ-นามสกุล','Staff ID','Position','WD ปัจจุบัน','WD อีก 30 วัน','Tasks ปัจจุบัน','Tasks อีก 30 วัน'];
   const lines=[head.map(_csvCell).join(',')];
