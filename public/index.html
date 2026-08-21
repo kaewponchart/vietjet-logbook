@@ -1309,6 +1309,14 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     </select>
   </div>
   <div id="admin-filter-count" style="font-size:12px;color:#666;margin:0 0 10px;min-height:16px"></div>
+  <div id="risk-banner" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fff6e5;border:1px solid #e8c98a;border-radius:8px;padding:9px 13px;margin:0 0 10px">
+    <span id="risk-txt" style="font-size:12.5px;color:#8a5a00;font-weight:700"></span>
+    <button class="btn" style="background:#b8860b;color:#fff;font-size:12px;padding:4px 12px" onclick="openRisk()">ดูรายชื่อ</button>
+  </div>
+  <div id="dq-banner" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#eef4ff;border:1px solid #b9cdf0;border-radius:8px;padding:9px 13px;margin:0 0 10px">
+    <span id="dq-txt" style="font-size:12.5px;color:#1a3a6b;font-weight:700"></span>
+    <button class="btn" style="background:#1a5fb4;color:#fff;font-size:12px;padding:4px 12px" onclick="openDQ()">ดูรายละเอียด</button>
+  </div>
   <div id="bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fff4f4;border:1px solid #f0c8c8;border-radius:8px;padding:8px 12px;margin:0 0 10px">
     <span id="bulk-stat" style="font-size:12px;color:#7a0000;font-weight:700"></span>
     <button class="btn" style="background:#c00000;color:#fff;font-size:12px;padding:4px 12px" onclick="bulkDelete()">🗑 ลบที่เลือกไปถังขยะ</button>
@@ -1361,7 +1369,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.0.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.1.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2415,6 +2423,7 @@ async function loadAllUsers(){
     });
     populatePosFilter(allUsersData);
     filterAdminTable();updateAdminStats(allUsersData);
+    updateRiskBanner();updateDQBanner();
     checkStatusAlerts(allUsersData);   // ตรวจสถานะหล่นผ่าน→ไม่ผ่าน แล้วแจ้งเตือน (ไม่บล็อกการแสดงตาราง)
   }catch(e){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#c00000">Error: '+e.message+'</td></tr>';}
   finally{if(_rb)_rb.disabled=false;}
@@ -2436,6 +2445,175 @@ function populatePosFilter(data){
   const ps=[...new Set(data.map(u=>u.position||'-'))].sort();
   sel.innerHTML='<option value="">ทุก Position</option>'+ps.map(p=>'<option'+(p===cur?' selected':'')+'>'+esc(p)+'</option>').join('');
 }
+// ── หน้าต่างรายงานกลาง (ใช้ร่วมกันทั้งกลุ่มเสี่ยงและตรวจคุณภาพ) ──
+function _openInfoModal(title,color,html,onCsv){
+  const old=document.getElementById('info-modal');if(old)old.remove();
+  const m=document.createElement('div');
+  m.id='info-modal';m.className='mdl-in';
+  m.style.cssText='position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,.6);z-index:10001;overflow-y:auto;padding:14px';
+  m.innerHTML='<div style="background:#fff;max-width:1100px;margin:0 auto;border-radius:10px;overflow:hidden;box-shadow:0 8px 32px rgba(0,0,0,.3)">'
+    +'<div style="background:'+color+';color:#fff;padding:12px 18px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">'
+    +'<div style="font-size:14px;font-weight:800">'+title+'</div><div style="display:flex;gap:8px">'
+    +(onCsv?'<button id="info-csv" class="btn" style="background:#fff;color:#333">📊 CSV</button>':'')
+    +'<button id="info-close" class="btn" style="background:#fff;color:#333">✕ ปิด</button></div></div>'
+    +'<div style="padding:16px;max-height:72vh;overflow:auto">'+html+'</div></div>';
+  document.body.appendChild(m);
+  document.getElementById('info-close').onclick=()=>{m.remove();};
+  if(onCsv)document.getElementById('info-csv').onclick=onCsv;
+  m.addEventListener('click',e=>{if(e.target===m)m.remove();});
+}
+function _dlCSV(lines,prefix){
+  const blob=new Blob(['\ufeff'+lines.join('\r\n')],{type:'text/csv;charset=utf-8'});
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);
+  a.download=prefix+new Date().toISOString().slice(0,10)+'.csv';
+  document.body.appendChild(a);a.click();a.remove();
+  toastMsg('📊 ดาวน์โหลดไฟล์แล้ว');
+}
+
+// ══ ตรวจคุณภาพข้อมูล ═══════════════════════════════════════════════════════
+// ใช้ข้อมูลที่โหลดมาแล้วในหน่วยความจำทั้งหมด — ไม่มีการอ่าน Firestore เพิ่มแม้แต่ครั้งเดียว
+const DQ_TYPES=[
+  {k:'nodate', t:'ไม่มีวันที่ / วันที่ผิดรูปแบบ', why:'แถวนี้จะไม่ถูกนับใน WD และ Tasks เลย'},
+  {k:'future', t:'วันที่เป็นอนาคต',              why:'อาจพิมพ์ปีผิด ทำให้ตัวเลขคลาดเคลื่อน'},
+  {k:'nodur',  t:'ไม่มี Duration หรือค่าไม่ถูกต้อง', why:'ชั่วโมงไม่ถูกนำไปคำนวณ Working Days'},
+  {k:'noskill',t:'ไม่ได้เลือก Skill',            why:'กระทบการนับ NDT และประเภทงาน'},
+  {k:'notype', t:'ไม่ได้เลือก Aircraft Type',    why:'ระบุไม่ได้ว่าเป็นงาน 1st Type หรือไม่'},
+  {k:'dup',    t:'แถวซ้ำ (วันที่ + Work Ref. + งานเดียวกัน)', why:'อาจทำให้ Tasks ถูกนับเกินจริง'},
+  {k:'over24', t:'ชั่วโมงรวมในวันเดียวเกิน 24 ชม.', why:'เป็นไปไม่ได้ทางกายภาพ ควรตรวจสอบ'}
+];
+function dqScan(){
+  const today=new Date();today.setHours(23,59,59,999);
+  const issues=[];
+  (allUsersData||[]).forEach(u=>{
+    const seen={},perDay={};
+    (u.rowsArr||[]).forEach((r,i)=>{
+      const add=k=>issues.push({k:k,name:u.name,staffId:u.staffId,row:i+1,date:r.date||'-',
+                                ref:r.workref||'',desc:(r.desc||'').slice(0,40)});
+      const d=r.date?pDate(r.date):null;
+      const blank=!r.date&&!r.actype&&!r.workref&&!r.desc&&!r.dur&&!r.skill;
+      if(blank)return;                                   // แถวว่างเปล่าล้วน ข้ามไป ไม่ใช่ปัญหา
+      if(!d)add('nodate'); else if(d.getTime()>today.getTime())add('future');
+      const dur=parseFloat(r.dur);
+      if(!r.dur||isNaN(dur)||dur<=0||Math.round(dur*2)!==dur*2)add('nodur');
+      if(!r.skill)add('noskill');
+      if(!r.actype)add('notype');
+      const key=(r.date||'')+'|'+(r.workref||'')+'|'+(r.desc||'');
+      if(r.date&&(r.workref||r.desc)){ if(seen[key])add('dup'); else seen[key]=1; }
+      if(d&&!isNaN(dur)&&dur>0){const dk=r.date;perDay[dk]=(perDay[dk]||0)+dur;}
+    });
+    Object.keys(perDay).forEach(dk=>{
+      if(perDay[dk]>24)issues.push({k:'over24',name:u.name,staffId:u.staffId,row:'-',date:dk,
+        ref:'',desc:'รวม '+perDay[dk].toFixed(1)+' ชม. ในวันเดียว'});
+    });
+  });
+  return issues;
+}
+function updateDQBanner(){
+  const b=document.getElementById('dq-banner');if(!b)return;
+  const iss=dqScan();
+  const ppl=new Set(iss.map(i=>i.staffId)).size;
+  b.style.display=iss.length?'flex':'none';
+  const t=document.getElementById('dq-txt');
+  if(t)t.textContent='🔍 ตรวจพบ '+iss.length.toLocaleString('th-TH')+' จุดที่ข้อมูลอาจไม่สมบูรณ์ จากพนักงาน '+ppl+' คน';
+}
+function openDQ(){
+  const iss=dqScan();
+  if(!iss.length){alert('ไม่พบปัญหาคุณภาพข้อมูล ✓');return;}
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:16px">'
+    +'<tr style="background:#eef2fa"><th style="padding:8px;text-align:left">ประเภทปัญหา</th>'
+    +'<th style="padding:8px">จำนวน</th><th style="padding:8px;text-align:left">ผลกระทบ</th></tr>';
+  DQ_TYPES.forEach(t=>{
+    const n=iss.filter(i=>i.k===t.k).length;if(!n)return;
+    h+='<tr style="border-bottom:1px solid #eee"><td style="padding:8px;font-weight:600">'+t.t+'</td>'
+      +'<td style="padding:8px;text-align:center;font-weight:700;color:#c00000">'+n+'</td>'
+      +'<td style="padding:8px;font-size:11px;color:#777">'+t.why+'</td></tr>';
+  });
+  h+='</table>';
+  const lim=iss.slice(0,300);
+  h+='<div style="font-size:12px;font-weight:700;color:#1a3a6b;margin-bottom:6px">รายละเอียด'
+    +(iss.length>300?' (แสดง 300 จาก '+iss.length+' — ดาวน์โหลด CSV เพื่อดูทั้งหมด)':'')+'</div>'
+    +'<table style="width:100%;border-collapse:collapse;font-size:11.5px">'
+    +'<tr style="background:#f5f5f5"><th style="padding:6px;text-align:left">ชื่อ</th><th style="padding:6px">Staff ID</th>'
+    +'<th style="padding:6px">แถวที่</th><th style="padding:6px">วันที่</th>'
+    +'<th style="padding:6px;text-align:left">ปัญหา</th><th style="padding:6px;text-align:left">งาน</th></tr>';
+  lim.forEach(i=>{
+    const ty=DQ_TYPES.find(t=>t.k===i.k);
+    h+='<tr style="border-bottom:1px solid #f0f0f0"><td style="padding:6px">'+esc(i.name)+'</td>'
+      +'<td style="padding:6px;text-align:center">'+esc(i.staffId)+'</td>'
+      +'<td style="padding:6px;text-align:center;color:#888">'+i.row+'</td>'
+      +'<td style="padding:6px;text-align:center">'+esc(i.date)+'</td>'
+      +'<td style="padding:6px;color:#c00000">'+esc(ty?ty.t:i.k)+'</td>'
+      +'<td style="padding:6px;color:#777">'+esc(i.desc||i.ref)+'</td></tr>';
+  });
+  h+='</table>';
+  _openInfoModal('🔍 รายงานคุณภาพข้อมูล ('+iss.length.toLocaleString('th-TH')+' จุด)','#1a3a6b',h,()=>{
+    const head=['ชื่อ-นามสกุล','Staff ID','แถวที่','วันที่','ประเภทปัญหา','Work Ref.','งาน'];
+    const lines=[head.map(_csvCell).join(',')];
+    iss.forEach(i=>{const ty=DQ_TYPES.find(t=>t.k===i.k);
+      lines.push([i.name,i.staffId,i.row,i.date,(ty?ty.t:i.k),i.ref,i.desc].map(_csvCell).join(','));});
+    _dlCSV(lines,'DataQuality_');
+  });
+}
+
+// ══ กลุ่มเสี่ยงหลุดเกณฑ์ใน 30 วัน ═══════════════════════════════════════════
+// หน้าต่างประเมินเป็นแบบกลิ้ง 24 เดือน งานเก่าจึงหลุดออกจากช่วงเมื่อเวลาผ่านไป
+// คำนวณว่า "ถ้าไม่ลงงานเพิ่มอีกเลย" อีก 30 วันข้างหน้าใครจะตกต่ำกว่าเกณฑ์
+function riskRange(days){
+  const to=new Date();to.setDate(to.getDate()+days);to.setHours(23,59,59,999);
+  const from=new Date(to);from.setMonth(from.getMonth()-24);from.setHours(0,0,0,0);
+  return{from,to};
+}
+function riskList(days){
+  const now=riskRange(0),fut=riskRange(days||30);
+  const out=[];
+  (allUsersData||[]).forEach(u=>{
+    const cur=compCore(u.rowsArr,u.trainingArr,now.from,now.to);
+    if(!cur.pass1)return;                       // ไม่ผ่านอยู่แล้ว = อยู่ในรายการไม่ผ่าน ไม่นับเป็น "เสี่ยง"
+    const pj=compCore(u.rowsArr,u.trainingArr,fut.from,fut.to);
+    if(!pj.pass1)out.push({u:u,cur:cur,pj:pj});
+  });
+  out.sort((a,b)=>(b.pj.wd1t/100+b.pj.t1/180)-(a.pj.wd1t/100+a.pj.t1/180));
+  return out;
+}
+function updateRiskBanner(){
+  const b=document.getElementById('risk-banner');if(!b)return;
+  const list=riskList(30);
+  b.style.display=list.length?'flex':'none';
+  const t=document.getElementById('risk-txt');
+  if(t)t.textContent='⚠️ มี '+list.length+' คนที่ผ่านอยู่ตอนนี้ แต่จะหลุดเกณฑ์ภายใน 30 วัน ถ้าไม่ลงงานเพิ่ม';
+}
+function openRisk(){
+  const list=riskList(30);
+  if(!list.length){alert('ไม่มีใครเข้าข่ายเสี่ยงใน 30 วัน');return;}
+  const nb=(v,req)=>'<span style="font-weight:700;color:'+(v>=req?'#2e7d32':'#c00000')+'">'+v+'</span><small style="color:#aaa">/'+req+'</small>';
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#f5ead2"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+    +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
+    +'<th style="padding:8px">WD วันนี้</th><th style="padding:8px">WD อีก 30 วัน</th>'
+    +'<th style="padding:8px">Tasks วันนี้</th><th style="padding:8px">Tasks อีก 30 วัน</th></tr>';
+  list.forEach(r=>{
+    h+='<tr style="border-bottom:1px solid #eee">'
+      +'<td style="padding:8px;font-weight:600;color:#1a3a6b">'+esc(r.u.name)+'</td>'
+      +'<td style="padding:8px;text-align:center">'+esc(r.u.staffId)+'</td>'
+      +'<td style="padding:8px;text-align:center;font-size:11px">'+esc(r.u.position)+'</td>'
+      +'<td style="padding:8px;text-align:center">'+nb(r.cur.wd1t,100)+'</td>'
+      +'<td style="padding:8px;text-align:center;background:#fff8ec">'+nb(r.pj.wd1t,100)+'</td>'
+      +'<td style="padding:8px;text-align:center">'+nb(r.cur.t1,180)+'</td>'
+      +'<td style="padding:8px;text-align:center;background:#fff8ec">'+nb(r.pj.t1,180)+'</td></tr>';
+  });
+  h+='</table><p style="margin-top:10px;font-size:11px;color:#888;line-height:1.6">'
+    +'* คำนวณจากหน้าต่างประเมินแบบกลิ้ง 24 เดือน โดยสมมติว่าไม่มีการลงงานเพิ่มอีกเลย '
+    +'ตัวเลขที่ลดลงเกิดจากงานเก่าหลุดออกจากช่วงประเมิน ไม่ใช่ข้อมูลหาย</p>';
+  _openInfoModal('⚠️ กลุ่มเสี่ยงหลุดเกณฑ์ภายใน 30 วัน ('+list.length+' คน)','#8a5a00',h,
+    ()=>_riskCSV(list));
+}
+function _riskCSV(list){
+  const head=['ชื่อ-นามสกุล','Staff ID','Position','WD ปัจจุบัน','WD อีก 30 วัน','Tasks ปัจจุบัน','Tasks อีก 30 วัน'];
+  const lines=[head.map(_csvCell).join(',')];
+  list.forEach(r=>lines.push([r.u.name,r.u.staffId,r.u.position,r.cur.wd1t,r.pj.wd1t,r.cur.t1,r.pj.t1].map(_csvCell).join(',')));
+  _dlCSV(lines,'Risk_30days_');
+}
+
 function renderAdminTable(data){
   const tbody=document.getElementById('admin-tbody');
   if(!data.length){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#aaa">ไม่พบข้อมูล</td></tr>';return;}
