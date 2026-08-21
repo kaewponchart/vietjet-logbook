@@ -170,6 +170,21 @@ table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:var(--red);
 .btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;
      display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:hover{filter:brightness(.96)}
+/* แถบควบคุมรวมของหน้า Admin */
+.adm-bar{background:#fff;border:1px solid #e0e4ee;border-radius:10px;padding:8px 12px;margin-bottom:9px;
+  display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.adm-bar input[type=text],.adm-bar #admin-search{flex:1 1 240px;min-width:0;max-width:420px}
+.adm-bar input,.adm-bar select{border:1px solid #ccd2dd;border-radius:7px;padding:7px 10px;font-size:13px;background:#fff}
+.adm-bar input:focus,.adm-bar select:focus{outline:none;border-color:#1a3a6b;box-shadow:0 0 0 2px rgba(26,58,107,.12)}
+.adm-sep{width:1px;height:24px;background:#e3e7f0;flex:0 0 auto}
+/* แถบสถิติบรรทัดเดียว */
+.adm-strip{background:#fff;border:1px solid #e0e4ee;border-radius:10px;padding:8px 14px;margin-bottom:10px;
+  display:flex;align-items:center;flex-wrap:wrap;gap:4px 20px}
+.sti{font-size:11.5px;color:#8a8f9a;font-weight:600;white-space:nowrap;display:flex;align-items:baseline;gap:5px}
+.sti>span{font-size:17px;font-weight:800;color:#1a3a6b}
+.sti.lu{color:#9aa0aa;font-weight:600}
+.sti.lu>span{font-size:12px;font-weight:700;color:#666}
+#admin-filter-count{margin-left:auto;font-size:12px;color:#666;text-align:right}
 /* เมนูเครื่องมือ */
 .tmi{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;text-align:left;
   background:#fff;border:none;cursor:pointer;padding:10px 14px;font-size:12.5px;color:#333;
@@ -544,12 +559,11 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   .tbar>span{flex:1 1 100%!important;margin:4px 0 0!important;text-align:center}
 
   /* การ์ดสถิติ Admin: บรรทัดเดียว 5 คอลัมน์ */
-  #admin-stats{grid-template-columns:repeat(5,1fr)!important;gap:4px!important;margin-bottom:8px!important}
-  #admin-stats>div{padding:7px 3px!important}
-  #admin-stats>div>div:first-child{font-size:15px!important;white-space:nowrap;line-height:1.05}
-  #admin-stats>div>div:last-child{font-size:8px!important;line-height:1.15;white-space:normal}
-  #admin-stats>div:last-child{grid-column:auto!important;padding:7px 3px!important}
-  #admin-stats #stat-lastupdate{font-size:9px!important;white-space:normal;line-height:1.1}
+  .adm-strip{padding:7px 10px!important;gap:3px 12px!important;margin-bottom:8px!important}
+  .sti{font-size:9.5px!important;gap:3px}
+  .sti>span{font-size:14px!important}
+  .sti.lu>span{font-size:10px!important}
+  #admin-filter-count{width:100%;margin-left:0!important;text-align:left;font-size:11px!important;padding-top:2px}
 
   /* กล่องเกณฑ์การประเมิน: ย่อให้เล็กลง คืนพื้นที่ให้ตาราง */
   .crit-note{font-size:9.5px!important;line-height:1.4!important;padding:7px 10px!important;margin-bottom:8px!important}
@@ -639,9 +653,12 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   .admin-head #tools-btn{width:100%;font-size:11.5px!important;padding:9px 8px!important;justify-content:center}
   #tools-menu{left:0;right:0;min-width:0!important}
   .tmi{font-size:12px!important;padding:11px 13px!important}
-  .admin-period{padding:8px 10px!important;gap:6px 8px!important}
-  .admin-period>span:first-child{font-size:12px!important}
-  .admin-period select,.admin-period input{font-size:11px!important;padding:5px 8px!important}
+  .adm-bar{padding:8px 9px!important;gap:6px!important}
+  .adm-bar #admin-search{flex:1 1 100%!important;max-width:none!important}
+  .adm-bar select{flex:1 1 0;min-width:0;font-size:11.5px!important;padding:6px 7px!important}
+  .adm-bar input[type=date]{font-size:11px!important;padding:5px 6px!important}
+  .adm-sep{display:none}
+  #admin-pdates{flex:1 1 100%;justify-content:center}
   .admin-period #admin-period-note{margin-left:0!important;flex:1 1 100%;font-size:10px!important}
 
   /* ── ปุ่มจัดการ 3 ปุ่มในตาราง Admin: อยู่บรรทัดเดียว ไอคอนกระชับ ── */
@@ -1271,63 +1288,37 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     </div>
   </div>
   <input type="file" id="restore-file" accept=".json,application/json" style="display:none" onchange="handleRestoreFile(event)">
-  <!-- Admin custom date period -->
-  <div class="admin-period" style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <span style="font-size:13px;font-weight:700;color:#1a3a6b">📅 ช่วงเวลา:</span>
-    <select id="admin-pmode" onchange="onAdminPM()" style="border:1px solid #ccc;border-radius:6px;padding:6px 10px;font-size:13px">
-      <option value="all">ทั้งหมด (All time)</option>
-      <option value="custom">กำหนดเอง (Custom)</option>
-    </select>
-    <span id="admin-pdates" style="display:none;align-items:center;gap:6px">
-      <label style="font-size:11px;color:#888">จาก (From)</label>
-      <input type="date" id="admin-from" onchange="onAdminFrom()" style="border:1px solid #ccc;border-radius:6px;padding:5px 8px;font-size:13px">
-      <label style="font-size:11px;color:#888">ถึง (To)</label>
-      <input type="date" id="admin-to" onchange="onAdminTo()" style="border:1px solid #ccc;border-radius:6px;padding:5px 8px;font-size:13px">
-    </span>
-    <span id="admin-period-note" style="font-size:11px;color:#888;margin-left:auto">แสดงข้อมูลทั้งหมด (All time)</span>
-  </div>
-
-  <!-- Stats -->
-  <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;margin-bottom:16px" id="admin-stats">
-    <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:14px;text-align:center">
-      <div style="font-size:24px;font-weight:800;color:#1a3a6b" id="stat-total">-</div>
-      <div style="font-size:11px;color:#888">พนักงานทั้งหมด</div>
-    </div>
-    <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:14px;text-align:center">
-      <div style="font-size:24px;font-weight:800;color:#2e7d32" id="stat-active">-</div>
-      <div style="font-size:11px;color:#888">มีข้อมูล</div>
-    </div>
-    <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:14px;text-align:center">
-      <div style="font-size:24px;font-weight:800;color:#1a6b2e" id="stat-pass">-</div>
-      <div style="font-size:11px;color:#888">ผ่านเกณฑ์</div>
-    </div>
-    <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:14px;text-align:center">
-      <div style="font-size:24px;font-weight:800;color:#c00000" id="stat-rows">-</div>
-      <div style="font-size:11px;color:#888">บันทึกรวมทั้งหมด</div>
-    </div>
-    <div style="background:#fff;border:1px solid #e0e4ee;border-radius:8px;padding:14px;text-align:center">
-      <div style="font-size:14px;font-weight:700;color:#555" id="stat-lastupdate">-</div>
-      <div style="font-size:11px;color:#888">บันทึกล่าสุด</div>
-    </div>
-  </div>
-
-  <!-- Search + Filters -->
-  <div style="margin-bottom:10px;display:flex;gap:8px;flex-wrap:wrap;align-items:center">
-    <input id="admin-search" placeholder="🔍 ค้นหาชื่อ หรือ Staff ID..."
-      style="flex:1;min-width:220px;max-width:360px;border:1px solid #ccc;border-radius:6px;padding:7px 12px;font-size:13px"
-      oninput="filterAdminTable()">
-    <select id="admin-pos" onchange="filterAdminTable()"
-      style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff;max-width:240px">
-      <option value="">ทุก Position</option>
-    </select>
-    <select id="admin-status" onchange="filterAdminTable()"
-      style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff">
+  <!-- แถบควบคุมรวม: ค้นหา + ตัวกรอง + ช่วงเวลา -->
+  <div class="adm-bar">
+    <input id="admin-search" placeholder="🔍 ค้นหาชื่อ หรือ Staff ID..." oninput="filterAdminTable()">
+    <select id="admin-pos" onchange="filterAdminTable()"><option value="">ทุก Position</option></select>
+    <select id="admin-status" onchange="filterAdminTable()">
       <option value="">สถานะทั้งหมด</option>
       <option value="pass">✓ ผ่านเกณฑ์</option>
       <option value="fail">✗ ไม่ผ่านเกณฑ์</option>
     </select>
+    <i class="adm-sep"></i>
+    <select id="admin-pmode" onchange="onAdminPM()" title="ช่วงเวลาที่ใช้ประเมิน">
+      <option value="all">📅 ทั้งหมด (All time)</option>
+      <option value="custom">📅 กำหนดเอง (Custom)</option>
+    </select>
+    <span id="admin-pdates" style="display:none;align-items:center;gap:5px">
+      <input type="date" id="admin-from" onchange="onAdminFrom()" title="จาก (From)">
+      <span style="color:#aaa">→</span>
+      <input type="date" id="admin-to" onchange="onAdminTo()" title="ถึง (To)">
+    </span>
+    <span id="admin-period-note" style="display:none">แสดงข้อมูลทั้งหมด (All time)</span>
   </div>
-  <div id="admin-filter-count" style="font-size:12px;color:#666;margin:0 0 10px;min-height:16px"></div>
+
+  <!-- แถบสถิติแบบบรรทัดเดียว -->
+  <div id="admin-stats" class="adm-strip">
+    <div class="sti"><span id="stat-total">-</span>พนักงานทั้งหมด</div>
+    <div class="sti"><span id="stat-active" style="color:#2e7d32">-</span>มีข้อมูล</div>
+    <div class="sti"><span id="stat-pass" style="color:#1a6b2e">-</span>ผ่านเกณฑ์</div>
+    <div class="sti"><span id="stat-rows" style="color:#c00000">-</span>บันทึกรวม</div>
+    <div class="sti lu">อัปเดต <span id="stat-lastupdate">-</span></div>
+    <div id="admin-filter-count"></div>
+  </div>
   <div id="bulk-bar" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fff4f4;border:1px solid #f0c8c8;border-radius:8px;padding:8px 12px;margin:0 0 10px">
     <span id="bulk-stat" style="font-size:12px;color:#7a0000;font-weight:700"></span>
     <button class="btn" style="background:#c00000;color:#fff;font-size:12px;padding:4px 12px" onclick="bulkDelete()">🗑 ลบที่เลือกไปถังขยะ</button>
@@ -1380,7 +1371,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.4.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.5.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
