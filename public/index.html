@@ -1362,7 +1362,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.2.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.2.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2599,6 +2599,92 @@ function _dqRender(){
       +'<td style="padding:6px;color:#777">'+esc(i.desc||i.ref)+'</td></tr>';
   });
   box.innerHTML=h+'</table>';
+}
+
+// ══ แผงตรวจสอบ (แสดงตลอด — เขียวคือไม่มีปัญหา) ═════════════════════════════
+function renderMonBar(){
+  const bar=document.getElementById('mon-bar');if(!bar)return;
+  if(!allUsersData||!allUsersData.length){bar.innerHTML='';return;}
+  const risk=riskList(30).length, idle=idleList(60).length, dq=dqScan().length;
+  const chip=(icon,label,n,unit,fn,ok)=>{
+    const c=ok?['#eaf5ea','#b6ddb8','#2e7d32']:['#fff6e5','#e8c98a','#8a5a00'];
+    return '<button class="btn" onclick="'+fn+'" style="background:'+c[0]+';border:1px solid '+c[1]
+      +';color:'+c[2]+';font-size:12px;padding:7px 12px">'+icon+' '+label
+      +' <b style="font-size:13.5px">'+n+'</b> '+unit+'</button>';
+  };
+  bar.innerHTML=
+     chip('⚠️','เสี่ยงหลุดใน 30 วัน',risk,'คน','openRisk()',risk===0)
+    +chip('💤','ไม่เคลื่อนไหว 60 วัน+',idle,'คน','openIdle()',idle===0)
+    +chip('🔍','จุดข้อมูลไม่สมบูรณ์',dq,'จุด','openDQ()',dq===0)
+    +'<button class="btn" onclick="monthlyReport()" style="background:#1a3a6b;color:#fff;font-size:12px;padding:7px 12px">📅 รายงานประจำเดือน</button>';
+}
+
+// ══ คนที่ไม่เคลื่อนไหว ═════════════════════════════════════════════════════
+function idleList(days){
+  const cut=Date.now()-days*86400000;
+  return (allUsersData||[]).filter(u=>{
+    if(!u.savedAt||u.savedAt==='-')return true;
+    const t=new Date(u.savedAt).getTime();
+    return isNaN(t)||t<cut;
+  }).sort((a,b)=>{
+    const ta=(!a.savedAt||a.savedAt==='-')?0:new Date(a.savedAt).getTime();
+    const tb=(!b.savedAt||b.savedAt==='-')?0:new Date(b.savedAt).getTime();
+    return ta-tb;
+  });
+}
+let _idleDays=60;
+function openIdle(d){
+  _idleDays=d||_idleDays;
+  const list=idleList(_idleDays);
+  const btn=n=>'<button class="btn" onclick="openIdle('+n+')" style="font-size:12px;padding:5px 12px;background:'
+    +(_idleDays===n?'#1a3a6b;color:#fff':'#e8e8e8;color:#444')+'">'+n+' วัน</button>';
+  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
+    +'<span style="font-size:12px;color:#666">ไม่อัปเดตเกิน:</span>'+btn(30)+btn(60)+btn(90)
+    +'<button class="btn" id="idle-copy" style="background:#2c5f2e;color:#fff;font-size:12px;padding:5px 12px;margin-left:auto">📋 คัดลอกอีเมลทั้งหมด</button></div>';
+  if(!list.length){h+='<div style="text-align:center;padding:26px;color:#2e7d32;font-weight:700">✓ ทุกคนอัปเดตข้อมูลภายใน '+_idleDays+' วัน</div>';}
+  else{
+    h+='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+      +'<tr style="background:#f0f0f0"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+      +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
+      +'<th style="padding:8px">บันทึกล่าสุด</th><th style="padding:8px">ไม่อัปเดต</th>'
+      +'<th style="padding:8px;text-align:left">อีเมล</th></tr>';
+    list.forEach(u=>{
+      const never=(!u.savedAt||u.savedAt==='-');
+      const days=never?null:Math.floor((Date.now()-new Date(u.savedAt).getTime())/86400000);
+      h+='<tr style="border-bottom:1px solid #f0f0f0">'
+        +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(u.name)+'</td>'
+        +'<td style="padding:7px 8px;text-align:center">'+esc(u.staffId)+'</td>'
+        +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(u.position)+'</td>'
+        +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+(never?'<span style="color:#c00000">ยังไม่เคยบันทึก</span>':new Date(u.savedAt).toLocaleDateString('th-TH',{day:'2-digit',month:'short',year:'2-digit'}))+'</td>'
+        +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:#c00000">'+(never?'-':days+' วัน')+'</td>'
+        +'<td style="padding:7px 8px;font-size:11px;color:#666">'+esc(u.email||'-')+'</td></tr>';
+    });
+    h+='</table>';
+  }
+  _openInfoModal('💤 ไม่เคลื่อนไหวเกิน '+_idleDays+' วัน ('+list.length+' คน)','#7a5a00',h,()=>{
+    const lines=[['ชื่อ-นามสกุล','Staff ID','Position','บันทึกล่าสุด','อีเมล'].map(_csvCell).join(',')];
+    list.forEach(u=>lines.push([u.name,u.staffId,u.position,
+      (!u.savedAt||u.savedAt==='-')?'ยังไม่เคยบันทึก':new Date(u.savedAt).toLocaleString('th-TH'),u.email||''].map(_csvCell).join(',')));
+    _dlCSV(lines,'Inactive_'+_idleDays+'d_');
+  },true);
+  const cp=document.getElementById('idle-copy');
+  if(cp)cp.onclick=()=>_copyEmails(list);
+}
+function _copyEmails(list){
+  const mails=list.map(u=>u.email).filter(e=>e&&e!=='-'&&e.includes('@'));
+  if(!mails.length){alert('ไม่มีอีเมลให้คัดลอก');return;}
+  const txt=mails.join('; ');
+  const done=()=>toastMsg('📋 คัดลอกอีเมล '+mails.length+' รายการแล้ว — วางใน Outlook ได้เลย');
+  if(navigator.clipboard&&navigator.clipboard.writeText){
+    navigator.clipboard.writeText(txt).then(done).catch(()=>_copyFallback(txt,done));
+  }else _copyFallback(txt,done);
+}
+function _copyFallback(txt,done){
+  const ta=document.createElement('textarea');
+  ta.value=txt;ta.style.cssText='position:fixed;top:-1000px';
+  document.body.appendChild(ta);ta.select();
+  try{document.execCommand('copy');done();}catch(e){alert('คัดลอกไม่สำเร็จ กรุณาคัดลอกเอง:\n\n'+txt);}
+  ta.remove();
 }
 
 // ══ กลุ่มเสี่ยงหลุดเกณฑ์ใน 30 วัน ═══════════════════════════════════════════
