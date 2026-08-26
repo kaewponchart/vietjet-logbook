@@ -170,6 +170,8 @@ table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:var(--red);
 .btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;
      display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:hover{filter:brightness(.96)}
+/* ปุ่มที่ใช้ได้เฉพาะแอดมิน — ซ่อนไว้ก่อน แล้ว checkAdmin() ค่อยเปิด */
+.adm-only{display:none}
 /* แถบควบคุมรวมของหน้า Admin */
 .adm-bar{background:#fff;border:1px solid #e0e4ee;border-radius:10px;padding:8px 12px;margin-bottom:9px;
   display:flex;align-items:center;gap:8px;flex-wrap:wrap}
@@ -737,7 +739,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <span style="font-size:11px;color:#888;white-space:nowrap">📅 <span id="spd">-</span></span>
       <button class="btn bb" onclick="calcSum()" style="padding:5px 12px">🔄 คำนวณใหม่</button>
       <button class="btn" style="background:#1a6b2e;color:#fff;padding:5px 12px" onclick="saveAll()">💾 บันทึก</button>
-      <button class="btn" style="background:#2c5f2e;color:#fff;padding:5px 12px" onclick="exportPDF('all')">📄 Export PDF</button>
+      <button class="btn adm-only" style="background:#2c5f2e;color:#fff;padding:5px 12px" onclick="exportPDF('all')">📄 Export PDF</button>
     </div>
   </div>
 
@@ -977,7 +979,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   <div class="tbar">
     <button class="btn bg" onclick="addRow()">+ เพิ่มแถว</button>
     <button class="btn" style="background:#fff0f0;color:#c00000;border:1px solid #fbbcbc" onclick="toggleFilter()">🔍 Filter</button>
-    <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportPDF('all')">📄 Export PDF</button>
+    <button class="btn adm-only" style="background:#2c5f2e;color:#fff" onclick="exportPDF('all')">📄 Export PDF</button>
     <button class="btn bb" onclick="saveAll()">💾 บันทึก</button>
     <button class="btn bp" onclick="exportData()" title="Export ข้อมูลเป็น JSON (สำรองข้อมูล)">📦 Export JSON</button>
     <button class="btn bt" onclick="document.getElementById('ifile').click()" title="Import ข้อมูลจาก JSON">📂 Import JSON</button>
@@ -1042,7 +1044,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     <div style="font-size:12px;color:#555"><b>Name:</b> <span id="tn">-</span> &nbsp;|&nbsp; <b>Staff ID:</b> <span id="tsi">-</span></div>
     <button class="btn bg" onclick="addTRow()">+ เพิ่ม Training</button>
     <button class="btn bb" onclick="saveAll()">💾 บันทึก</button>
-    <button class="btn" style="background:#2c5f2e;color:#fff" onclick="exportPDF('all')">📄 Export PDF</button>
+    <button class="btn adm-only" style="background:#2c5f2e;color:#fff" onclick="exportPDF('all')">📄 Export PDF</button>
     <span style="font-size:11px;color:#e65100;font-weight:700;margin-left:auto">⚠ Training เพิ่มได้สูงสุด 20% ของ 1st Type Working Days</span>
   </div>
   <div class="tbl-scroll">
@@ -1371,7 +1373,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.5.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.6.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2140,6 +2142,12 @@ function _printRowsOff(x){
 }
 
 function exportPDF(tabId){
+  if(!isAdmin()){
+    alert('การ Export PDF สงวนไว้สำหรับแอดมิน (SSQA) เท่านั้น\n\n'
+      +'เนื่องจากเอกสารที่ยังไม่ผ่านการตรวจสอบคุณภาพข้อมูลอาจถูกนำไปใช้อ้างอิงผิดพลาด\n'
+      +'หากต้องการเอกสาร กรุณาติดต่อฝ่าย SSQA');
+    return;
+  }
   const PRINT_TABS = tabId === 'all' ? ['ts','tl','tt'] : [tabId];
 
   if(PRINT_TABS.includes('tg') && PRINT_TABS.length===1){
@@ -2401,7 +2409,10 @@ function applyAdminPeriod(){
 
 function checkAdmin(){
   const t=document.getElementById('admin-tab');
-  if(t)t.style.display=isAdmin()?'inline-block':'none';
+  const ok=isAdmin();
+  if(t)t.style.display=ok?'inline-block':'none';
+  // Export PDF สงวนไว้ให้แอดมิน เพื่อกันเอกสารที่ยังไม่ผ่านการตรวจสอบออกไปใช้งาน
+  document.querySelectorAll('.adm-only').forEach(el=>{el.style.display=ok?'inline-block':'none';});
 }
 async function loadAllUsers(){
   if(!fbDb||!currentUser)return;
