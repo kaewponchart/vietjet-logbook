@@ -1374,7 +1374,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.7.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.7.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2676,44 +2676,76 @@ function routineList(pct){
   out.sort((a,b)=>b.p-a.p);
   return out;
 }
+let _rtAll=[],_rtView=[],_rtQ='',_rtPos='';
 function openRoutine(pct){
   _routinePct=pct||_routinePct;
-  const list=routineList(_routinePct);
+  _rtAll=routineList(_routinePct);
   const btn=n=>'<button class="btn" onclick="openRoutine('+n+')" style="font-size:12px;padding:5px 12px;background:'
     +(_routinePct===n?'#1a3a6b;color:#fff':'#e8e8e8;color:#444')+'">'+n+'%</button>';
-  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
+  const poss=Array.from(new Set(_rtAll.map(r=>r.u.position||'-'))).sort();
+  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">'
     +'<span style="font-size:12px;color:#666">เกณฑ์สัดส่วน:</span>'+btn(60)+btn(70)+btn(80)+btn(90)+'</div>'
-    +'<div style="background:#fff8ec;border:1px solid #e8cfa0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#7a5a1a;line-height:1.7">'
+    +'<div style="background:#fff8ec;border:1px solid #e8cfa0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#7a5a1a;line-height:1.7">'
     +'แสดงผู้ที่มีงาน <b>Transit Check + Daily Check + Preflight Check</b> รวมกันเกิน <b>'+_routinePct+'%</b> ของงานที่ลงทั้งหมด<br>'
-    +'จำแนกจากช่อง Work Description · นับเฉพาะผู้ที่ลงงานตั้งแต่ '+ROUTINE_MIN_ROWS+' แถวขึ้นไป · ใช้ช่วงเวลาตามที่เลือกไว้ในหน้า Admin</div>';
-  if(!list.length){h+='<div style="text-align:center;padding:26px;color:#2e7d32;font-weight:700">✓ ไม่มีผู้ที่มีสัดส่วนงานตรวจประจำเกิน '+_routinePct+'%</div>';}
-  else{
-    h+='<table style="width:100%;border-collapse:collapse;font-size:12px">'
-      +'<tr style="background:#f5ead2"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
-      +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
-      +'<th style="padding:8px">งานทั้งหมด</th><th style="padding:8px">Transit</th>'
-      +'<th style="padding:8px">Preflight</th><th style="padding:8px">Daily</th>'
-      +'<th style="padding:8px">รวม 3 ประเภท</th><th style="padding:8px">สัดส่วน</th></tr>';
-    list.forEach(r=>{
-      h+='<tr style="border-bottom:1px solid #eee">'
-        +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(r.u.name)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+esc(r.u.staffId)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(r.u.position)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+r.total.toLocaleString('th-TH')+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+r.tr+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+r.pf+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+r.dc+'</td>'
-        +'<td style="padding:7px 8px;text-align:center;font-weight:700">'+r.n+'</td>'
-        +'<td style="padding:7px 8px;text-align:center;font-weight:800;color:#c00000">'+r.p.toFixed(1)+'%</td></tr>';
-    });
-    h+='</table>';
-  }
-  _openInfoModal('📊 สัดส่วนงานตรวจประจำเกิน '+_routinePct+'% ('+list.length+' คน)','#7a5a00',h,()=>{
+    +'จำแนกจากช่อง Work Description · นับเฉพาะผู้ที่ลงงานตั้งแต่ '+ROUTINE_MIN_ROWS+' แถวขึ้นไป · ใช้ช่วงเวลาตามที่เลือกไว้ในหน้า Admin</div>'
+    // แถบกรองคน
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f9fc;border:1px solid #dde5f0;'
+    +'border-radius:8px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:2">'
+    +'<input id="rt-q" placeholder="🔍 ค้นหาชื่อ หรือ Staff ID..." style="flex:1 1 220px;min-width:0;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+    +'<select id="rt-pos" style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff"><option value="">ทุก Position</option>'
+    +poss.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')+'</select>'
+    +'<button class="btn" id="rt-clear" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้าง</button></div>'
+    +'<div id="rt-count" style="font-size:12px;color:#666;margin-bottom:6px"></div><div id="rt-list"></div>';
+  _openInfoModal('📊 สัดส่วนงานตรวจประจำเกิน '+_routinePct+'% ('+_rtAll.length+' คน)','#7a5a00',h,()=>{
     const head=['ชื่อ-นามสกุล','Staff ID','Position','งานทั้งหมด','Transit','Preflight','Daily','รวม 3 ประเภท','สัดส่วน (%)'];
     const lines=[head.map(_csvCell).join(',')];
-    list.forEach(r=>lines.push([r.u.name,r.u.staffId,r.u.position,r.total,r.tr,r.pf,r.dc,r.n,r.p.toFixed(1)].map(_csvCell).join(',')));
+    _rtView.forEach(r=>lines.push([r.u.name,r.u.staffId,r.u.position,r.total,r.tr,r.pf,r.dc,r.n,r.p.toFixed(1)].map(_csvCell).join(',')));
     _dlCSV(lines,'RoutineWork_'+_routinePct+'pct_');
   },true);
+  // คงค่าตัวกรองไว้แม้เปลี่ยนเกณฑ์เปอร์เซ็นต์
+  const qEl=document.getElementById('rt-q'),pEl=document.getElementById('rt-pos');
+  if(qEl){qEl.value=_rtQ;qEl.addEventListener('input',_rtRender);}
+  if(pEl){pEl.value=_rtPos;pEl.addEventListener('change',_rtRender);}
+  const cl=document.getElementById('rt-clear');
+  if(cl)cl.onclick=()=>{_rtQ='';_rtPos='';if(qEl)qEl.value='';if(pEl)pEl.value='';_rtRender();};
+  _rtRender();
+}
+function _rtRender(){
+  const box=document.getElementById('rt-list');if(!box)return;
+  _rtQ=((document.getElementById('rt-q')||{}).value||'').toLowerCase().trim();
+  _rtPos=(document.getElementById('rt-pos')||{}).value||'';
+  _rtView=_rtAll.filter(r=>{
+    if(_rtPos&&(r.u.position||'-')!==_rtPos)return false;
+    if(_rtQ&&!((r.u.name||'').toLowerCase().includes(_rtQ)||(r.u.staffId||'').toLowerCase().includes(_rtQ)))return false;
+    return true;
+  });
+  const cnt=document.getElementById('rt-count');
+  if(cnt)cnt.innerHTML=(_rtQ||_rtPos)
+    ? 'กรองแล้วพบ <b>'+_rtView.length+'</b> จาก '+_rtAll.length+' คน · ปุ่ม CSV ด้านบนจะส่งออกเฉพาะที่กรองไว้'
+    : 'แสดงทั้งหมด <b>'+_rtAll.length+'</b> คน';
+  if(!_rtAll.length){
+    box.innerHTML='<div style="text-align:center;padding:26px;color:#2e7d32;font-weight:700">✓ ไม่มีผู้ที่มีสัดส่วนงานตรวจประจำเกิน '+_routinePct+'%</div>';return;
+  }
+  if(!_rtView.length){box.innerHTML='<div style="text-align:center;padding:26px;color:#999">ไม่พบรายการตามเงื่อนไขที่กรอง</div>';return;}
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#f5ead2"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+    +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
+    +'<th style="padding:8px">งานทั้งหมด</th><th style="padding:8px">Transit</th>'
+    +'<th style="padding:8px">Preflight</th><th style="padding:8px">Daily</th>'
+    +'<th style="padding:8px">รวม 3 ประเภท</th><th style="padding:8px">สัดส่วน</th></tr>';
+  _rtView.forEach(r=>{
+    h+='<tr style="border-bottom:1px solid #eee">'
+      +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(r.u.name)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+esc(r.u.staffId)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(r.u.position)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.total.toLocaleString('th-TH')+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.tr+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.pf+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.dc+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700">'+r.n+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:800;color:#c00000">'+r.p.toFixed(1)+'%</td></tr>';
+  });
+  box.innerHTML=h+'</table>';
 }
 
 // ══ คนที่ไม่เคลื่อนไหว ═════════════════════════════════════════════════════
