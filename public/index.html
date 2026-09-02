@@ -1302,7 +1302,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     </select>
     <i class="adm-sep"></i>
     <select id="admin-pmode" onchange="onAdminPM()" title="ช่วงเวลาที่ใช้ประเมิน">
-      <option value="all">📅 ทั้งหมด (All time)</option>
+      <option value="all">📅 24 เดือนล่าสุด (ค่าเริ่มต้น)</option>
       <option value="custom">📅 กำหนดเอง (Custom)</option>
     </select>
     <span id="admin-pdates" style="display:none;align-items:center;gap:5px">
@@ -1310,7 +1310,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <span style="color:#aaa">→</span>
       <input type="date" id="admin-to" onchange="onAdminTo()" title="ถึง (To)">
     </span>
-    <span id="admin-period-note" style="display:none">แสดงข้อมูลทั้งหมด (All time)</span>
+    <span id="admin-period-note" style="display:none">ช่วงประเมิน 24 เดือนล่าสุด</span>
   </div>
 
   <!-- แถบสถิติแบบบรรทัดเดียว -->
@@ -1344,7 +1344,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
           <th data-k="name" onclick="sortAdmin('name')" style="padding:10px 12px;text-align:left;cursor:pointer;user-select:none">ชื่อ-นามสกุล <span class="sort-ind" id="sa-name"></span></th>
           <th data-k="staffId" onclick="sortAdmin('staffId')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">Staff ID <span class="sort-ind" id="sa-staffId"></span></th>
           <th data-k="position" onclick="sortAdmin('position')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">Position <span class="sort-ind" id="sa-position"></span></th>
-          <th data-k="rows" onclick="sortAdmin('rows')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">บันทึก (แถว) <span class="sort-ind" id="sa-rows"></span></th>
+          <th data-k="rows" onclick="sortAdmin('rows')" title="จำนวนแถวที่บันทึกไว้ — โหมดค่าเริ่มต้นนับทุกแถวตั้งแต่ต้น ไม่จำกัดช่วงเวลา (ต่างจาก WD/Tasks ที่คิดจาก 24 เดือนล่าสุด)" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">บันทึก (แถว) <span class="sort-ind" id="sa-rows"></span></th>
           <th data-k="wd" onclick="sortAdmin('wd')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none" title="1st Type Working Days (รวมเครดิต Training +20%)">WD<br><small style="font-weight:400">1st Type</small> <span class="sort-ind" id="sa-wd"></span></th>
           <th data-k="tasks" onclick="sortAdmin('tasks')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none" title="1st Type Tasks (จำนวนวันที่มีงาน)">Tasks<br><small style="font-weight:400">1st Type</small> <span class="sort-ind" id="sa-tasks"></span></th>
           <th data-k="status" onclick="sortAdmin('status')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">สถานะ <span class="sort-ind" id="sa-status"></span></th>
@@ -1374,7 +1374,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.7.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.7.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2404,7 +2404,7 @@ function onAdminTo(){
 function applyAdminPeriod(){
   adminPeriod.from=gv('admin-from');adminPeriod.to=gv('admin-to');
   const note=document.getElementById('admin-period-note');const r=getAdminRange();
-  if(note)note.textContent=r?('กรองช่วง '+fmtD(r.from)+' — '+fmtD(r.to)+' · ใช้ override ตอนเปิด Summary พนักงานด้วย'):(adminPeriod.mode==='custom'?'เลือก From หรือ To อย่างใดอย่างหนึ่ง อีกช่องจะเติม ±24 เดือนอัตโนมัติ (แก้เองได้)':'แสดงข้อมูลทั้งหมด (All time)');
+  if(note)note.textContent=r?('กรองช่วง '+fmtD(r.from)+' — '+fmtD(r.to)+' · ใช้ override ตอนเปิด Summary พนักงานด้วย'):(adminPeriod.mode==='custom'?'เลือก From หรือ To อย่างใดอย่างหนึ่ง อีกช่องจะเติม ±24 เดือนอัตโนมัติ (แก้เองได้)':('ช่วงประเมิน 24 เดือนล่าสุด '+fmtD(adminCompRange().from)+' — '+fmtD(adminCompRange().to)));
   if(allUsersData&&allUsersData.length){filterAdminTable();updateAdminStats(allUsersData);}
 }
 
