@@ -1279,9 +1279,11 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <button class="tmi" onclick="_tool(function(){openIdle(30)})"><span>💤 ไม่เคลื่อนไหว 30 วัน</span><span id="mi-idle"></span></button>
         <button class="tmi" onclick="_tool(openDQ)"><span>🔍 ข้อมูลไม่สมบูรณ์</span><span id="mi-dq"></span></button>
         <button class="tmi" onclick="_tool(function(){openRoutine(70)})"><span>📊 งานตรวจประจำเกิน 70%</span><span id="mi-rt"></span></button>
+        <button class="tmi" onclick="_tool(function(){openNear(70)})"><span>🎯 ใกล้ครบเกณฑ์ (ไม่ผ่าน)</span><span id="mi-nr"></span></button>
         <div class="tmh">ส่งออกรายงาน</div>
         <button class="tmi" onclick="_tool(exportAdminCSV)"><span>📊 ส่งออก Excel (CSV)</span></button>
         <button class="tmi" onclick="_tool(exportAdminPDF)"><span>📄 ส่งออก PDF</span></button>
+        <button class="tmi" onclick="_tool(exportRawRows)"><span>📋 ส่งออกข้อมูลดิบทุกแถว</span></button>
         <button class="tmi" onclick="_tool(monthlyReport)"><span>📅 รายงานประจำเดือน</span></button>
         <div class="tmh">จัดการข้อมูล</div>
         <button class="tmi" onclick="_tool(loadAllUsers)"><span>🔄 โหลดข้อมูลใหม่</span></button>
@@ -1302,7 +1304,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     </select>
     <i class="adm-sep"></i>
     <select id="admin-pmode" onchange="onAdminPM()" title="ช่วงเวลาที่ใช้ประเมิน">
-      <option value="all">📅 ทั้งหมด (All time)</option>
+      <option value="all">📅 24 เดือนล่าสุด (ค่าเริ่มต้น)</option>
       <option value="custom">📅 กำหนดเอง (Custom)</option>
     </select>
     <span id="admin-pdates" style="display:none;align-items:center;gap:5px">
@@ -1310,7 +1312,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <span style="color:#aaa">→</span>
       <input type="date" id="admin-to" onchange="onAdminTo()" title="ถึง (To)">
     </span>
-    <span id="admin-period-note" style="display:none">แสดงข้อมูลทั้งหมด (All time)</span>
+    <span id="admin-period-note" style="display:none">ช่วงประเมิน 24 เดือนล่าสุด</span>
   </div>
 
   <!-- แถบสถิติแบบบรรทัดเดียว -->
@@ -1344,7 +1346,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
           <th data-k="name" onclick="sortAdmin('name')" style="padding:10px 12px;text-align:left;cursor:pointer;user-select:none">ชื่อ-นามสกุล <span class="sort-ind" id="sa-name"></span></th>
           <th data-k="staffId" onclick="sortAdmin('staffId')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">Staff ID <span class="sort-ind" id="sa-staffId"></span></th>
           <th data-k="position" onclick="sortAdmin('position')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">Position <span class="sort-ind" id="sa-position"></span></th>
-          <th data-k="rows" onclick="sortAdmin('rows')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">บันทึก (แถว) <span class="sort-ind" id="sa-rows"></span></th>
+          <th data-k="rows" onclick="sortAdmin('rows')" title="จำนวนแถวที่บันทึกไว้ — โหมดค่าเริ่มต้นนับทุกแถวตั้งแต่ต้น ไม่จำกัดช่วงเวลา (ต่างจาก WD/Tasks ที่คิดจาก 24 เดือนล่าสุด)" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">บันทึก (แถว) <span class="sort-ind" id="sa-rows"></span></th>
           <th data-k="wd" onclick="sortAdmin('wd')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none" title="1st Type Working Days (รวมเครดิต Training +20%)">WD<br><small style="font-weight:400">1st Type</small> <span class="sort-ind" id="sa-wd"></span></th>
           <th data-k="tasks" onclick="sortAdmin('tasks')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none" title="1st Type Tasks (จำนวนวันที่มีงาน)">Tasks<br><small style="font-weight:400">1st Type</small> <span class="sort-ind" id="sa-tasks"></span></th>
           <th data-k="status" onclick="sortAdmin('status')" style="padding:10px 8px;text-align:center;cursor:pointer;user-select:none">สถานะ <span class="sort-ind" id="sa-status"></span></th>
@@ -1374,7 +1376,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.7.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.8.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2404,7 +2406,7 @@ function onAdminTo(){
 function applyAdminPeriod(){
   adminPeriod.from=gv('admin-from');adminPeriod.to=gv('admin-to');
   const note=document.getElementById('admin-period-note');const r=getAdminRange();
-  if(note)note.textContent=r?('กรองช่วง '+fmtD(r.from)+' — '+fmtD(r.to)+' · ใช้ override ตอนเปิด Summary พนักงานด้วย'):(adminPeriod.mode==='custom'?'เลือก From หรือ To อย่างใดอย่างหนึ่ง อีกช่องจะเติม ±24 เดือนอัตโนมัติ (แก้เองได้)':'แสดงข้อมูลทั้งหมด (All time)');
+  if(note)note.textContent=r?('กรองช่วง '+fmtD(r.from)+' — '+fmtD(r.to)+' · ใช้ override ตอนเปิด Summary พนักงานด้วย'):(adminPeriod.mode==='custom'?'เลือก From หรือ To อย่างใดอย่างหนึ่ง อีกช่องจะเติม ±24 เดือนอัตโนมัติ (แก้เองได้)':('ช่วงประเมิน 24 เดือนล่าสุด '+fmtD(adminCompRange().from)+' — '+fmtD(adminCompRange().to)));
   if(allUsersData&&allUsersData.length){filterAdminTable();updateAdminStats(allUsersData);}
 }
 
@@ -2639,7 +2641,7 @@ function renderMonBar(){
   if(!allUsersData||!allUsersData.length){
     st.innerHTML='';['mi-risk','mi-idle','mi-dq'].forEach(i=>set(i,''));return;
   }
-  const risk=riskList(30).length, idle=idleList(30).length, dq=dqScan().length, rt=routineList(70).length;
+  const risk=riskList(30).length, idle=idleList(30).length, dq=dqScan().length, rt=routineList(70).length, nr=nearList().filter(x=>x.ratio>=70).length;
   // ป้ายเล็กบนปุ่ม — เหลืองเมื่อมีเรื่องต้องดู, จางเมื่อเป็นศูนย์
   const pill=(icon,n,ok)=>'<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;'
     +'background:'+(ok?'rgba(255,255,255,.16)':'#ffd479')+';color:'+(ok?'#e8ecf3':'#5c3d00')
@@ -2649,7 +2651,125 @@ function renderMonBar(){
   const mb=(n,ok)=>'<span style="background:'+(ok?'#eaf5ea':'#fff2d6')+';color:'+(ok?'#2e7d32':'#8a5a00')
     +';border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:800">'+n.toLocaleString('th-TH')+'</span>';
   set('mi-risk',mb(risk,risk===0));set('mi-idle',mb(idle,idle===0));set('mi-dq',mb(dq,dq===0));
-  set('mi-rt',mb(rt,rt===0));
+  set('mi-rt',mb(rt,rt===0));set('mi-nr',mb(nr,nr===0));
+}
+
+// ══ ส่งออกข้อมูลดิบทุกแถวของทุกคน (หลักฐานสำหรับตรวจสอบ / ทำ Pivot ใน Excel) ══
+function exportRawRows(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  if(!allUsersData||!allUsersData.length){alert('ยังไม่มีข้อมูล — กด "โหลดข้อมูลใหม่" ก่อน');return;}
+  const r=getAdminRange();                 // null = โหมดค่าเริ่มต้น -> เอาทุกแถวไม่จำกัดเวลา
+  const inRange=x=>{
+    if(!r)return true;
+    const d=x.date&&pDate(x.date);
+    return d&&d>=r.from&&d<=r.to;
+  };
+  let n=0;
+  allUsersData.forEach(u=>{(u.rowsArr||[]).forEach(x=>{if(inRange(x))n++;});});
+  if(!n){alert('ไม่พบข้อมูลในช่วงเวลาที่เลือก');return;}
+  if(!confirm('ส่งออกข้อมูลดิบ '+n.toLocaleString('th-TH')+' แถว จากพนักงาน '+allUsersData.length+' คน?\n\n'
+    +(r?('ช่วงเวลา '+fmtD(r.from)+' — '+fmtD(r.to)):'ทุกช่วงเวลา (ไม่จำกัด)')
+    +'\n\nไฟล์อาจมีขนาดหลายเมกะไบต์ และใช้เวลาสร้างสักครู่'))return;
+  const head=['#','ชื่อ-นามสกุล','Staff ID','Position','วันที่','Aircraft Type','Reg.','Work Ref.',
+    'Work Description','ATA','Skill','MX Loc.','1st','2nd','3rd','4th','5th','Duration (hrs)','Sign'];
+  const lines=[head.map(_csvCell).join(',')];
+  let i=0;
+  allUsersData.forEach(u=>{
+    (u.rowsArr||[]).forEach(x=>{
+      if(!inRange(x))return;
+      i++;
+      lines.push([i,u.name,u.staffId,u.position,x.date||'',x.actype||'',x.reg||'',x.workref||'',
+        x.desc||'',x.ata||'',x.skill||'',x.mxloc||'',x.a1||'',x.a2||'',x.a3||'',x.a4||'',x.a5||'',
+        x.dur||'',x.sig||''].map(_csvCell).join(','));
+    });
+  });
+  _dlCSV(lines,'RawLogbookRows_');
+}
+
+// ══ ใกล้ครบเกณฑ์ — คนที่ไม่ผ่าน เรียงตามความใกล้ + บอกว่าขาดอีกเท่าไร ══════
+let _nearAll=[],_nearView=[],_nearPct=70,_nearQ='',_nearPos='';
+function nearList(){
+  const out=[];
+  (allUsersData||[]).forEach(u=>{
+    const c=adminUserComp(u);
+    if(c.pass1)return;                                  // ผ่านแล้ว ไม่ต้องติดตาม
+    const rw=Math.max(0,100-c.wd1t), rt=Math.max(0,180-c.t1);
+    const ratio=Math.max(c.wd1t/100, c.t1/180)*100;     // ใกล้เกณฑ์ที่สุดคิดเป็นกี่ %
+    const via=(c.wd1t/100>=c.t1/180)?'WD':'Tasks';      // เส้นทางที่ใกล้ผ่านที่สุด
+    out.push({u:u,c:c,rw:rw,rt:rt,ratio:ratio,via:via});
+  });
+  out.sort((a,b)=>b.ratio-a.ratio);
+  return out;
+}
+function openNear(pct){
+  if(pct!==undefined)_nearPct=pct;
+  _nearAll=nearList();
+  const btn=n=>'<button class="btn" onclick="openNear('+n+')" style="font-size:12px;padding:5px 12px;background:'
+    +(_nearPct===n?'#1a3a6b;color:#fff':'#e8e8e8;color:#444')+'">'+(n===0?'ทั้งหมด':'≥ '+n+'%')+'</button>';
+  const poss=Array.from(new Set(_nearAll.map(r=>r.u.position||'-'))).sort();
+  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">'
+    +'<span style="font-size:12px;color:#666">ความใกล้เกณฑ์:</span>'+btn(0)+btn(50)+btn(70)+btn(85)+'</div>'
+    +'<div style="background:#f4f7fc;border:1px solid #d4e0f0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#33507a;line-height:1.7">'
+    +'ผู้ที่<b>ยังไม่ผ่านเกณฑ์</b> เรียงจากคนที่ใกล้ผ่านที่สุดลงมา · เกณฑ์ผ่านคือ ≥100 WD <b>หรือ</b> ≥180 Tasks อย่างใดอย่างหนึ่ง<br>'
+    +'คอลัมน์ <b>ขาดอีก</b> คือจำนวนที่ต้องเพิ่มเพื่อให้ถึงเกณฑ์ · <b>ทางที่ใกล้สุด</b> บอกว่าควรผลักด้าน WD หรือ Tasks</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f9fc;border:1px solid #dde5f0;'
+    +'border-radius:8px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:2">'
+    +'<input id="nr-q" placeholder="🔍 ค้นหาชื่อ หรือ Staff ID..." style="flex:1 1 220px;min-width:0;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+    +'<select id="nr-pos" style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff"><option value="">ทุก Position</option>'
+    +poss.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')+'</select>'
+    +'<button class="btn" id="nr-clear" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้าง</button></div>'
+    +'<div id="nr-count" style="font-size:12px;color:#666;margin-bottom:6px"></div><div id="nr-list"></div>';
+  _openInfoModal('🎯 ใกล้ครบเกณฑ์ — ผู้ที่ยังไม่ผ่าน ('+_nearAll.length+' คน)','#1a3a6b',h,()=>{
+    const head=['ชื่อ-นามสกุล','Staff ID','Position','WD','ขาด WD','Tasks','ขาด Tasks','ความใกล้เกณฑ์ (%)','ทางที่ใกล้สุด'];
+    const lines=[head.map(_csvCell).join(',')];
+    _nearView.forEach(r=>lines.push([r.u.name,r.u.staffId,r.u.position,r.c.wd1t,r.rw,r.c.t1,r.rt,
+      r.ratio.toFixed(1),r.via].map(_csvCell).join(',')));
+    _dlCSV(lines,'NearThreshold_');
+  },true);
+  const q=document.getElementById('nr-q'),p=document.getElementById('nr-pos');
+  if(q){q.value=_nearQ;q.addEventListener('input',_nearRender);}
+  if(p){p.value=_nearPos;p.addEventListener('change',_nearRender);}
+  const cl=document.getElementById('nr-clear');
+  if(cl)cl.onclick=()=>{_nearQ='';_nearPos='';if(q)q.value='';if(p)p.value='';_nearRender();};
+  _nearRender();
+}
+function _nearRender(){
+  const box=document.getElementById('nr-list');if(!box)return;
+  _nearQ=((document.getElementById('nr-q')||{}).value||'').toLowerCase().trim();
+  _nearPos=(document.getElementById('nr-pos')||{}).value||'';
+  _nearView=_nearAll.filter(r=>{
+    if(r.ratio<_nearPct)return false;
+    if(_nearPos&&(r.u.position||'-')!==_nearPos)return false;
+    if(_nearQ&&!((r.u.name||'').toLowerCase().includes(_nearQ)||(r.u.staffId||'').toLowerCase().includes(_nearQ)))return false;
+    return true;
+  });
+  const cnt=document.getElementById('nr-count');
+  if(cnt)cnt.innerHTML='แสดง <b>'+_nearView.length+'</b> จากผู้ไม่ผ่านทั้งหมด '+_nearAll.length+' คน'
+    +((_nearQ||_nearPos||_nearPct)?' · ปุ่ม CSV ด้านบนจะส่งออกเฉพาะที่กรองไว้':'');
+  if(!_nearView.length){box.innerHTML='<div style="text-align:center;padding:26px;color:#999">ไม่พบรายการตามเงื่อนไขที่กรอง</div>';return;}
+  const bar=pc=>{const w=Math.min(100,pc);
+    return '<div style="background:#eee;border-radius:5px;height:8px;width:70px;display:inline-block;overflow:hidden;vertical-align:middle">'
+      +'<div style="height:100%;width:'+w+'%;background:'+(pc>=85?'#2e7d32':pc>=50?'#b8860b':'#c00000')+'"></div></div>';};
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#eef2fa"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+    +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
+    +'<th style="padding:8px">WD</th><th style="padding:8px">ขาด WD</th>'
+    +'<th style="padding:8px">Tasks</th><th style="padding:8px">ขาด Tasks</th>'
+    +'<th style="padding:8px">ความใกล้เกณฑ์</th><th style="padding:8px">ทางที่ใกล้สุด</th></tr>';
+  _nearView.forEach(r=>{
+    h+='<tr style="border-bottom:1px solid #f0f0f0">'
+      +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(r.u.name)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+esc(r.u.staffId)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(r.u.position)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.c.wd1t+'<small style="color:#bbb">/100</small></td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:#c00000">'+r.rw+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.c.t1+'<small style="color:#bbb">/180</small></td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:#c00000">'+r.rt+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;white-space:nowrap">'+bar(r.ratio)
+        +' <b style="font-size:11.5px">'+r.ratio.toFixed(0)+'%</b></td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:#1a5fb4">'+r.via+'</td></tr>';
+  });
+  box.innerHTML=h+'</table>';
 }
 
 // ══ สัดส่วนงานตรวจประจำ (Transit + Daily + Preflight) ══════════════════════
@@ -2676,44 +2796,76 @@ function routineList(pct){
   out.sort((a,b)=>b.p-a.p);
   return out;
 }
+let _rtAll=[],_rtView=[],_rtQ='',_rtPos='';
 function openRoutine(pct){
   _routinePct=pct||_routinePct;
-  const list=routineList(_routinePct);
+  _rtAll=routineList(_routinePct);
   const btn=n=>'<button class="btn" onclick="openRoutine('+n+')" style="font-size:12px;padding:5px 12px;background:'
     +(_routinePct===n?'#1a3a6b;color:#fff':'#e8e8e8;color:#444')+'">'+n+'%</button>';
-  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:12px">'
+  const poss=Array.from(new Set(_rtAll.map(r=>r.u.position||'-'))).sort();
+  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">'
     +'<span style="font-size:12px;color:#666">เกณฑ์สัดส่วน:</span>'+btn(60)+btn(70)+btn(80)+btn(90)+'</div>'
-    +'<div style="background:#fff8ec;border:1px solid #e8cfa0;border-radius:8px;padding:10px 14px;margin-bottom:14px;font-size:12px;color:#7a5a1a;line-height:1.7">'
+    +'<div style="background:#fff8ec;border:1px solid #e8cfa0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#7a5a1a;line-height:1.7">'
     +'แสดงผู้ที่มีงาน <b>Transit Check + Daily Check + Preflight Check</b> รวมกันเกิน <b>'+_routinePct+'%</b> ของงานที่ลงทั้งหมด<br>'
-    +'จำแนกจากช่อง Work Description · นับเฉพาะผู้ที่ลงงานตั้งแต่ '+ROUTINE_MIN_ROWS+' แถวขึ้นไป · ใช้ช่วงเวลาตามที่เลือกไว้ในหน้า Admin</div>';
-  if(!list.length){h+='<div style="text-align:center;padding:26px;color:#2e7d32;font-weight:700">✓ ไม่มีผู้ที่มีสัดส่วนงานตรวจประจำเกิน '+_routinePct+'%</div>';}
-  else{
-    h+='<table style="width:100%;border-collapse:collapse;font-size:12px">'
-      +'<tr style="background:#f5ead2"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
-      +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
-      +'<th style="padding:8px">งานทั้งหมด</th><th style="padding:8px">Transit</th>'
-      +'<th style="padding:8px">Preflight</th><th style="padding:8px">Daily</th>'
-      +'<th style="padding:8px">รวม 3 ประเภท</th><th style="padding:8px">สัดส่วน</th></tr>';
-    list.forEach(r=>{
-      h+='<tr style="border-bottom:1px solid #eee">'
-        +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(r.u.name)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+esc(r.u.staffId)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(r.u.position)+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+r.total.toLocaleString('th-TH')+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+r.tr+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+r.pf+'</td>'
-        +'<td style="padding:7px 8px;text-align:center">'+r.dc+'</td>'
-        +'<td style="padding:7px 8px;text-align:center;font-weight:700">'+r.n+'</td>'
-        +'<td style="padding:7px 8px;text-align:center;font-weight:800;color:#c00000">'+r.p.toFixed(1)+'%</td></tr>';
-    });
-    h+='</table>';
-  }
-  _openInfoModal('📊 สัดส่วนงานตรวจประจำเกิน '+_routinePct+'% ('+list.length+' คน)','#7a5a00',h,()=>{
+    +'จำแนกจากช่อง Work Description · นับเฉพาะผู้ที่ลงงานตั้งแต่ '+ROUTINE_MIN_ROWS+' แถวขึ้นไป · ใช้ช่วงเวลาตามที่เลือกไว้ในหน้า Admin</div>'
+    // แถบกรองคน
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f9fc;border:1px solid #dde5f0;'
+    +'border-radius:8px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:2">'
+    +'<input id="rt-q" placeholder="🔍 ค้นหาชื่อ หรือ Staff ID..." style="flex:1 1 220px;min-width:0;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+    +'<select id="rt-pos" style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff"><option value="">ทุก Position</option>'
+    +poss.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')+'</select>'
+    +'<button class="btn" id="rt-clear" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้าง</button></div>'
+    +'<div id="rt-count" style="font-size:12px;color:#666;margin-bottom:6px"></div><div id="rt-list"></div>';
+  _openInfoModal('📊 สัดส่วนงานตรวจประจำเกิน '+_routinePct+'% ('+_rtAll.length+' คน)','#7a5a00',h,()=>{
     const head=['ชื่อ-นามสกุล','Staff ID','Position','งานทั้งหมด','Transit','Preflight','Daily','รวม 3 ประเภท','สัดส่วน (%)'];
     const lines=[head.map(_csvCell).join(',')];
-    list.forEach(r=>lines.push([r.u.name,r.u.staffId,r.u.position,r.total,r.tr,r.pf,r.dc,r.n,r.p.toFixed(1)].map(_csvCell).join(',')));
+    _rtView.forEach(r=>lines.push([r.u.name,r.u.staffId,r.u.position,r.total,r.tr,r.pf,r.dc,r.n,r.p.toFixed(1)].map(_csvCell).join(',')));
     _dlCSV(lines,'RoutineWork_'+_routinePct+'pct_');
   },true);
+  // คงค่าตัวกรองไว้แม้เปลี่ยนเกณฑ์เปอร์เซ็นต์
+  const qEl=document.getElementById('rt-q'),pEl=document.getElementById('rt-pos');
+  if(qEl){qEl.value=_rtQ;qEl.addEventListener('input',_rtRender);}
+  if(pEl){pEl.value=_rtPos;pEl.addEventListener('change',_rtRender);}
+  const cl=document.getElementById('rt-clear');
+  if(cl)cl.onclick=()=>{_rtQ='';_rtPos='';if(qEl)qEl.value='';if(pEl)pEl.value='';_rtRender();};
+  _rtRender();
+}
+function _rtRender(){
+  const box=document.getElementById('rt-list');if(!box)return;
+  _rtQ=((document.getElementById('rt-q')||{}).value||'').toLowerCase().trim();
+  _rtPos=(document.getElementById('rt-pos')||{}).value||'';
+  _rtView=_rtAll.filter(r=>{
+    if(_rtPos&&(r.u.position||'-')!==_rtPos)return false;
+    if(_rtQ&&!((r.u.name||'').toLowerCase().includes(_rtQ)||(r.u.staffId||'').toLowerCase().includes(_rtQ)))return false;
+    return true;
+  });
+  const cnt=document.getElementById('rt-count');
+  if(cnt)cnt.innerHTML=(_rtQ||_rtPos)
+    ? 'กรองแล้วพบ <b>'+_rtView.length+'</b> จาก '+_rtAll.length+' คน · ปุ่ม CSV ด้านบนจะส่งออกเฉพาะที่กรองไว้'
+    : 'แสดงทั้งหมด <b>'+_rtAll.length+'</b> คน';
+  if(!_rtAll.length){
+    box.innerHTML='<div style="text-align:center;padding:26px;color:#2e7d32;font-weight:700">✓ ไม่มีผู้ที่มีสัดส่วนงานตรวจประจำเกิน '+_routinePct+'%</div>';return;
+  }
+  if(!_rtView.length){box.innerHTML='<div style="text-align:center;padding:26px;color:#999">ไม่พบรายการตามเงื่อนไขที่กรอง</div>';return;}
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#f5ead2"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+    +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
+    +'<th style="padding:8px">งานทั้งหมด</th><th style="padding:8px">Transit</th>'
+    +'<th style="padding:8px">Preflight</th><th style="padding:8px">Daily</th>'
+    +'<th style="padding:8px">รวม 3 ประเภท</th><th style="padding:8px">สัดส่วน</th></tr>';
+  _rtView.forEach(r=>{
+    h+='<tr style="border-bottom:1px solid #eee">'
+      +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(r.u.name)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+esc(r.u.staffId)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(r.u.position)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.total.toLocaleString('th-TH')+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.tr+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.pf+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.dc+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700">'+r.n+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:800;color:#c00000">'+r.p.toFixed(1)+'%</td></tr>';
+  });
+  box.innerHTML=h+'</table>';
 }
 
 // ══ คนที่ไม่เคลื่อนไหว ═════════════════════════════════════════════════════
@@ -2861,7 +3013,7 @@ function monthlyReport(){
     return '<tr><td>'+t.t+'</td><td class="c"><b style="color:#c00000">'+n+'</b></td></tr>';
   }).join('');
 
-  const rtRows=rt.slice(0,15).map(r=>'<tr><td>'+esc(r.u.name)+'</td><td class="c">'+esc(r.u.staffId)+'</td>'
+  const rtRows=rt.map(r=>'<tr><td>'+esc(r.u.name)+'</td><td class="c">'+esc(r.u.staffId)+'</td>'
     +'<td class="c">'+r.total+'</td><td class="c">'+r.tr+'</td><td class="c">'+r.pf+'</td><td class="c">'+r.dc+'</td>'
     +'<td class="c"><b style="color:#c00000">'+r.p.toFixed(1)+'%</b></td></tr>').join('');
   const riskRows=risk.slice(0,15).map(r=>'<tr><td>'+esc(r.u.name)+'</td><td class="c">'+esc(r.u.staffId)+'</td>'
@@ -2878,6 +3030,7 @@ function monthlyReport(){
     +'table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px}'
     +'th,td{border:1px solid #ccc;padding:4px 6px}th{background:#1a3a6b;color:#fff}td.c,th{text-align:center}'
     +'tbody tr:nth-child(even){background:#f7f9fc}'
+    +'thead{display:table-header-group}tr{page-break-inside:avoid}h2{page-break-after:avoid}'
     +'@page{size:A4 portrait;margin:12mm}</style></head><body>'
     +'<h1>SSQA Compliance Monitoring — รายงานประจำเดือน</h1>'
     +'<p class="sub">Experience Individual Logbook · TVJ-QA-F-057'+(periodTxt?' · '+esc(periodTxt):'')+'</p>'
@@ -2893,8 +3046,7 @@ function monthlyReport(){
     +'<h2>3. สัดส่วนงานตรวจประจำเกิน 70% — '+rt.length+' คน</h2>'
     +(rt.length?'<table><thead><tr><th style="text-align:left">ชื่อ-นามสกุล</th><th>Staff ID</th><th>งานทั้งหมด</th>'
         +'<th>Transit</th><th>Preflight</th><th>Daily</th><th>สัดส่วน</th></tr></thead><tbody>'+rtRows+'</tbody></table>'
-        +'<p class="sub">* Transit + Daily + Preflight Check รวมกันเกิน 70% ของงานที่ลง (นับเฉพาะผู้ลงงานตั้งแต่ 20 แถวขึ้นไป)'
-        +(rt.length>15?' · แสดง 15 อันดับแรก จากทั้งหมด '+rt.length+' คน':'')+'</p>'
+        +'<p class="sub">* Transit + Daily + Preflight Check รวมกันเกิน 70% ของงานที่ลง (นับเฉพาะผู้ลงงานตั้งแต่ 20 แถวขึ้นไป) · แสดงครบทุกรายชื่อ '+rt.length+' คน</p>'
       :'<p class="sub">ไม่มีผู้เข้าข่าย</p>')
     +'<h2>4. ผู้ไม่อัปเดตข้อมูลเกิน 30 วัน — '+idle.length+' คน</h2>'
     +'<h2>5. คุณภาพข้อมูล — '+dq.length.toLocaleString('th-TH')+' จุด</h2>'
