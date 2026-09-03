@@ -1376,7 +1376,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.8.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.0.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1899,7 +1899,7 @@ function addRow(r){
   tr.innerHTML=`
     <td><input class="di" value="${esc(r.date)}" placeholder="01-JAN-25" readonly onclick="openDP(this,event)"></td>
     <td><select style='width:100%;border:none;background:transparent;font-size:10.5px' onchange='onAcTypeChange(this)'>${AC_T.map(o=>`<option${o===r.actype?' selected':''}>${o}</option>`).join('')}</select></td><td>${mksel(AC_R,r.reg)}</td>
-    <td><input value="${esc(r.workref)}" placeholder="WO No." style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
+    <td><input class="wref" value="${esc(r.workref)}" placeholder="WO No." style="width:100%;border:none;background:transparent;font-size:10.5px" onchange="checkDupWO(this)" onblur="checkDupWO(this)"></td>
     <td><input value="${esc(r.desc)}" placeholder="Work Description" style="width:100%;border:none;background:transparent;font-size:10.5px" oninput="autoATA(this)"></td>
     <td><input value="${esc(r.ata)}" placeholder="ATA" style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
     <td>${mksel(SK,r.skill)}</td><td>${mksel(MX,r.mxloc)}</td>
@@ -1909,6 +1909,33 @@ function addRow(r){
     <td><input value="${esc(r.sig)}" style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
     <td class="del-col"><button class="btn br" onclick="delR(this)">✕</button></td>`;
   document.getElementById('lb').appendChild(tr);
+}
+// ── เตือนเมื่อเลข WO ซ้ำกับที่เคยลงไว้ ────────────────────────────────────
+// เป็นการเตือนแบบไม่ขัดจังหวะ ไม่บล็อกการบันทึก เพราะ 1 Work Order
+// อาจมีหลายงาน/หลายวันที่ต้องลงแยกแถวกันจริงๆ ผู้ใช้ต้องเป็นคนตัดสิน
+function checkDupWO(el){
+  if(!el)return;
+  const v=(el.value||'').trim();
+  el.style.background='transparent';el.title='';
+  if(!v)return;
+  const key=v.toUpperCase();
+  const me=el.closest('tr');
+  const hits=[];
+  document.querySelectorAll('#lb tr').forEach(tr=>{
+    if(tr===me)return;
+    const w=tr.querySelector('input.wref');
+    if(!w)return;
+    if((w.value||'').trim().toUpperCase()!==key)return;
+    const d=tr.querySelector('input.di');
+    const ds=tr.querySelectorAll('input');
+    hits.push({date:(d&&d.value)||'(ไม่มีวันที่)',desc:(ds[2]&&ds[2].value)||''});
+  });
+  if(!hits.length)return;
+  el.style.background='#fff3cd';                       // ไฮไลต์เหลืองไว้ให้เห็น
+  el.title='⚠️ เลข WO นี้ถูกลงไว้แล้ว '+hits.length+' แถว: '
+    +hits.slice(0,5).map(h=>h.date+(h.desc?' — '+h.desc:'')).join(' | ');
+  toastMsg('⚠️ WO '+v+' เคยลงไว้แล้ว '+hits.length+' แถว ('
+    +hits.slice(0,2).map(h=>h.date).join(', ')+(hits.length>2?'…':'')+') — ถ้าเป็นงานคนละรายการก็ลงต่อได้');
 }
 function delR(btn){if(confirm('ลบแถวนี้?')){btn.closest('tr').remove();saveAllSoon();}}
 function getRows(){
