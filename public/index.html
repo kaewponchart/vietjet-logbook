@@ -1279,9 +1279,11 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <button class="tmi" onclick="_tool(function(){openIdle(30)})"><span>💤 ไม่เคลื่อนไหว 30 วัน</span><span id="mi-idle"></span></button>
         <button class="tmi" onclick="_tool(openDQ)"><span>🔍 ข้อมูลไม่สมบูรณ์</span><span id="mi-dq"></span></button>
         <button class="tmi" onclick="_tool(function(){openRoutine(70)})"><span>📊 งานตรวจประจำเกิน 70%</span><span id="mi-rt"></span></button>
+        <button class="tmi" onclick="_tool(function(){openNear(70)})"><span>🎯 ใกล้ครบเกณฑ์ (ไม่ผ่าน)</span><span id="mi-nr"></span></button>
         <div class="tmh">ส่งออกรายงาน</div>
         <button class="tmi" onclick="_tool(exportAdminCSV)"><span>📊 ส่งออก Excel (CSV)</span></button>
         <button class="tmi" onclick="_tool(exportAdminPDF)"><span>📄 ส่งออก PDF</span></button>
+        <button class="tmi" onclick="_tool(exportRawRows)"><span>📋 ส่งออกข้อมูลดิบทุกแถว</span></button>
         <button class="tmi" onclick="_tool(monthlyReport)"><span>📅 รายงานประจำเดือน</span></button>
         <div class="tmh">จัดการข้อมูล</div>
         <button class="tmi" onclick="_tool(loadAllUsers)"><span>🔄 โหลดข้อมูลใหม่</span></button>
@@ -1374,7 +1376,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.7.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.9.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1897,7 +1899,7 @@ function addRow(r){
   tr.innerHTML=`
     <td><input class="di" value="${esc(r.date)}" placeholder="01-JAN-25" readonly onclick="openDP(this,event)"></td>
     <td><select style='width:100%;border:none;background:transparent;font-size:10.5px' onchange='onAcTypeChange(this)'>${AC_T.map(o=>`<option${o===r.actype?' selected':''}>${o}</option>`).join('')}</select></td><td>${mksel(AC_R,r.reg)}</td>
-    <td><input value="${esc(r.workref)}" placeholder="WO No." style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
+    <td><input class="wref" value="${esc(r.workref)}" placeholder="WO No." style="width:100%;border:none;background:transparent;font-size:10.5px" onchange="checkDupWO(this)" onblur="checkDupWO(this)"></td>
     <td><input value="${esc(r.desc)}" placeholder="Work Description" style="width:100%;border:none;background:transparent;font-size:10.5px" oninput="autoATA(this)"></td>
     <td><input value="${esc(r.ata)}" placeholder="ATA" style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
     <td>${mksel(SK,r.skill)}</td><td>${mksel(MX,r.mxloc)}</td>
@@ -1907,6 +1909,33 @@ function addRow(r){
     <td><input value="${esc(r.sig)}" style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
     <td class="del-col"><button class="btn br" onclick="delR(this)">✕</button></td>`;
   document.getElementById('lb').appendChild(tr);
+}
+// ── เตือนเมื่อเลข WO ซ้ำกับที่เคยลงไว้ ────────────────────────────────────
+// เป็นการเตือนแบบไม่ขัดจังหวะ ไม่บล็อกการบันทึก เพราะ 1 Work Order
+// อาจมีหลายงาน/หลายวันที่ต้องลงแยกแถวกันจริงๆ ผู้ใช้ต้องเป็นคนตัดสิน
+function checkDupWO(el){
+  if(!el)return;
+  const v=(el.value||'').trim();
+  el.style.background='transparent';el.title='';
+  if(!v)return;
+  const key=v.toUpperCase();
+  const me=el.closest('tr');
+  const hits=[];
+  document.querySelectorAll('#lb tr').forEach(tr=>{
+    if(tr===me)return;
+    const w=tr.querySelector('input.wref');
+    if(!w)return;
+    if((w.value||'').trim().toUpperCase()!==key)return;
+    const d=tr.querySelector('input.di');
+    const ds=tr.querySelectorAll('input');
+    hits.push({date:(d&&d.value)||'(ไม่มีวันที่)',desc:(ds[2]&&ds[2].value)||''});
+  });
+  if(!hits.length)return;
+  el.style.background='#fff3cd';                       // ไฮไลต์เหลืองไว้ให้เห็น
+  el.title='⚠️ เลข WO นี้ถูกลงไว้แล้ว '+hits.length+' แถว: '
+    +hits.slice(0,5).map(h=>h.date+(h.desc?' — '+h.desc:'')).join(' | ');
+  toastMsg('⚠️ WO '+v+' เคยลงไว้แล้ว '+hits.length+' แถว ('
+    +hits.slice(0,2).map(h=>h.date).join(', ')+(hits.length>2?'…':'')+') — ถ้าเป็นงานคนละรายการก็ลงต่อได้');
 }
 function delR(btn){if(confirm('ลบแถวนี้?')){btn.closest('tr').remove();saveAllSoon();}}
 function getRows(){
@@ -2639,7 +2668,7 @@ function renderMonBar(){
   if(!allUsersData||!allUsersData.length){
     st.innerHTML='';['mi-risk','mi-idle','mi-dq'].forEach(i=>set(i,''));return;
   }
-  const risk=riskList(30).length, idle=idleList(30).length, dq=dqScan().length, rt=routineList(70).length;
+  const risk=riskList(30).length, idle=idleList(30).length, dq=dqScan().length, rt=routineList(70).length, nr=nearList().filter(x=>x.ratio>=70).length;
   // ป้ายเล็กบนปุ่ม — เหลืองเมื่อมีเรื่องต้องดู, จางเมื่อเป็นศูนย์
   const pill=(icon,n,ok)=>'<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;'
     +'background:'+(ok?'rgba(255,255,255,.16)':'#ffd479')+';color:'+(ok?'#e8ecf3':'#5c3d00')
@@ -2649,7 +2678,125 @@ function renderMonBar(){
   const mb=(n,ok)=>'<span style="background:'+(ok?'#eaf5ea':'#fff2d6')+';color:'+(ok?'#2e7d32':'#8a5a00')
     +';border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:800">'+n.toLocaleString('th-TH')+'</span>';
   set('mi-risk',mb(risk,risk===0));set('mi-idle',mb(idle,idle===0));set('mi-dq',mb(dq,dq===0));
-  set('mi-rt',mb(rt,rt===0));
+  set('mi-rt',mb(rt,rt===0));set('mi-nr',mb(nr,nr===0));
+}
+
+// ══ ส่งออกข้อมูลดิบทุกแถวของทุกคน (หลักฐานสำหรับตรวจสอบ / ทำ Pivot ใน Excel) ══
+function exportRawRows(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  if(!allUsersData||!allUsersData.length){alert('ยังไม่มีข้อมูล — กด "โหลดข้อมูลใหม่" ก่อน');return;}
+  const r=getAdminRange();                 // null = โหมดค่าเริ่มต้น -> เอาทุกแถวไม่จำกัดเวลา
+  const inRange=x=>{
+    if(!r)return true;
+    const d=x.date&&pDate(x.date);
+    return d&&d>=r.from&&d<=r.to;
+  };
+  let n=0;
+  allUsersData.forEach(u=>{(u.rowsArr||[]).forEach(x=>{if(inRange(x))n++;});});
+  if(!n){alert('ไม่พบข้อมูลในช่วงเวลาที่เลือก');return;}
+  if(!confirm('ส่งออกข้อมูลดิบ '+n.toLocaleString('th-TH')+' แถว จากพนักงาน '+allUsersData.length+' คน?\n\n'
+    +(r?('ช่วงเวลา '+fmtD(r.from)+' — '+fmtD(r.to)):'ทุกช่วงเวลา (ไม่จำกัด)')
+    +'\n\nไฟล์อาจมีขนาดหลายเมกะไบต์ และใช้เวลาสร้างสักครู่'))return;
+  const head=['#','ชื่อ-นามสกุล','Staff ID','Position','วันที่','Aircraft Type','Reg.','Work Ref.',
+    'Work Description','ATA','Skill','MX Loc.','1st','2nd','3rd','4th','5th','Duration (hrs)','Sign'];
+  const lines=[head.map(_csvCell).join(',')];
+  let i=0;
+  allUsersData.forEach(u=>{
+    (u.rowsArr||[]).forEach(x=>{
+      if(!inRange(x))return;
+      i++;
+      lines.push([i,u.name,u.staffId,u.position,x.date||'',x.actype||'',x.reg||'',x.workref||'',
+        x.desc||'',x.ata||'',x.skill||'',x.mxloc||'',x.a1||'',x.a2||'',x.a3||'',x.a4||'',x.a5||'',
+        x.dur||'',x.sig||''].map(_csvCell).join(','));
+    });
+  });
+  _dlCSV(lines,'RawLogbookRows_');
+}
+
+// ══ ใกล้ครบเกณฑ์ — คนที่ไม่ผ่าน เรียงตามความใกล้ + บอกว่าขาดอีกเท่าไร ══════
+let _nearAll=[],_nearView=[],_nearPct=70,_nearQ='',_nearPos='';
+function nearList(){
+  const out=[];
+  (allUsersData||[]).forEach(u=>{
+    const c=adminUserComp(u);
+    if(c.pass1)return;                                  // ผ่านแล้ว ไม่ต้องติดตาม
+    const rw=Math.max(0,100-c.wd1t), rt=Math.max(0,180-c.t1);
+    const ratio=Math.max(c.wd1t/100, c.t1/180)*100;     // ใกล้เกณฑ์ที่สุดคิดเป็นกี่ %
+    const via=(c.wd1t/100>=c.t1/180)?'WD':'Tasks';      // เส้นทางที่ใกล้ผ่านที่สุด
+    out.push({u:u,c:c,rw:rw,rt:rt,ratio:ratio,via:via});
+  });
+  out.sort((a,b)=>b.ratio-a.ratio);
+  return out;
+}
+function openNear(pct){
+  if(pct!==undefined)_nearPct=pct;
+  _nearAll=nearList();
+  const btn=n=>'<button class="btn" onclick="openNear('+n+')" style="font-size:12px;padding:5px 12px;background:'
+    +(_nearPct===n?'#1a3a6b;color:#fff':'#e8e8e8;color:#444')+'">'+(n===0?'ทั้งหมด':'≥ '+n+'%')+'</button>';
+  const poss=Array.from(new Set(_nearAll.map(r=>r.u.position||'-'))).sort();
+  let h='<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">'
+    +'<span style="font-size:12px;color:#666">ความใกล้เกณฑ์:</span>'+btn(0)+btn(50)+btn(70)+btn(85)+'</div>'
+    +'<div style="background:#f4f7fc;border:1px solid #d4e0f0;border-radius:8px;padding:10px 14px;margin-bottom:12px;font-size:12px;color:#33507a;line-height:1.7">'
+    +'ผู้ที่<b>ยังไม่ผ่านเกณฑ์</b> เรียงจากคนที่ใกล้ผ่านที่สุดลงมา · เกณฑ์ผ่านคือ ≥100 WD <b>หรือ</b> ≥180 Tasks อย่างใดอย่างหนึ่ง<br>'
+    +'คอลัมน์ <b>ขาดอีก</b> คือจำนวนที่ต้องเพิ่มเพื่อให้ถึงเกณฑ์ · <b>ทางที่ใกล้สุด</b> บอกว่าควรผลักด้าน WD หรือ Tasks</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f9fc;border:1px solid #dde5f0;'
+    +'border-radius:8px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:2">'
+    +'<input id="nr-q" placeholder="🔍 ค้นหาชื่อ หรือ Staff ID..." style="flex:1 1 220px;min-width:0;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+    +'<select id="nr-pos" style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff"><option value="">ทุก Position</option>'
+    +poss.map(p=>'<option value="'+esc(p)+'">'+esc(p)+'</option>').join('')+'</select>'
+    +'<button class="btn" id="nr-clear" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้าง</button></div>'
+    +'<div id="nr-count" style="font-size:12px;color:#666;margin-bottom:6px"></div><div id="nr-list"></div>';
+  _openInfoModal('🎯 ใกล้ครบเกณฑ์ — ผู้ที่ยังไม่ผ่าน ('+_nearAll.length+' คน)','#1a3a6b',h,()=>{
+    const head=['ชื่อ-นามสกุล','Staff ID','Position','WD','ขาด WD','Tasks','ขาด Tasks','ความใกล้เกณฑ์ (%)','ทางที่ใกล้สุด'];
+    const lines=[head.map(_csvCell).join(',')];
+    _nearView.forEach(r=>lines.push([r.u.name,r.u.staffId,r.u.position,r.c.wd1t,r.rw,r.c.t1,r.rt,
+      r.ratio.toFixed(1),r.via].map(_csvCell).join(',')));
+    _dlCSV(lines,'NearThreshold_');
+  },true);
+  const q=document.getElementById('nr-q'),p=document.getElementById('nr-pos');
+  if(q){q.value=_nearQ;q.addEventListener('input',_nearRender);}
+  if(p){p.value=_nearPos;p.addEventListener('change',_nearRender);}
+  const cl=document.getElementById('nr-clear');
+  if(cl)cl.onclick=()=>{_nearQ='';_nearPos='';if(q)q.value='';if(p)p.value='';_nearRender();};
+  _nearRender();
+}
+function _nearRender(){
+  const box=document.getElementById('nr-list');if(!box)return;
+  _nearQ=((document.getElementById('nr-q')||{}).value||'').toLowerCase().trim();
+  _nearPos=(document.getElementById('nr-pos')||{}).value||'';
+  _nearView=_nearAll.filter(r=>{
+    if(r.ratio<_nearPct)return false;
+    if(_nearPos&&(r.u.position||'-')!==_nearPos)return false;
+    if(_nearQ&&!((r.u.name||'').toLowerCase().includes(_nearQ)||(r.u.staffId||'').toLowerCase().includes(_nearQ)))return false;
+    return true;
+  });
+  const cnt=document.getElementById('nr-count');
+  if(cnt)cnt.innerHTML='แสดง <b>'+_nearView.length+'</b> จากผู้ไม่ผ่านทั้งหมด '+_nearAll.length+' คน'
+    +((_nearQ||_nearPos||_nearPct)?' · ปุ่ม CSV ด้านบนจะส่งออกเฉพาะที่กรองไว้':'');
+  if(!_nearView.length){box.innerHTML='<div style="text-align:center;padding:26px;color:#999">ไม่พบรายการตามเงื่อนไขที่กรอง</div>';return;}
+  const bar=pc=>{const w=Math.min(100,pc);
+    return '<div style="background:#eee;border-radius:5px;height:8px;width:70px;display:inline-block;overflow:hidden;vertical-align:middle">'
+      +'<div style="height:100%;width:'+w+'%;background:'+(pc>=85?'#2e7d32':pc>=50?'#b8860b':'#c00000')+'"></div></div>';};
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#eef2fa"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+    +'<th style="padding:8px">Staff ID</th><th style="padding:8px">Position</th>'
+    +'<th style="padding:8px">WD</th><th style="padding:8px">ขาด WD</th>'
+    +'<th style="padding:8px">Tasks</th><th style="padding:8px">ขาด Tasks</th>'
+    +'<th style="padding:8px">ความใกล้เกณฑ์</th><th style="padding:8px">ทางที่ใกล้สุด</th></tr>';
+  _nearView.forEach(r=>{
+    h+='<tr style="border-bottom:1px solid #f0f0f0">'
+      +'<td style="padding:7px 8px;font-weight:600;color:#1a3a6b">'+esc(r.u.name)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+esc(r.u.staffId)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-size:11px">'+esc(r.u.position)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.c.wd1t+'<small style="color:#bbb">/100</small></td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:#c00000">'+r.rw+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+r.c.t1+'<small style="color:#bbb">/180</small></td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:#c00000">'+r.rt+'</td>'
+      +'<td style="padding:7px 8px;text-align:center;white-space:nowrap">'+bar(r.ratio)
+        +' <b style="font-size:11.5px">'+r.ratio.toFixed(0)+'%</b></td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:#1a5fb4">'+r.via+'</td></tr>';
+  });
+  box.innerHTML=h+'</table>';
 }
 
 // ══ สัดส่วนงานตรวจประจำ (Transit + Daily + Preflight) ══════════════════════
