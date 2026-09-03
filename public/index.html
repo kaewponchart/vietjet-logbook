@@ -1374,7 +1374,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '3.7.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '3.7.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2893,7 +2893,7 @@ function monthlyReport(){
     return '<tr><td>'+t.t+'</td><td class="c"><b style="color:#c00000">'+n+'</b></td></tr>';
   }).join('');
 
-  const rtRows=rt.slice(0,15).map(r=>'<tr><td>'+esc(r.u.name)+'</td><td class="c">'+esc(r.u.staffId)+'</td>'
+  const rtRows=rt.map(r=>'<tr><td>'+esc(r.u.name)+'</td><td class="c">'+esc(r.u.staffId)+'</td>'
     +'<td class="c">'+r.total+'</td><td class="c">'+r.tr+'</td><td class="c">'+r.pf+'</td><td class="c">'+r.dc+'</td>'
     +'<td class="c"><b style="color:#c00000">'+r.p.toFixed(1)+'%</b></td></tr>').join('');
   const riskRows=risk.slice(0,15).map(r=>'<tr><td>'+esc(r.u.name)+'</td><td class="c">'+esc(r.u.staffId)+'</td>'
@@ -2910,6 +2910,7 @@ function monthlyReport(){
     +'table{width:100%;border-collapse:collapse;font-size:10.5px;margin-top:4px}'
     +'th,td{border:1px solid #ccc;padding:4px 6px}th{background:#1a3a6b;color:#fff}td.c,th{text-align:center}'
     +'tbody tr:nth-child(even){background:#f7f9fc}'
+    +'thead{display:table-header-group}tr{page-break-inside:avoid}h2{page-break-after:avoid}'
     +'@page{size:A4 portrait;margin:12mm}</style></head><body>'
     +'<h1>SSQA Compliance Monitoring — รายงานประจำเดือน</h1>'
     +'<p class="sub">Experience Individual Logbook · TVJ-QA-F-057'+(periodTxt?' · '+esc(periodTxt):'')+'</p>'
@@ -2925,8 +2926,7 @@ function monthlyReport(){
     +'<h2>3. สัดส่วนงานตรวจประจำเกิน 70% — '+rt.length+' คน</h2>'
     +(rt.length?'<table><thead><tr><th style="text-align:left">ชื่อ-นามสกุล</th><th>Staff ID</th><th>งานทั้งหมด</th>'
         +'<th>Transit</th><th>Preflight</th><th>Daily</th><th>สัดส่วน</th></tr></thead><tbody>'+rtRows+'</tbody></table>'
-        +'<p class="sub">* Transit + Daily + Preflight Check รวมกันเกิน 70% ของงานที่ลง (นับเฉพาะผู้ลงงานตั้งแต่ 20 แถวขึ้นไป)'
-        +(rt.length>15?' · แสดง 15 อันดับแรก จากทั้งหมด '+rt.length+' คน':'')+'</p>'
+        +'<p class="sub">* Transit + Daily + Preflight Check รวมกันเกิน 70% ของงานที่ลง (นับเฉพาะผู้ลงงานตั้งแต่ 20 แถวขึ้นไป) · แสดงครบทุกรายชื่อ '+rt.length+' คน</p>'
       :'<p class="sub">ไม่มีผู้เข้าข่าย</p>')
     +'<h2>4. ผู้ไม่อัปเดตข้อมูลเกิน 30 วัน — '+idle.length+' คน</h2>'
     +'<h2>5. คุณภาพข้อมูล — '+dq.length.toLocaleString('th-TH')+' จุด</h2>'
