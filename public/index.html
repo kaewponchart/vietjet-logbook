@@ -1377,7 +1377,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.1.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.2.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1414,7 +1414,7 @@ function applyUpdate(){
 
 // ══ CONSTANTS ═════════════════════════════════════════════════════════════
 const AC_T=['','AIRBUS A320/321 (CFM56)','AIRBUS A320/321 (V2500)','AIRBUS A320/321 (PW1100)','BOEING 737-8/8200 (CFM Leap-1B)','Component under C Rating','Specialized Service - NDT','Specialized Service - Structure','Other'];
-const AC_R=['','HS-VKA','HS-VKB','HS-VKC','HS-VKD','HS-VKE','HS-VKF','HS-VKG','HS-VKH','HS-VKJ','HS-VKL','HS-VKM','HS-VKN','HS-VKO','HS-VKP','HS-VKQ','HS-VKR','HS-VKS','HS-VKT','HS-VZA','HS-VZB','HS-VZC','HS-VZD','HS-VZE','HS-VZF','HS-VZG','HS-VZH','HS-VZJ','HS-VZK','HS-VZL','HS-VZM','HS-VZN','HS-VZP','HS-VZQ','HS-VZR','HS-VZS','HS-VZT','HS-VZU','HS-VZV','HS-VZW','HS-VZX','HS-VZY','HS-VZZ','HS-VJA','C5: 2758','C5: 41449','C5: 40208','C5: 024147-000','C5: 015920-000','C5: 016392-000','C15: 806835-01','C15: 897 Series','C15: 891000 Series','C15: AV2014589 Series','C15: 9700 Series','C15: 5500 Series','C15: 3552 Series','C15: 3553 Series','C15: 3559 Series','C15: 801307 Series','C18: 33600005 Series','C18: 34100005-1','C18: 346000XX Series','C18: 466040','C18: 466090','C18: 898052','C18: 74-XX','C18: 76-00','C18: BA24320X-1','Other'];
+const AC_R=['','HS-VKA','HS-VKB','HS-VKC','HS-VKD','HS-VKE','HS-VKF','HS-VKG','HS-VKH','HS-VKJ','HS-VKL','HS-VKM','HS-VKN','HS-VKO','HS-VKP','HS-VKQ','HS-VKR','HS-VKS','HS-VKT','HS-VZA','HS-VZB','HS-VZC','HS-VZD','HS-VZE','HS-VZF','HS-VZG','HS-VZH','HS-VZJ','HS-VZK','HS-VZL','HS-VZM','HS-VZN','HS-VZP','HS-VZQ','HS-VZR','HS-VZS','HS-VZT','HS-VZU','HS-VZV','HS-VZW','HS-VZX','HS-VZY','HS-VZZ','HS-VJA','C5: 2758','C5: 41449','C5: 40208','C5: 024147-000','C5: 015920-000','C5: 016392-000','C15: 806835-01','C15: 897 Series','C15: 891000 Series','C15: AV2014589 Series','C15: 9700 Series','C15: 5500 Series','C15: 3552 Series','C15: 3553 Series','C15: 3559 Series','C15: 801307 Series','C18: 33600005 Series','C18: 34100005-1','C18: 346000XX Series','C18: 466040','C18: 466090','C18: 898052','C18: 74-XX','C18: 76-00','C18: BA24320X-1','C18: 870317','C18: 871685','C18: 890017','C18: 890275','C18: 891318','C18: 892480','C18: 892480-1','C18: 892480-2','C18: 893948','C18: 473957 / -1 thru -7','C18: 475976-1','C18: 34000055-7','C18: 30100022-XX Series','C18: A800100-1 thru -9','C18: A825100-1 thru -11','C18: A826300-1 thru -2','C18: A826700-1','C18: G475685-8 thru -9','C18: G800100-1 thru -14','C18: G825100-1 thru -14','C18: G826300-1 thru -2','C18: G826700-1','C18: 474276','C18: 474453','C18: 474453-1','C18: P3APP003010X Series','Other'];
 const MX=['','Line/ BKK','Line/ CNX','Line/ HKT','Workshop/ Samutprakarn','Other'];
 const SK=['','Airframe (AF)','Instrument (AV)','Engine (EN)','Radio (RA)','Cabin/ Utility (CA)','Electrical (EL)','Borescope Inspection (BSI)','Utility (UT)','Non Destructive Testing (ET)','Non Destructive Testing (PT)','Non Destructive Testing (MT)','Non Destructive Testing (UT)'];
 const ACT=['','Servicing','Inspection','Test','Troubleshooting','Repair','Modification','Remove & Install','Overhaul','Supervised','Release to Service'];
@@ -1439,6 +1439,38 @@ const TASK_MAP_B={
   'daily check':    {ata:'12-12, 12-13, 12-15, 29-11, 32-00, 32-41, 33-51, 47-31', acts:['Servicing','Inspection','','',''],   dur:'2.0'},
   'weekly check':   {ata:'05-41, 12-14, 24-34, 31-65, 73-00',               acts:['Servicing','Inspection','Test','',''],       dur:'2.0'},
 };
+// ── ดรอปดาวน์สองชั้น: Aircraft Type & Engine -> Aircraft Reg. / Component P/N ──
+// คีย์คือ prefix ที่อนุญาตให้เลือกได้ในแต่ละประเภท ('Other' หมายถึงตัวเลือก Other พอดีตัว)
+const AC_MAP={
+  'AIRBUS A320/321 (CFM56)'        :['HS-VK','Other'],
+  'AIRBUS A320/321 (V2500)'        :['Other'],
+  'AIRBUS A320/321 (PW1100)'       :['Other'],
+  'BOEING 737-8/8200 (CFM Leap-1B)':['HS-VZ','HS-VJ','Other'],
+  'Component under C Rating'       :['C'],
+  'Specialized Service - NDT'      :['HS-VK','HS-VZ','HS-VJ','Other'],
+  'Specialized Service - Structure':['HS-VK','HS-VZ','HS-VJ','Other'],
+  'Other'                          :['Other']
+};
+function regList(actype){
+  const pre=AC_MAP[actype];
+  if(!pre)return AC_R.slice();                       // ยังไม่เลือกประเภท -> แสดงทั้งหมด
+  return AC_R.filter(o=>o===''||pre.some(p=>p==='Other'?o==='Other':o.indexOf(p)===0));
+}
+function regOpts(actype,cur){
+  let list=regList(actype);
+  // สำคัญ: ถ้าค่าเดิมไม่อยู่ในรายการที่กรองแล้ว ต้องคงไว้เสมอ ไม่งั้นข้อมูลเดิมจะหาย
+  if(cur&&list.indexOf(cur)<0)list=list.concat([cur]);
+  return list.map(o=>'<option'+(o===cur?' selected':'')+'>'+o+'</option>').join('');
+}
+
+// ── เติม Skill อัตโนมัติจาก Work Description (ใช้ได้กับทุก Aircraft Type) ──
+// เติมเฉพาะตอนช่อง Skill ยังว่าง จะไม่ทับค่าที่ผู้ใช้เลือกเอง
+// (สำคัญมาก เพราะ Skill เป็นตัวนับ NDT ET/PT/MT/UT และ Borescope ในสูตรคำนวณ)
+const SKILL_RULES=[
+  {re:/\b(?:transit|pre\s*-?\s*flight|daily|weekly|a)\s*check\b/i, sk:'Airframe (AF)'},
+  {re:/\b(?:apu|engine)\s*change\b/i,                              sk:'Engine (EN)'}
+];
+
 // ══ STATE ═════════════════════════════════════════════════════════════════
 let D={profile:{name:'',staffid:'',amel:'',position:''},rows:[],training:[],pmode:'auto',pfrom:'',pto:''};
 let currentUser = null;
@@ -1842,6 +1874,14 @@ function autoFill(inp){
   const desc=(allInputs[2]?allInputs[2].value:'').trim().toLowerCase();
   if(!desc)return;
 
+  // เติม Skill ตามชนิดงาน — ทำแยกจากตาราง ATA เพื่อให้ครอบคลุมทุก Aircraft Type
+  const skSel=allSels[2];
+  if(skSel&&!skSel.value){
+    for(const r of SKILL_RULES){
+      if(r.re.test(desc)){skSel.value=r.sk;break;}
+    }
+  }
+
   // Choose task map
   const taskMap=isBoeing?{...TASK_MAP_COMMON,...TASK_MAP_B}:isAirbus?{...TASK_MAP_COMMON,...TASK_MAP_A}:TASK_MAP_COMMON;
 
@@ -1889,6 +1929,14 @@ function autoFill(inp){
 function autoATA(inp){autoFill(inp);}
 function onAcTypeChange(sel){
   const tr=sel.closest('tr');if(!tr)return;
+  const rs=tr.querySelector('select.regsel');
+  if(rs){
+    const cur=rs.value;
+    rs.innerHTML=regOpts(sel.value,cur);   // regOpts คงค่าเดิมไว้ให้เสมอ
+    rs.value=cur;
+    if(cur&&regList(sel.value).indexOf(cur)<0)
+      toastMsg('⚠️ "'+cur+'" ไม่อยู่ในรายการของประเภทนี้ — ระบบคงค่าเดิมไว้ให้ กรุณาตรวจสอบ');
+  }
   const descInp=tr.querySelectorAll('input')[2];
   if(descInp&&descInp.value)autoFill(descInp);
 }
@@ -1899,7 +1947,7 @@ function addRow(r){
   const tr=document.createElement('tr');
   tr.innerHTML=`
     <td><input class="di" value="${esc(r.date)}" placeholder="01-JAN-25" readonly onclick="openDP(this,event)"></td>
-    <td><select style='width:100%;border:none;background:transparent;font-size:10.5px' onchange='onAcTypeChange(this)'>${AC_T.map(o=>`<option${o===r.actype?' selected':''}>${o}</option>`).join('')}</select></td><td>${mksel(AC_R,r.reg)}</td>
+    <td><select style='width:100%;border:none;background:transparent;font-size:10.5px' onchange='onAcTypeChange(this)'>${AC_T.map(o=>`<option${o===r.actype?' selected':''}>${o}</option>`).join('')}</select></td><td><select class="regsel" style='width:100%;border:none;background:transparent;font-size:10.5px'>${regOpts(r.actype,r.reg)}</select></td>
     <td><input class="wref" value="${esc(r.workref)}" placeholder="WO No." style="width:100%;border:none;background:transparent;font-size:10.5px" onchange="checkDupWO(this)" onblur="checkDupWO(this)"></td>
     <td><input value="${esc(r.desc)}" placeholder="Work Description" style="width:100%;border:none;background:transparent;font-size:10.5px" oninput="autoATA(this)"></td>
     <td><input value="${esc(r.ata)}" placeholder="ATA" style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
@@ -2531,6 +2579,7 @@ const DQ_TYPES=[
   {k:'nodur',  t:'ไม่มี Duration หรือค่าไม่ถูกต้อง', why:'ชั่วโมงไม่ถูกนำไปคำนวณ Working Days'},
   {k:'noskill',t:'ไม่ได้เลือก Skill',            why:'กระทบการนับ NDT และประเภทงาน'},
   {k:'notype', t:'ไม่ได้เลือก Aircraft Type',    why:'ระบุไม่ได้ว่าเป็นงาน 1st Type หรือไม่'},
+  {k:'regmis', t:'Reg./P/N ไม่ตรงกับ Aircraft Type', why:'ระบุลำหรือชิ้นส่วนผิดประเภท ตรวจสอบย้อนกลับไม่ได้'},
   {k:'dup',    t:'แถวซ้ำ (วันที่ + Work Ref. + งานเดียวกัน)', why:'อาจทำให้ Tasks ถูกนับเกินจริง'},
   {k:'over24', t:'ชั่วโมงรวมในวันเดียวเกิน 24 ชม.', why:'เป็นไปไม่ได้ทางกายภาพ ควรตรวจสอบ'}
 ];
@@ -2550,6 +2599,12 @@ function dqScan(){
       if(!r.dur||isNaN(dur)||dur<=0||Math.round(dur*2)!==dur*2)add('nodur');
       if(!r.skill)add('noskill');
       if(!r.actype)add('notype');
+      // Reg./P/N ต้องอยู่ในรายการที่อนุญาตของ Aircraft Type นั้น (ตามตารางจับคู่)
+      // ข้ามถ้ายังไม่ได้เลือกประเภท หรือยังไม่ได้เลือก Reg. หรือประเภทไม่มีในตาราง
+      if(r.actype&&r.reg&&AC_MAP[r.actype]&&regList(r.actype).indexOf(r.reg)<0){
+        issues.push({k:'regmis',name:u.name,staffId:u.staffId,pos:u.position||'-',row:i+1,
+          date:r.date||'-',ref:r.workref||'',desc:r.actype+'  ✗  '+r.reg});
+      }
       const key=(r.date||'')+'|'+(r.workref||'')+'|'+(r.desc||'');
       if(r.date&&(r.workref||r.desc)){ if(seen[key])add('dup'); else seen[key]=1; }
       if(d&&!isNaN(dur)&&dur>0){const dk=r.date;perDay[dk]=(perDay[dk]||0)+dur;}
