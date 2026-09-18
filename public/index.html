@@ -1377,7 +1377,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.2.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.2.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1875,10 +1875,15 @@ function autoFill(inp){
   if(!desc)return;
 
   // เติม Skill ตามชนิดงาน — ทำแยกจากตาราง ATA เพื่อให้ครอบคลุมทุก Aircraft Type
+  // ทับได้เฉพาะค่าที่ "ระบบเติมเอง" (ธง data-auto) เท่านั้น
+  // ถ้าคนกรอกเลือกเอง ธงจะถูกล้าง ระบบจะไม่แตะอีกเลย — กันตัวเลข NDT/BSI เพี้ยน
   const skSel=allSels[2];
-  if(skSel&&!skSel.value){
-    for(const r of SKILL_RULES){
-      if(r.re.test(desc)){skSel.value=r.sk;break;}
+  if(skSel){
+    let match=null;
+    for(const r of SKILL_RULES){if(r.re.test(desc)){match=r.sk;break;}}
+    if(match&&(!skSel.value||skSel.dataset.auto==='1')){
+      skSel.value=match;
+      skSel.dataset.auto='1';
     }
   }
 
@@ -1951,7 +1956,7 @@ function addRow(r){
     <td><input class="wref" value="${esc(r.workref)}" placeholder="WO No." style="width:100%;border:none;background:transparent;font-size:10.5px" onchange="checkDupWO(this)" onblur="checkDupWO(this)"></td>
     <td><input value="${esc(r.desc)}" placeholder="Work Description" style="width:100%;border:none;background:transparent;font-size:10.5px" oninput="autoATA(this)"></td>
     <td><input value="${esc(r.ata)}" placeholder="ATA" style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
-    <td>${mksel(SK,r.skill)}</td><td>${mksel(MX,r.mxloc)}</td>
+    <td><select class="skillsel" style='width:100%;border:none;background:transparent;font-size:10.5px' onchange="this.dataset.auto=''">${SK.map(o=>`<option${o===r.skill?' selected':''}>${o}</option>`).join('')}</select></td><td>${mksel(MX,r.mxloc)}</td>
     <td>${mksel(ACT,r.a1)}</td><td>${mksel(ACT,r.a2)}</td><td>${mksel(ACT,r.a3)}</td>
     <td>${mksel(ACT,r.a4)}</td><td>${mksel(ACT,r.a5)}</td>
     <td><input type="number" value="${r.dur||''}" placeholder="e.g. 8.0" step="0.5" min="0.5" style="width:100%;border:none;background:transparent;font-size:10.5px" onblur="validateDur(this)"></td>
