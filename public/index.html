@@ -170,12 +170,16 @@ table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:var(--red);
 .btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;
      display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:hover{filter:brightness(.96)}
-/* แถบแก้ไข (Revision Bar) แบบเอกสารการบิน — เส้นแนวตั้งหน้าเลขข้อ */
-tr.grev>td{background:#fffdf5!important}
+/* Revision Bar แบบเอกสารการบิน — เส้นแนวตั้งหน้าเลขข้อ
+   เขียว = ข้อที่เพิ่มใหม่ / แดง = ข้อที่แก้ไขข้อความ */
+tr.grev>td,tr.gnewrow>td{background:#fffdf5!important}
 tr.grev>td:first-child{border-left:3px solid #b00000}
+tr.gnewrow>td{background:#f6fbf6!important}
+tr.gnewrow>td:first-child{border-left:3px solid #1a6b2e}
 .grev-p{border-left:3px solid #b00000;padding-left:9px}
-.revkey{display:inline-block;width:3px;height:11px;background:#b00000;
-  vertical-align:-1px;margin-right:5px}
+.revkey{display:inline-block;width:3px;height:11px;vertical-align:-1px;margin-right:5px}
+.revkey.rk-new{background:#1a6b2e}
+.revkey.rk-upd{background:#b00000}
 /* ปุ่มที่ใช้ได้เฉพาะแอดมิน — ซ่อนไว้ก่อน แล้ว checkAdmin() ค่อยเปิด */
 .adm-only{display:none}
 /* แถบควบคุมรวมของหน้า Admin */
@@ -1074,7 +1078,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 
 <div id="tg" class="tc">
   <h3 style="color:#9a0000;margin-bottom:10px;font-size:15px;letter-spacing:.5px">Guideline — Experience Individual Logbook (TVJ-QA-F-057)</h3>
-  <p style="font-size:11px;color:#666;margin:-4px 0 10px"><span class="revkey"></span>= <b>Revision Bar</b> แถบแนวตั้งหน้าเลขข้อ หมายถึงข้อที่<b>เพิ่มใหม่หรือแก้ไข</b>ในรอบปรับปรุงนี้</p>
+  <p style="font-size:11px;color:#666;margin:-4px 0 12px;line-height:1.9"><b>Revision Bar</b> — แถบแนวตั้งหน้าเลขข้อ แสดงการเปลี่ยนแปลงในรอบปรับปรุงนี้ &nbsp;|&nbsp; <span class="revkey rk-new"></span><b style="color:#1a6b2e">เขียว</b> = ข้อที่เพิ่มใหม่ &nbsp;&nbsp;<span class="revkey rk-upd"></span><b style="color:#b00000">แดง</b> = ข้อที่แก้ไขข้อความ</p>
 
   <!-- Guideline table -->
   <table class="gtbl" style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px">
@@ -1101,7 +1105,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">4</td>
         <td style="padding:10px 14px">Certifying Staff Position shall <strong>mainly</strong> record only Work which you performed <strong>Release to Service</strong> only</td>
       </tr>
-      <tr class="grev">
+      <tr class="gnewrow">
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">5</td>
         <td style="padding:10px 14px">Certifying Staff may record work not released to service by themselves, provided they were involved in the maintenance process, signed the relevant job document, and the work is traceable to that document. However, <strong>CRS shall not be selected</strong> as the activity.</td>
       </tr>
@@ -1389,7 +1393,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.4.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.4.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
