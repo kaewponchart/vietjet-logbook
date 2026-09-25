@@ -170,6 +170,13 @@ table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:var(--red);
 .btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;
      display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:hover{filter:brightness(.96)}
+/* ป้ายกำกับข้อที่แก้ไข/เพิ่มใหม่ในหน้า Guideline */
+.gnew,.gupd{border-radius:3px;padding:1px 7px;font-size:9.5px;font-weight:800;
+  margin-left:7px;letter-spacing:.4px;vertical-align:middle;white-space:nowrap;color:#fff}
+.gnew{background:#1a6b2e}
+.gupd{background:#b8860b}
+tr.grev>td{background:#fffdf3!important}
+tr.grev>td:first-child{box-shadow:inset 3px 0 0 #b8860b}
 /* ปุ่มที่ใช้ได้เฉพาะแอดมิน — ซ่อนไว้ก่อน แล้ว checkAdmin() ค่อยเปิด */
 .adm-only{display:none}
 /* แถบควบคุมรวมของหน้า Admin */
@@ -1068,6 +1075,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 
 <div id="tg" class="tc">
   <h3 style="color:#9a0000;margin-bottom:10px;font-size:15px;letter-spacing:.5px">Guideline — Experience Individual Logbook (TVJ-QA-F-057)</h3>
+  <p style="font-size:11px;color:#666;margin:-4px 0 10px">สัญลักษณ์: <span class="gnew">NEW</span> = ข้อที่เพิ่มใหม่ &nbsp;|&nbsp; <span class="gupd">UPDATED</span> = ข้อที่แก้ไขข้อความ &nbsp;— แถวที่มีการเปลี่ยนแปลงจะมีแถบสีเหลืองด้านซ้าย</p>
 
   <!-- Guideline table -->
   <table class="gtbl" style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px">
@@ -1092,38 +1100,42 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       </tr>
       <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">4</td>
-        <td style="padding:10px 14px">Certifying Staff Position shall record only Work which you performed <strong>Release to Service</strong> only</td>
+        <td style="padding:10px 14px">Certifying Staff Position shall <strong>mainly</strong> record only Work which you performed <strong>Release to Service</strong> only<span class="gupd">UPDATED</span></td>
+      </tr>
+      <tr class="grev">
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">5</td>
+        <td style="padding:10px 14px">Certifying Staff may record work not released to service by themselves, provided they were involved in the maintenance process, signed the relevant job document, and the work is traceable to that document. However, <strong>CRS shall not be selected</strong> as the activity.<span class="gnew">NEW</span></td>
       </tr>
       <tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">5</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">6</td>
         <td style="padding:10px 14px">Column "Work Ref." need to be filled with <strong>Work Order No.</strong> as priority. And Technical Log Page as optional</td>
       </tr>
       <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">6</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">7</td>
         <td style="padding:10px 14px">Mechanic shall record only Work that you involve only, but <strong>cannot select CRS</strong> as activity</td>
       </tr>
       <tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">7</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">8</td>
         <td style="padding:10px 14px">Record only the tasks in which you have been directly involved. All experience records shall be accurate and truthful. Any false or fraudulent entry identified by QA may affect the issuance or renewal of your authorization.</td>
       </tr>
       <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">8</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">9</td>
         <td style="padding:10px 14px">Work Ref. for <strong>Transit Check</strong> shall be record with <strong>Flight No.</strong></td>
       </tr>
       <tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">9</td>
-        <td style="padding:10px 14px">Enter the Work Description <strong>"Transit Check, Preflight Check, Daily Check, Weekly Check, APU Change, Engine Change, or A Check"</strong>. The ATA Chapter, Activity, and Duration will be populated automatically.</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">10</td>
+        <td style="padding:10px 14px">Enter the Work Description <strong>"Transit Check, Preflight Check, Daily Check, Weekly Check, APU Change, Engine Change, or A Check"</strong>. The ATA Chapter, <strong>Skill Code</strong>, Activity, and Duration will be populated automatically.<span class="gupd">UPDATED</span></td>
       </tr>
       <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">10</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">11</td>
         <td style="padding:10px 14px">Work that is CCL Item and rectify within CCL (not transfer to Tech log), <strong>do not record as Experience</strong></td>
       </tr>
       <tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">11</td>
-        <td style="padding:10px 14px">Activity <strong>"Supervise"</strong> shall be used only when that C/S instruct personnel who are on OJT period</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">12</td>
+        <td style="padding:10px 14px">Activity <strong>"Supervise"</strong> shall be selected only when the Certifying Staff acts as a <strong>Mentor</strong> to instruct and supervise personnel undergoing <strong>OJT</strong> for endorsement type rating in <strong>AMEL</strong>.<span class="gupd">UPDATED</span></td>
       </tr>
       <tr style="background:#fdf8f0">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">12</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">13</td>
         <td style="padding:10px 14px">
           1 Working day estimate <strong>8 hours</strong> in both Line and Workshop<br>
           <span style="font-size:11px;color:#555">
@@ -1190,32 +1202,33 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   <!-- ATA Quick Reference -->
   <h3 style="color:#9a0000;margin:16px 0 10px;font-size:14px">📋 ATA Chapter Quick Reference</h3>
   <p style="font-size:11px;color:#666;margin-bottom:8px">
-    เมื่อลง Work Description ตามด้านล่าง ระบบจะ auto-fill ATA Chapter, Activity และ Duration ให้อัตโนมัติ &nbsp;|&nbsp;
+    เมื่อลง Work Description ตามด้านล่าง ระบบจะ auto-fill <b>ATA Chapter, Skill Code, Activity และ Duration</b> ให้อัตโนมัติ <span class="gupd">UPDATED</span> &nbsp;|&nbsp;
     <span style="color:#c00000;font-weight:700">(A) = Airbus A320/321</span> &nbsp;|&nbsp;
     <span style="color:#7a3500;font-weight:700">(B) = Boeing 737-8/8200</span>
   </p>
   <table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:14px">
     <thead>
       <tr style="background:#b00000;color:#fff">
-        <th style="padding:7px 12px;text-align:left;width:22%">Task (Work Description)</th>
-        <th style="padding:7px 8px;text-align:center;width:6%">Type</th>
-        <th style="padding:7px 12px;text-align:left;width:38%">ATA Chapter</th>
-        <th style="padding:7px 8px;text-align:left;width:26%">Activity</th>
+        <th style="padding:7px 12px;text-align:left;width:20%">Task (Work Description)</th>
+        <th style="padding:7px 8px;text-align:center;width:5%">Type</th>
+        <th style="padding:7px 8px;text-align:center;width:9%">Skill Code</th>
+        <th style="padding:7px 12px;text-align:left;width:34%">ATA Chapter</th>
+        <th style="padding:7px 8px;text-align:left;width:24%">Activity</th>
         <th style="padding:7px 8px;text-align:center;width:8%">Duration</th>
       </tr>
     </thead>
     <tbody>
-      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600">Transit Check</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 12px;color:#555">12-13 (Check IDG &amp; Oil Level)</td><td style="padding:6px 8px;color:#555">Servicing, Inspection</td><td style="text-align:center;font-weight:600">0.5</td></tr>
-      <tr><td style="padding:6px 12px;font-weight:600" rowspan="4">Preflight Check (A)</td><td style="text-align:center" rowspan="4"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 12px 2px;color:#555">12-13, 23-71, 31-33, 33-50, 34-13</td><td style="padding:6px 8px" rowspan="4">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="4">1.0</td></tr>
+      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600">Transit Check</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" title="Airframe (AF)">AF</td><td style="padding:6px 12px;color:#555">12-13 (Check IDG &amp; Oil Level)</td><td style="padding:6px 8px;color:#555">Servicing, Inspection</td><td style="text-align:center;font-weight:600">0.5</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600" rowspan="4">Preflight Check (A)</td><td style="text-align:center" rowspan="4"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="4" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">12-13, 23-71, 31-33, 33-50, 34-13</td><td style="padding:6px 8px" rowspan="4">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="4">1.0</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">12-13 (Check IDG &amp; Oil Level)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">23-71 (CVR Ops Chk) &nbsp;|&nbsp; 31-33 (DFDR Ops Test)</td></tr>
       <tr style="border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px;color:#666;font-size:11px">33-50 (Emergency Lighting Charging) &nbsp;|&nbsp; 34-13 (Visual Chk Air Data Sensor)</td></tr>
-      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600" rowspan="5">Daily Check (A)</td><td style="text-align:center" rowspan="5"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 12px 2px;color:#555">12-13, 05-21 to 25, 05-27 to 28, 32-41, 34-13</td><td style="padding:6px 8px" rowspan="5">Servicing, Inspection</td><td style="text-align:center;font-weight:600" rowspan="5">2.0</td></tr>
+      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600" rowspan="5">Daily Check (A)</td><td style="text-align:center" rowspan="5"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="5" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">12-13, 05-21 to 25, 05-27 to 28, 32-41, 34-13</td><td style="padding:6px 8px" rowspan="5">Servicing, Inspection</td><td style="text-align:center;font-weight:600" rowspan="5">2.0</td></tr>
       <tr style="background:#fdf8f0"><td style="padding:2px 12px;color:#666;font-size:11px">12-13 (Check IDG &amp; Oil Level)</td></tr>
       <tr style="background:#fdf8f0"><td style="padding:2px 12px;color:#666;font-size:11px">05-21 to 25 (Zonal Insp) &nbsp;|&nbsp; 05-27 to 28 (Zonal Insp)</td></tr>
       <tr style="background:#fdf8f0"><td style="padding:2px 12px;color:#666;font-size:11px">32-41 (Wheel/Tire Pressure Inspection)</td></tr>
       <tr style="background:#fdf8f0;border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px;color:#666;font-size:11px">34-13 (Visual Chk Air Data Sensor)</td></tr>
-      <tr><td style="padding:6px 12px;font-weight:600" rowspan="9">Weekly Check (A)</td><td style="text-align:center" rowspan="9"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 12px 2px;color:#555">05-21/25, 12-32, 24-21/24, 25-55, 31-36, 32-12/22, 32-40/42, 33-51, 38-31, 52-10/22</td><td style="padding:6px 8px" rowspan="9">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="9">2.0</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600" rowspan="9">Weekly Check (A)</td><td style="text-align:center" rowspan="9"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="9" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">05-21/25, 12-32, 24-21/24, 25-55, 31-36, 32-12/22, 32-40/42, 33-51, 38-31, 52-10/22</td><td style="padding:6px 8px" rowspan="9">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="9">2.0</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">05-21/25 (GVI LDG Well &amp; Bay) &nbsp;|&nbsp; 12-32 (Drain Water)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">24-21/24 (Chk IDG Oil &amp; Ops Chk Emer GEN)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">25-55 (Visual Chk Cargo Comp) &nbsp;|&nbsp; 31-36 (Flight Data Storage)</td></tr>
@@ -1224,15 +1237,15 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">33-51 (Ops Chk EPSU) &nbsp;|&nbsp; 38-31 (Clean Vacuum Waste Line)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">52-10/22 (Chk Cylinder Press, Pax &amp; Emer Door)</td></tr>
       <tr style="border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px"></td></tr>
-      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600">APU Change</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 12px;color:#555">49-11 (Remove/Install APU)</td><td style="padding:6px 8px;color:#555">Remove &amp; Install, Test</td><td style="text-align:center;font-weight:600">6.0</td></tr>
-      <tr><td style="padding:6px 12px;font-weight:600">Engine Change</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 12px;color:#555">71-00 (Remove/Install Powerplant)</td><td style="padding:6px 8px;color:#555">Remove &amp; Install, Test</td><td style="text-align:center;font-weight:600">12.0</td></tr>
-      <tr style="background:#fdf8f0;border-bottom:3px solid #c00000"><td style="padding:6px 12px;font-weight:600">A Check</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 12px;color:#555">Various ATA as specified in Work Package</td><td style="padding:6px 8px;color:#555">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600">5.0</td></tr>
+      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600">APU Change</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#7a3500" title="Engine (EN)">EN</td><td style="padding:6px 12px;color:#555">49-11 (Remove/Install APU)</td><td style="padding:6px 8px;color:#555">Remove &amp; Install, Test</td><td style="text-align:center;font-weight:600">6.0</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600">Engine Change</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#7a3500" title="Engine (EN)">EN</td><td style="padding:6px 12px;color:#555">71-00 (Remove/Install Powerplant)</td><td style="padding:6px 8px;color:#555">Remove &amp; Install, Test</td><td style="text-align:center;font-weight:600">12.0</td></tr>
+      <tr style="background:#fdf8f0;border-bottom:3px solid #c00000"><td style="padding:6px 12px;font-weight:600">A Check</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" title="Airframe (AF)">AF</td><td style="padding:6px 12px;color:#555">Various ATA as specified in Work Package</td><td style="padding:6px 8px;color:#555">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600">5.0</td></tr>
       <!-- Boeing -->
-      <tr><td style="padding:6px 12px;font-weight:600" rowspan="4">Preflight Check (B)</td><td style="text-align:center" rowspan="4"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 12px 2px;color:#555">12-13, 23-71, 31-31, 33-51</td><td style="padding:6px 8px" rowspan="4">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="4">1.0</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600" rowspan="4">Preflight Check (B)</td><td style="text-align:center" rowspan="4"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="4" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">12-13, 23-71, 31-31, 33-51</td><td style="padding:6px 8px" rowspan="4">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="4">1.0</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">12-13 (Check IDG &amp; ENG Oil Level) &nbsp;|&nbsp; 23-71 (CVR Ops Check)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">31-31 (DFDR Ops Test)</td></tr>
       <tr style="border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px;color:#666;font-size:11px">33-51 (Photoluminescent Charging)</td></tr>
-      <tr style="background:#fff8f0"><td style="padding:6px 12px;font-weight:600" rowspan="8">Daily Check (B)</td><td style="text-align:center" rowspan="8"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 12px 2px;color:#555">12-12, 12-13, 12-15, 29-11, 32-00, 32-71, 32-41, 33-51, 47-31</td><td style="padding:6px 8px" rowspan="8">Servicing, Inspection</td><td style="text-align:center;font-weight:600" rowspan="8">2.0</td></tr>
+      <tr style="background:#fff8f0"><td style="padding:6px 12px;font-weight:600" rowspan="8">Daily Check (B)</td><td style="text-align:center" rowspan="8"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="8" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">12-12, 12-13, 12-15, 29-11, 32-00, 32-71, 32-41, 33-51, 47-31</td><td style="padding:6px 8px" rowspan="8">Servicing, Inspection</td><td style="text-align:center;font-weight:600" rowspan="8">2.0</td></tr>
       <tr style="background:#fff8f0"><td style="padding:2px 12px;color:#666;font-size:11px">12-12 (Check HYD Level) &nbsp;|&nbsp; 12-13 (Check IDG &amp; Oil Level)</td></tr>
       <tr style="background:#fff8f0"><td style="padding:2px 12px;color:#666;font-size:11px">12-15 (Tire Pressure System Check)</td></tr>
       <tr style="background:#fff8f0"><td style="padding:2px 12px;color:#666;font-size:11px">29-11 (Check Delta P A &amp; B System) &nbsp;|&nbsp; 32-00 (Clean Gear)</td></tr>
@@ -1240,7 +1253,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <tr style="background:#fff8f0"><td style="padding:2px 12px;color:#666;font-size:11px">33-51 (Check External Light) &nbsp;|&nbsp; 47-31 (Check NGS Light)</td></tr>
       <tr style="background:#fff8f0"><td style="padding:2px 12px"></td></tr>
       <tr style="background:#fff8f0;border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px"></td></tr>
-      <tr><td style="padding:6px 12px;font-weight:600" rowspan="5">Weekly Check (B)</td><td style="text-align:center" rowspan="5"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 12px 2px;color:#555">05-41, 12-14, 24-34, 31-65, 73-00</td><td style="padding:6px 8px" rowspan="5">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="5">2.0</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600" rowspan="5">Weekly Check (B)</td><td style="text-align:center" rowspan="5"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="5" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">05-41, 12-14, 24-34, 31-65, 73-00</td><td style="padding:6px 8px" rowspan="5">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="5">2.0</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">05-41 (GVI Aircraft) &nbsp;|&nbsp; 12-14 (Drain &amp; Fill Portable Water)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">24-34 (SPCU Ops Check)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">31-65 (Display Unit Cleaning and SMT Message Check)</td></tr>
@@ -1377,7 +1390,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.2.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.4.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
