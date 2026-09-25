@@ -170,13 +170,12 @@ table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:var(--red);
 .btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;
      display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:hover{filter:brightness(.96)}
-/* ป้ายกำกับข้อที่แก้ไข/เพิ่มใหม่ในหน้า Guideline */
-.gnew,.gupd{border-radius:3px;padding:1px 7px;font-size:9.5px;font-weight:800;
-  margin-left:7px;letter-spacing:.4px;vertical-align:middle;white-space:nowrap;color:#fff}
-.gnew{background:#1a6b2e}
-.gupd{background:#b8860b}
-tr.grev>td{background:#fffdf3!important}
-tr.grev>td:first-child{box-shadow:inset 3px 0 0 #b8860b}
+/* แถบแก้ไข (Revision Bar) แบบเอกสารการบิน — เส้นแนวตั้งหน้าเลขข้อ */
+tr.grev>td{background:#fffdf5!important}
+tr.grev>td:first-child{border-left:3px solid #b00000}
+.grev-p{border-left:3px solid #b00000;padding-left:9px}
+.revkey{display:inline-block;width:3px;height:11px;background:#b00000;
+  vertical-align:-1px;margin-right:5px}
 /* ปุ่มที่ใช้ได้เฉพาะแอดมิน — ซ่อนไว้ก่อน แล้ว checkAdmin() ค่อยเปิด */
 .adm-only{display:none}
 /* แถบควบคุมรวมของหน้า Admin */
@@ -1075,7 +1074,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 
 <div id="tg" class="tc">
   <h3 style="color:#9a0000;margin-bottom:10px;font-size:15px;letter-spacing:.5px">Guideline — Experience Individual Logbook (TVJ-QA-F-057)</h3>
-  <p style="font-size:11px;color:#666;margin:-4px 0 10px">สัญลักษณ์: <span class="gnew">NEW</span> = ข้อที่เพิ่มใหม่ &nbsp;|&nbsp; <span class="gupd">UPDATED</span> = ข้อที่แก้ไขข้อความ &nbsp;— แถวที่มีการเปลี่ยนแปลงจะมีแถบสีเหลืองด้านซ้าย</p>
+  <p style="font-size:11px;color:#666;margin:-4px 0 10px"><span class="revkey"></span>= <b>Revision Bar</b> แถบแนวตั้งหน้าเลขข้อ หมายถึงข้อที่<b>เพิ่มใหม่หรือแก้ไข</b>ในรอบปรับปรุงนี้</p>
 
   <!-- Guideline table -->
   <table class="gtbl" style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px">
@@ -1098,13 +1097,13 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">3</td>
         <td style="padding:10px 14px">This form is intended solely for recordkeeping purposes and remains the property of Thai VietJet Air. Unauthorized use, modification, reproduction, or distribution of this form by personnel outside Thai VietJet Air is strictly prohibited. Do not alter any formulas, formatting, or content contained within this electronic form.</td>
       </tr>
-      <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
+      <tr class="grev" style="background:#fdf8f0;border-bottom:1px solid #eee">
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">4</td>
-        <td style="padding:10px 14px">Certifying Staff Position shall <strong>mainly</strong> record only Work which you performed <strong>Release to Service</strong> only<span class="gupd">UPDATED</span></td>
+        <td style="padding:10px 14px">Certifying Staff Position shall <strong>mainly</strong> record only Work which you performed <strong>Release to Service</strong> only</td>
       </tr>
       <tr class="grev">
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">5</td>
-        <td style="padding:10px 14px">Certifying Staff may record work not released to service by themselves, provided they were involved in the maintenance process, signed the relevant job document, and the work is traceable to that document. However, <strong>CRS shall not be selected</strong> as the activity.<span class="gnew">NEW</span></td>
+        <td style="padding:10px 14px">Certifying Staff may record work not released to service by themselves, provided they were involved in the maintenance process, signed the relevant job document, and the work is traceable to that document. However, <strong>CRS shall not be selected</strong> as the activity.</td>
       </tr>
       <tr style="border-bottom:1px solid #eee">
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">6</td>
@@ -1122,17 +1121,17 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">9</td>
         <td style="padding:10px 14px">Work Ref. for <strong>Transit Check</strong> shall be record with <strong>Flight No.</strong></td>
       </tr>
-      <tr style="border-bottom:1px solid #eee">
+      <tr class="grev" style="border-bottom:1px solid #eee">
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">10</td>
-        <td style="padding:10px 14px">Enter the Work Description <strong>"Transit Check, Preflight Check, Daily Check, Weekly Check, APU Change, Engine Change, or A Check"</strong>. The ATA Chapter, <strong>Skill Code</strong>, Activity, and Duration will be populated automatically.<span class="gupd">UPDATED</span></td>
+        <td style="padding:10px 14px">Enter the Work Description <strong>"Transit Check, Preflight Check, Daily Check, Weekly Check, APU Change, Engine Change, or A Check"</strong>. The ATA Chapter, <strong>Skill Code</strong>, Activity, and Duration will be populated automatically.</td>
       </tr>
       <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">11</td>
         <td style="padding:10px 14px">Work that is CCL Item and rectify within CCL (not transfer to Tech log), <strong>do not record as Experience</strong></td>
       </tr>
-      <tr style="border-bottom:1px solid #eee">
+      <tr class="grev" style="border-bottom:1px solid #eee">
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">12</td>
-        <td style="padding:10px 14px">Activity <strong>"Supervise"</strong> shall be selected only when the Certifying Staff acts as a <strong>Mentor</strong> to instruct and supervise personnel undergoing <strong>OJT</strong> for endorsement type rating in <strong>AMEL</strong>.<span class="gupd">UPDATED</span></td>
+        <td style="padding:10px 14px">Activity <strong>"Supervise"</strong> shall be selected only when the Certifying Staff acts as a <strong>Mentor</strong> to instruct and supervise personnel undergoing <strong>OJT</strong> for endorsement type rating in <strong>AMEL</strong>.</td>
       </tr>
       <tr style="background:#fdf8f0">
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">13</td>
@@ -1201,8 +1200,8 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 
   <!-- ATA Quick Reference -->
   <h3 style="color:#9a0000;margin:16px 0 10px;font-size:14px">📋 ATA Chapter Quick Reference</h3>
-  <p style="font-size:11px;color:#666;margin-bottom:8px">
-    เมื่อลง Work Description ตามด้านล่าง ระบบจะ auto-fill <b>ATA Chapter, Skill Code, Activity และ Duration</b> ให้อัตโนมัติ <span class="gupd">UPDATED</span> &nbsp;|&nbsp;
+  <p class="grev-p" style="font-size:11px;color:#666;margin-bottom:8px">
+    เมื่อลง Work Description ตามด้านล่าง ระบบจะ auto-fill <b>ATA Chapter, Skill Code, Activity และ Duration</b> ให้อัตโนมัติ  &nbsp;|&nbsp;
     <span style="color:#c00000;font-weight:700">(A) = Airbus A320/321</span> &nbsp;|&nbsp;
     <span style="color:#7a3500;font-weight:700">(B) = Boeing 737-8/8200</span>
   </p>
@@ -1390,7 +1389,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.4.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.4.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
