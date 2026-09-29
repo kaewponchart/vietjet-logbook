@@ -1398,7 +1398,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.4.4';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.4.5';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2086,7 +2086,11 @@ window.addEventListener('pagehide', flushSave);
 // ══ EXPORT / IMPORT JSON ═══════════════════════════════════════════════════
 function exportData(){
   saveAll();
-  const blob=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});
+  // ส่งออกเฉพาะข้อมูลของผู้ใช้ ตัดฟิลด์ระบบที่ขึ้นต้นด้วย _ ออก
+  // (เช่น _lastEditedBy, _savedAt, _email) ซึ่งเป็นข้อมูลภายในของระบบ ไม่ใช่เนื้อหา logbook
+  const out={};
+  Object.keys(D).forEach(k=>{if(k.charAt(0)!=='_')out[k]=D[k];});
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   const nm=(D.profile.name||'logbook').replace(/\s+/g,'_');
   a.download='Logbook_'+nm+'_'+new Date().toISOString().slice(0,10)+'.json';a.click();
