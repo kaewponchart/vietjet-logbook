@@ -1313,6 +1313,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <button class="tmi" onclick="_tool(openBackup)"><span>💾 สำรอง / กู้คืนข้อมูล</span></button>
         <button class="tmi" onclick="_tool(openTrash)"><span>🗑 ถังขยะ</span></button>
         <button class="tmi" onclick="_tool(openJunkClean)"><span>🧹 ล้างข้อมูลขยะจาก Import</span></button>
+        <button class="tmi" onclick="_tool(openArchiveTool)"><span>📚 คลังข้อมูลเก่า (ทดลอง)</span></button>
       </div>
     </div>
   </div>
@@ -1400,7 +1401,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.6.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.7.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1498,13 +1499,92 @@ const SKILL_RULES=[
 // ขยะส่วนใหญ่มาจากการ Import ไฟล์ Excel ที่ถูกแปลงเป็น JSON ด้วยเครื่องมือภายนอก
 // ทำให้เอกสารบวมจนชนลิมิต 1 MiB ของ Firestore และบันทึกไม่ได้
 const KNOWN_KEYS=new Set(['profile','rows','training','pmode','pfrom','pto',
-  '_savedAt','_uid','_email','_userName','_lastEditedBy','_lastEditedAt','_savedAtServer']);
+  '_savedAt','_uid','_email','_userName','_lastEditedBy','_lastEditedAt','_savedAtServer','_archive']);
 function sanitizeD(obj){
   const out={};
   Object.keys(obj||{}).forEach(k=>{if(KNOWN_KEYS.has(k))out[k]=obj[k];});
   return out;
 }
 function junkKeys(obj){return Object.keys(obj||{}).filter(k=>!KNOWN_KEYS.has(k));}
+
+// ══ คลังข้อมูลเก่า (Archive) ═══════════════════════════════════════════════
+// หลักการ: "แยกเก็บบนดิสก์ รวมเป็นชุดเดียวในหน่วยความจำ"
+//   • บนดิสก์: เอกสารหลักเก็บเฉพาะแถวใหม่ แถวเก่ากว่า ARCH_KEEP_MONTHS แยกไป logbooks/{uid}/archive/{ปี}
+//   • ในหน่วยความจำ: โหลดแล้วรวมกลับเป็น D.rows ชุดเดียว ทุกฟีเจอร์เดิมจึงทำงานได้โดยไม่ต้องแก้
+//   • ตอนบันทึก: แยกใหม่ทุกครั้งในชุดเดียว (atomic batch) — สำเร็จทั้งหมดหรือไม่เขียนเลย
+// เปิดใช้เฉพาะบัญชีที่มีฟิลด์ _archive เท่านั้น บัญชีอื่นทำงานเหมือนเดิมทุกประการ
+// เก็บในเอกสารหลักแค่ 12 เดือนก็พอ เพราะทุกครั้งที่โหลดระบบรวมคลังกลับเข้าหน่วยความจำครบทุกแถว
+// การคำนวณ compliance 24 เดือนจึงยังถูกต้อง ไม่ขึ้นกับว่าแถวถูกเก็บอยู่ที่ไหน
+// (ทดสอบแล้ว: ถ้าใช้ 30 เดือน คนที่ลงงานหนักช่วงหลังจะย้ายเข้าคลังได้ 0 แถว ไม่ช่วยอะไรเลย)
+const ARCH_KEEP_MONTHS=12;
+let _archSig={};                     // ลายเซ็นคลังรายปีของเอกสารที่โหลดอยู่ — ใช้เขียนเฉพาะปีที่เปลี่ยน
+let _loadedTarget=null;              // uid ที่โหลดสำเร็จครบแล้ว — ถ้าไม่ตรงห้ามบันทึกเด็ดขาด
+function _archCol(uid){return fbDb.collection('logbooks').doc(uid).collection('archive');}
+// จุดตัด = วันที่ 1 ของเดือน ย้อนหลัง ARCH_KEEP_MONTHS เดือน
+// ตั้งให้ตรงต้นเดือน เพื่อให้แถวข้ามไปคลังเดือนละครั้ง ไม่ใช่ทุกวัน (ลดการเขียนคลังซ้ำ)
+function archCutoff(){const d=new Date();d.setHours(0,0,0,0);d.setDate(1);d.setMonth(d.getMonth()-ARCH_KEEP_MONTHS);return d;}
+function splitRows(rows){
+  const cut=archCutoff(),recent=[],byYear={};
+  (rows||[]).forEach(r=>{
+    const d=(r&&r.date)?pDate(r.date):null;
+    // แถวที่ไม่มีวันที่หรือวันที่ผิด อยู่เอกสารหลักเสมอ (จัดปีไม่ได้ และต้องให้เห็นเพื่อแก้ไข)
+    if(d&&d<cut){const y=d.getFullYear();(byYear[y]=byYear[y]||[]).push(r);}
+    else recent.push(r);
+  });
+  return {recent,byYear,cut};
+}
+// โหลดเอกสารหลัก + คลังทุกปี แล้วรวมแถว — ถ้าคลังปีใดโหลดไม่ได้จะโยน error
+// ห้ามใช้ข้อมูลที่โหลดมาไม่ครบเด็ดขาด เพราะการบันทึกครั้งถัดไปจะลบคลังที่หายไปทิ้ง
+async function loadDocMerged(uid){
+  const doc=await fbDb.collection('logbooks').doc(uid).get();
+  if(!doc.exists)return {exists:false,data:null,archSig:{}};
+  const d=doc.data()||{};
+  const meta=d._archive,sig={};
+  if(meta&&Array.isArray(meta.years)&&meta.years.length){
+    const snaps=await Promise.all(meta.years.map(y=>_archCol(uid).doc(String(y)).get()));
+    const arch=[];
+    snaps.forEach((sn,i)=>{
+      if(!sn.exists)throw new Error('ไม่พบคลังข้อมูลปี '+meta.years[i]);
+      const rs=(sn.data()||{}).rows||[];
+      sig[meta.years[i]]=JSON.stringify(rs);
+      rs.forEach(x=>arch.push(x));
+    });
+    d.rows=arch.concat(d.rows||[]);
+  }
+  return {exists:true,data:d,archSig:sig};
+}
+// ใส่คำสั่งเขียนคลังลงใน batch — คืนค่าแถวใหม่สำหรับเอกสารหลัก + ข้อมูลกำกับคลัง
+function addArchiveOps(batch,uid,fullRows,prevYears,prevSig){
+  const {recent,byYear,cut}=splitRows(fullRows);
+  const years=Object.keys(byYear).map(Number).sort((a,b)=>a-b);
+  const newSig={};let count=0;
+  years.forEach(y=>{
+    const rs=byYear[y];count+=rs.length;
+    const sg=JSON.stringify(rs);newSig[y]=sg;
+    if(prevSig[y]!==sg)batch.set(_archCol(uid).doc(String(y)),
+      {year:y,rows:rs,count:rs.length,_updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  });
+  (prevYears||[]).forEach(y=>{if(!byYear[y])batch.delete(_archCol(uid).doc(String(y)));});
+  return {recent,newSig,meta:{years:years,count:count,cutoff:dToIso(cut),updatedAt:new Date().toISOString()}};
+}
+// ── แถบแจ้งเตือนโหลดข้อมูลไม่สำเร็จ + ระงับการบันทึก ──
+function showLoadFail(e){
+  let b=document.getElementById('load-fail');
+  if(!b){
+    b=document.createElement('div');b.id='load-fail';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:20001;background:#7a0000;color:#fff;'
+      +'padding:11px 16px;font-size:13px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.35);'
+      +'display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+    document.body.appendChild(b);
+  }
+  b.innerHTML='⛔ โหลดข้อมูลไม่สำเร็จ — ระบบระงับการบันทึกไว้ก่อน เพื่อไม่ให้ข้อมูลเดิมของคุณถูกเขียนทับ'
+    +'<span style="font-weight:400">· กรุณาตรวจสัญญาณอินเทอร์เน็ตแล้วโหลดหน้าใหม่'
+    +(e&&e.message?' ('+esc(String(e.message)).slice(0,90)+')':'')+'</span>'
+    +'<button onclick="location.reload()" style="margin-left:auto;background:#fff;color:#7a0000;border:none;'
+    +'border-radius:6px;padding:5px 12px;font-weight:800;cursor:pointer">โหลดหน้าใหม่</button>';
+  b.style.display='flex';
+}
+function hideLoadFail(){const b=document.getElementById('load-fail');if(b)b.style.display='none';}
 
 // ══ STATE ═════════════════════════════════════════════════════════════════
 let D={profile:{name:'',staffid:'',amel:'',position:''},rows:[],training:[],pmode:'auto',pfrom:'',pto:''};
@@ -1559,15 +1639,23 @@ async function loadData(){
   if(!fbDb || !currentUser) return;
   setStatus('⏳ กำลังโหลดข้อมูล...');
   try {
-    const doc = await fbDb.collection('logbooks').doc(currentUser.uid).get();
-    if(doc.exists){
-      D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, doc.data());
+    const r = await loadDocMerged(currentUser.uid);
+    if(r.exists){
+      D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, r.data);
       _baseSavedAt = D._savedAt || null;   // เวอร์ชันที่เราถืออยู่ (ใช้ตรวจการชนกัน)
     } else {
       _baseSavedAt = null;
     }
+    _archSig = r.archSig;
     _lastSig = contentSig();               // baseline สำหรับ dirty-check
-  } catch(e){ console.warn('Load error:',e); }
+    _loadedTarget = currentUser.uid;       // โหลดสำเร็จครบ — อนุญาตให้บันทึกได้
+    hideLoadFail();
+  } catch(e){
+    // บั๊กเดิม: โหลดล้มเหลวแล้วปล่อย D ว่างไว้ ครั้งถัดไปที่บันทึกจะเขียนทับข้อมูลจริงทั้งหมด
+    console.warn('Load error:',e);
+    _loadedTarget = null;
+    showLoadFail(e);
+  }
   setStatus('');
 }
 
@@ -1613,8 +1701,14 @@ async function saveData(){
     showSaved('✓ เป็นปัจจุบัน — ' + new Date().toLocaleTimeString('th-TH'));
     return;
   }
-  _saving = true;
   const target = editUid || currentUser.uid;
+  // ด่านสำคัญ: ถ้ายังโหลดเอกสารนี้ไม่สำเร็จครบ ห้ามเขียนเด็ดขาด
+  if(_loadedTarget!==target){
+    showSaved('⛔ ระงับการบันทึก — ยังโหลดข้อมูลไม่สำเร็จ');
+    showLoadFail(null);
+    return;
+  }
+  _saving = true;
   try {
     showSaved('⏳ กำลังบันทึก...');
     // ตรวจก่อนว่ามีคนอื่นแก้ข้อมูลนี้หลังจากที่เราโหลดมาหรือยัง
@@ -1642,8 +1736,20 @@ async function saveData(){
     // _savedAt (ISO ฝั่ง client) ยังใช้ตรวจการชนกันเหมือนเดิม, _savedAtServer ใช้แสดงผลจริง
     // ตัดฟิลด์ขยะออกก่อนบันทึกทุกครั้ง — เอกสารที่บวมจะหดกลับเองในการบันทึกครั้งถัดไป
     D = sanitizeD(D);
-    const payload = Object.assign({}, D, {_savedAtServer: firebase.firestore.FieldValue.serverTimestamp()});
-    await fbDb.collection('logbooks').doc(target).set(payload);
+    if(D._archive){
+      // บัญชีโหมดคลัง: แยกแถวเก่าไปคลังรายปี + บันทึกเอกสารหลักในชุดเดียวกัน (atomic)
+      const batch=fbDb.batch();
+      const ar=addArchiveOps(batch,target,D.rows,(D._archive.years||[]),_archSig);
+      D._archive=ar.meta;
+      const payload = Object.assign({}, D, {rows:ar.recent,_archive:ar.meta,
+        _savedAtServer: firebase.firestore.FieldValue.serverTimestamp()});
+      batch.set(fbDb.collection('logbooks').doc(target),payload);
+      await batch.commit();
+      _archSig = ar.newSig;
+    } else {
+      const payload = Object.assign({}, D, {_savedAtServer: firebase.firestore.FieldValue.serverTimestamp()});
+      await fbDb.collection('logbooks').doc(target).set(payload);
+    }
     _baseSavedAt = now;                       // เวอร์ชันของเราคือเวอร์ชันล่าสุดแล้ว
     _lastSig     = sig;                       // จำเนื้อหาที่เพิ่งบันทึก
     showSaved((editUid?('✓ บันทึกข้อมูลของ '+editName+' — '):'✓ บันทึกแล้ว — ') + new Date().toLocaleTimeString('th-TH'));
@@ -1690,11 +1796,13 @@ async function resolveConflict(action){
   const target = editUid || currentUser.uid;
   if(action==='reload'){
     try{
-      const doc = await fbDb.collection('logbooks').doc(target).get();
-      if(doc.exists){
-        D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, doc.data());
+      const r = await loadDocMerged(target);
+      if(r.exists){
+        D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, r.data);
         _baseSavedAt = D._savedAt || null;
+        _archSig = r.archSig;
         _lastSig = contentSig();
+        _loadedTarget = target;
       }
       renderAll(); calcSum();
       showSaved('↻ โหลดข้อมูลล่าสุดแล้ว');
@@ -2637,8 +2745,22 @@ async function loadAllUsers(){
         rows:(d.rows||[]).length,rowsArr:(d.rows||[]),trainingArr:(d.training||[]),
         savedAt:(d._savedAtServer&&typeof d._savedAtServer.toDate==='function')?d._savedAtServer.toDate().toISOString():(d._savedAt||'-'),
         amel:(d.profile&&d.profile.amel)||'',email:d._email||'-',
-        docBytes:_bytes(d)});   // ขนาดเอกสารโดยประมาณ ใช้เฝ้าระวังลิมิต 1 MiB
+        docBytes:_bytes(d),     // ขนาดเอกสารหลักโดยประมาณ ใช้เฝ้าระวังลิมิต 1 MiB
+        arch:(d._archive&&Array.isArray(d._archive.years))?d._archive.years.slice():[],
+        archFail:false});
     });
+    // รวมคลังข้อมูลเก่ากลับเข้า rowsArr — อ่านเพิ่มเฉพาะบัญชีที่อยู่ในโหมดคลังเท่านั้น
+    const _au=allUsersData.filter(u=>u.arch.length);
+    if(_au.length){
+      await Promise.all(_au.map(async u=>{
+        try{
+          const r=await loadDocMerged(u.uid);
+          if(r.exists){u.rowsArr=r.data.rows||[];u.rows=u.rowsArr.length;}
+        }catch(e){u.archFail=true;console.warn('archive load',u.uid,e);}
+      }));
+      const nf=_au.filter(u=>u.archFail).length;
+      if(nf)toastMsg('⚠️ โหลดคลังข้อมูลเก่าไม่สำเร็จ '+nf+' คน — ตัวเลขของคนกลุ่มนี้อาจไม่ครบ');
+    }
     populatePosFilter(allUsersData);
     filterAdminTable();updateAdminStats(allUsersData);
     renderMonBar();
@@ -3061,7 +3183,9 @@ function _szRender(){
     const w=Math.min(100,x.pct);
     const yc=x.yrs===null?'#bbb':(x.yrs<2?'#c00000':(x.yrs<5?'#b8860b':'#2e7d32'));
     h+='<tr style="border-bottom:1px solid #f0f0f0">'
-      +'<td style="padding:7px 8px"><b style="color:#1a3a6b">'+esc(x.u.name)+'</b><br><span style="color:#999;font-size:10.5px">'+esc(x.u.email)+'</span></td>'
+      +'<td style="padding:7px 8px"><b style="color:#1a3a6b">'+esc(x.u.name)+'</b>'
+        +(x.u.arch&&x.u.arch.length?' <span title="อยู่ในโหมดคลังข้อมูลเก่า" style="background:#6b4a10;color:#fff;border-radius:3px;padding:0 5px;font-size:9.5px;font-weight:800">📚 คลัง '+x.u.arch.length+' ปี</span>':'')
+        +'<br><span style="color:#999;font-size:10.5px">'+esc(x.u.email)+'</span></td>'
       +'<td style="padding:7px 8px;text-align:center">'+esc(x.u.staffId)+'</td>'
       +'<td style="padding:7px 8px;text-align:center">'+(x.u.rows||0).toLocaleString('th-TH')+'</td>'
       +'<td style="padding:7px 8px;text-align:center">'+(x.b/1024).toFixed(0)+' KB</td>'
@@ -3074,6 +3198,121 @@ function _szRender(){
         +(x.b>=DOC_LIMIT?'⛔ เต็มแล้ว':(x.yrs===null?'-':(x.yrs>20?'> 20 ปี':'~'+x.yrs.toFixed(1)+' ปี')))+'</td></tr>';
   });
   box.innerHTML=h+'</table>';
+}
+
+// ══ เครื่องมือคลังข้อมูลเก่า (ขั้นทดลอง: ทำทีละบัญชี) ═══════════════════════
+function _archPreview(u){
+  const all=u.rowsArr||[];
+  if(u.arch&&u.arch.length){
+    const {recent}=splitRows(all);
+    const archRows=all.length-recent.length;
+    return {mode:'archived',years:u.arch,archRows:archRows,total:all.length,
+      mergedBytes:(u.docBytes||0)+Math.max(0,_bytes(all)-_bytes(recent))};
+  }
+  const {recent,byYear,cut}=splitRows(all);
+  const ys=Object.keys(byYear).sort();
+  const moved=all.length-recent.length;
+  const after=Math.max(0,(u.docBytes||0)-(_bytes(all)-_bytes(recent)));
+  return {mode:'normal',cut:cut,byYear:byYear,years:ys,moved:moved,keep:recent.length,total:all.length,after:after};
+}
+function openArchiveTool(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  if(!allUsersData||!allUsersData.length){alert('ยังไม่มีข้อมูล — กด "โหลดข้อมูลใหม่" ก่อน');return;}
+  const list=allUsersData.slice().sort((a,b)=>(b.docBytes||0)-(a.docBytes||0));
+  let h='<div style="background:#fff8ec;border:1px solid #e8cfa0;border-radius:8px;padding:11px 14px;margin-bottom:12px;font-size:12px;color:#6b4a10;line-height:1.75">'
+    +'<b>🧪 ขั้นทดลอง</b> — ย้ายแถวงานที่เก่ากว่า <b>'+ARCH_KEEP_MONTHS+' เดือน</b> ไปเก็บในคลังแยกรายปี เอกสารหลักจะเล็กลงและไม่ชนลิมิตอีก<br>'
+    +'พนักงาน<b>ยังเห็นข้อมูลครบทุกแถวเหมือนเดิม</b> ระบบรวมกลับให้อัตโนมัติ ตัวเลข compliance ไม่เปลี่ยน<br>'
+    +'แนะนำให้ทดลองกับ<b>บัญชีทดสอบก่อน 1 บัญชี</b> · ต้องอัปเดต Firestore Rules ก่อนใช้งาน · ขั้นนี้ยังลบ/กู้คืนบัญชีโหมดคลังไม่ได้</div>'
+    +'<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#555;font-weight:600;margin-bottom:12px">เลือกบัญชี'
+    +'<select id="ar-user" style="border:1px solid #ccd2dd;border-radius:7px;padding:8px 10px;font-size:13px;background:#fff">'
+    +'<option value="">— เลือกบัญชี —</option>'
+    +list.map(u=>'<option value="'+esc(u.uid)+'">'+(u.arch&&u.arch.length?'📚 ':'')+esc(u.name)+' · '+esc(u.email)
+      +' · '+((u.docBytes||0)/DOC_LIMIT*100).toFixed(0)+'%'+(u.arch&&u.arch.length?' (โหมดคลัง)':'')+'</option>').join('')
+    +'</select></label><div id="ar-prev"></div>';
+  _openInfoModal('📚 คลังข้อมูลเก่า (ทดลอง)','#6b4a10',h,null,true);
+  const sel=document.getElementById('ar-user');
+  if(sel)sel.onchange=()=>_arRenderPreview(sel.value);
+}
+function _arRenderPreview(uid){
+  const box=document.getElementById('ar-prev');if(!box)return;
+  const u=(allUsersData||[]).find(x=>x.uid===uid);
+  if(!u){box.innerHTML='';return;}
+  if(u.archFail){box.innerHTML='<div style="color:#c00000;padding:12px">⛔ โหลดคลังของบัญชีนี้ไม่สำเร็จ — ห้ามดำเนินการใดๆ กรุณาโหลดข้อมูลใหม่ก่อน</div>';return;}
+  const p=_archPreview(u);
+  let h='<div style="border:1px solid #e3e7f0;border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.8">';
+  if(p.mode==='archived'){
+    h+='<b>สถานะ:</b> 📚 อยู่ในโหมดคลัง · คลัง '+p.years.length+' ปี ('+p.years.join(', ')+') · '+p.archRows+' แถว<br>'
+      +'<b>แถวทั้งหมด:</b> '+p.total.toLocaleString('th-TH')+' แถว (เห็นครบทุกแถวเหมือนเดิม)<br>'
+      +'<b>ถ้ายกเลิกโหมดคลัง</b> เอกสารหลักจะกลับไปใหญ่ราว <b>'+(p.mergedBytes/DOC_LIMIT*100).toFixed(0)+'%</b> ของลิมิต</div>';
+    const ok=p.mergedBytes<DOC_LIMIT*0.95;
+    h+='<div style="margin-top:12px"><button class="btn" id="ar-undo" '+(ok?'':'disabled ')
+      +'style="background:#7a3500;color:#fff">↩ ยกเลิกโหมดคลัง (รวมกลับเป็นเอกสารเดียว)</button>'
+      +(ok?'':' <span style="color:#c00000;font-size:12px">รวมกลับแล้วจะเกินลิมิต จึงยกเลิกไม่ได้</span>')+'</div>';
+    box.innerHTML=h;
+    const b=document.getElementById('ar-undo');if(b&&ok)b.onclick=()=>runUnarchiveOne(uid,u.name);
+    return;
+  }
+  const rowsY=p.years.map(y=>y+': '+p.byYear[y].length+' แถว').join(' · ');
+  h+='<b>แถวทั้งหมด:</b> '+p.total.toLocaleString('th-TH')+' แถว · <b>ขนาดตอนนี้:</b> '+((u.docBytes||0)/DOC_LIMIT*100).toFixed(0)+'% ของลิมิต<br>'
+    +'<b>จุดตัด:</b> แถวที่เก่ากว่า '+fmtD(p.cut)+' จะย้ายเข้าคลัง<br>'
+    +'<b>ย้ายเข้าคลัง:</b> '+p.moved.toLocaleString('th-TH')+' แถว'+(rowsY?' ('+rowsY+')':'')+'<br>'
+    +'<b>อยู่เอกสารหลัก:</b> '+p.keep.toLocaleString('th-TH')+' แถว · <b>ขนาดหลังย้าย:</b> ~'+(p.after/DOC_LIMIT*100).toFixed(0)+'% ของลิมิต</div>'
+    +(p.moved?'':'<p style="font-size:12px;color:#b8860b;margin-top:8px">ℹ️ ยังไม่มีแถวที่เก่าพอจะย้าย — ถ้าเปิดโหมดคลังไว้ ระบบจะทยอยย้ายให้เองเมื่อแถวเก่าลง</p>')
+    +'<div style="margin-top:12px"><button class="btn" id="ar-go" style="background:#6b4a10;color:#fff">📚 เปิดโหมดคลังให้บัญชีนี้</button></div>';
+  box.innerHTML=h;
+  document.getElementById('ar-go').onclick=()=>runArchiveOne(uid,u.name,p);
+}
+async function runArchiveOne(uid,name,p){
+  if(!isAdmin())return;
+  if(!confirm('เปิดโหมดคลังให้ "'+name+'"?\n\nย้ายเข้าคลัง '+p.moved+' แถว · อยู่เอกสารหลัก '+p.keep+' แถว\n'
+    +'พนักงานยังเห็นข้อมูลครบทุกแถวเหมือนเดิม\n\nได้สำรองข้อมูลและอัปเดต Firestore Rules แล้วใช่ไหม?'))return;
+  try{
+    const doc=await fbDb.collection('logbooks').doc(uid).get();
+    if(!doc.exists){alert('ไม่พบข้อมูล');return;}
+    const d=sanitizeD(doc.data()||{});
+    if(d._archive){alert('บัญชีนี้อยู่ในโหมดคลังแล้ว');return;}
+    const before=(d.rows||[]).length;
+    const batch=fbDb.batch();
+    const ar=addArchiveOps(batch,uid,d.rows||[],[],{});
+    // ขยับ _savedAt เพื่อให้เครื่องที่เปิดหน้าค้างไว้ตรวจเจอว่าข้อมูลเปลี่ยน แล้วโหลดใหม่แบบรวมคลัง
+    const now=new Date().toISOString();
+    const payload=Object.assign({},d,{rows:ar.recent,_archive:ar.meta,_savedAt:now,
+      _savedAtServer:firebase.firestore.FieldValue.serverTimestamp()});
+    batch.set(fbDb.collection('logbooks').doc(uid),payload);
+    await batch.commit();
+    // ตรวจทานทันทีหลังเขียน: โหลดกลับมารวมแล้วต้องได้จำนวนแถวเท่าเดิมพอดี
+    const chk=await loadDocMerged(uid);
+    const after=(chk.data.rows||[]).length;
+    if(after!==before){alert('⚠️ ตรวจทานไม่ผ่าน: ก่อน '+before+' แถว / หลัง '+after+' แถว\nกรุณาแจ้งผู้พัฒนาทันที และห้ามแก้ไขบัญชีนี้');return;}
+    toastMsg('📚 เปิดโหมดคลังให้ '+name+' แล้ว — ตรวจทานผ่าน ครบ '+after+' แถว');
+    if(_closeInfo)_closeInfo();
+    loadAllUsers();
+  }catch(e){alert('ไม่สำเร็จ: '+e.message+(/permission/i.test(e.message)?'\n\nน่าจะยังไม่ได้อัปเดต Firestore Rules':''));}
+}
+async function runUnarchiveOne(uid,name){
+  if(!isAdmin())return;
+  if(!confirm('ยกเลิกโหมดคลังของ "'+name+'"?\n\nแถวในคลังทั้งหมดจะถูกรวมกลับเข้าเอกสารหลัก แล้วลบคลังทิ้ง'))return;
+  try{
+    const r=await loadDocMerged(uid);           // ถ้าคลังโหลดไม่ครบจะหยุดตรงนี้ ไม่แตะอะไร
+    if(!r.exists){alert('ไม่พบข้อมูล');return;}
+    const d=sanitizeD(r.data);
+    const years=(d._archive&&d._archive.years)||[];
+    const before=(d.rows||[]).length;
+    delete d._archive;
+    const now=new Date().toISOString();
+    const payload=Object.assign({},d,{_savedAt:now,_savedAtServer:firebase.firestore.FieldValue.serverTimestamp()});
+    if(_bytes(payload)>DOC_LIMIT*0.95){alert('รวมกลับแล้วจะเกินลิมิต — ยกเลิกไม่ได้');return;}
+    const batch=fbDb.batch();
+    years.forEach(y=>batch.delete(_archCol(uid).doc(String(y))));
+    batch.set(fbDb.collection('logbooks').doc(uid),payload);   // set แทนทั้งเอกสาร = ฟิลด์ _archive หายไปด้วย
+    await batch.commit();
+    const chk=await loadDocMerged(uid);
+    const after=(chk.data.rows||[]).length;
+    if(after!==before){alert('⚠️ ตรวจทานไม่ผ่าน: ก่อน '+before+' / หลัง '+after+' แถว — กรุณาแจ้งผู้พัฒนาทันที');return;}
+    toastMsg('↩ ยกเลิกโหมดคลังของ '+name+' แล้ว — ตรวจทานผ่าน ครบ '+after+' แถว');
+    if(_closeInfo)_closeInfo();
+    loadAllUsers();
+  }catch(e){alert('ไม่สำเร็จ: '+e.message);}
 }
 
 // ══ ล้างข้อมูลขยะจากการ Import ════════════════════════════════════════════
@@ -3674,13 +3913,14 @@ async function bulkDelete(){
     +names.slice(0,10).join('\n')+(names.length>10?'\n…และอีก '+(names.length-10)+' คน':'')
     +'\n\nกู้คืนได้ภายหลังจากปุ่ม 🗑 ถังขยะ'))return;
   try{
-    let done=0;
+    let done=0;const skipArch=[];
     for(const grp of _chunk(uids,100)){          // แบ่งชุดละ 100 คน (200 ops) กันชน limit ของ batch
       const batch=fbDb.batch();let n=0;
       for(const uid of grp){
         const snap=await fbDb.collection('logbooks').doc(uid).get();
         if(!snap.exists)continue;
         const data=snap.data()||{};
+        if(data._archive){skipArch.push(nameOf(uid));continue;}   // โหมดคลัง — ข้ามไว้ก่อน
         data._del={name:nameOf(uid),byEmail:(currentUser&&currentUser.email)||'-',
                    at:firebase.firestore.FieldValue.serverTimestamp()};
         batch.set(fbDb.collection('deletedLogbooks').doc(uid),data);
@@ -3691,6 +3931,8 @@ async function bulkDelete(){
     }
     _selUids.clear();
     toastMsg('🗑 ย้าย '+done+' รายการไปถังขยะแล้ว');
+    if(skipArch.length)alert('ข้ามไป '+skipArch.length+' บัญชีที่อยู่ในโหมดคลังข้อมูลเก่า:\n\n'
+      +skipArch.join('\n')+'\n\n'+'บัญชีนี้อยู่ในโหมดคลังข้อมูลเก่า — การลบ/กู้คืนบัญชีแบบนี้จะรองรับในขั้นถัดไป');
     loadAllUsers();
   }catch(e){alert('ลบไม่สำเร็จ: '+e.message);}
 }
@@ -3831,9 +4073,9 @@ function updateAdminFilterCount(shown,total,rawq,pos,st){
 }
 async function viewUser(uid,name){
   try{
-    const doc=await fbDb.collection('logbooks').doc(uid).get();
-    if(!doc.exists){alert('ไม่พบข้อมูล');return;}
-    const userData=doc.data();
+    const r=await loadDocMerged(uid);
+    if(!r.exists){alert('ไม่พบข้อมูล');return;}
+    const userData=r.data;
     _adminViewUid=uid; _adminViewName=name;
     showUserModal(userData,name);
   }catch(e){alert('Error: '+e.message);}
@@ -3848,6 +4090,7 @@ async function deleteUser(uid,name){
     const snap=await fbDb.collection('logbooks').doc(uid).get();
     if(!snap.exists){alert('ไม่พบข้อมูลของ "'+name+'"');loadAllUsers();return;}
     const data=snap.data()||{};
+    if(data._archive){alert('⛔ '+name+'\n\n'+'บัญชีนี้อยู่ในโหมดคลังข้อมูลเก่า — การลบ/กู้คืนบัญชีแบบนี้จะรองรับในขั้นถัดไป');return;}
     data._del={name:name,
       byEmail:(currentUser&&currentUser.email)||'-',
       at:firebase.firestore.FieldValue.serverTimestamp()};
@@ -3973,6 +4216,7 @@ async function bulkRestore(){
   if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
   const picked=_trashPicked();
   if(!picked.length){alert('ยังไม่ได้เลือกรายการ');return;}
+  if(picked.some(it=>it.v&&it.v._archive)){alert('⛔ มีบัญชีที่อยู่ในโหมดคลังข้อมูลเก่า — '+'บัญชีนี้อยู่ในโหมดคลังข้อมูลเก่า — การลบ/กู้คืนบัญชีแบบนี้จะรองรับในขั้นถัดไป');return;}
   try{
     let over=0;
     for(const it of picked){                       // เช็คก่อนว่าใครมีข้อมูลชุดใหม่อยู่แล้ว
@@ -4015,6 +4259,7 @@ async function bulkPurge(){
 }
 async function restoreUser(it){
   const nm=_trashName(it);
+  if(it.v&&it.v._archive){alert('⛔ '+nm+'\n\n'+'บัญชีนี้อยู่ในโหมดคลังข้อมูลเก่า — การลบ/กู้คืนบัญชีแบบนี้จะรองรับในขั้นถัดไป');return;}
   try{
     const cur=await fbDb.collection('logbooks').doc(it.uid).get();
     if(cur.exists){
@@ -4102,8 +4347,21 @@ async function backupAll(){
     const out={_meta:{app:'TVJ Experience Individual Logbook',form:'TVJ-QA-F-057',
       appVersion:APP_VERSION,exportedAt:new Date().toISOString(),
       exportedBy:(currentUser&&currentUser.email)||'-',count:snap.size},logbooks:{}};
-    let rowCnt=0;
-    snap.forEach(d=>{const v=d.data()||{};rowCnt+=(v.rows||[]).length;out.logbooks[d.id]=_plainDoc(v);});
+    let rowCnt=0;const archUids=[];
+    snap.forEach(d=>{const v=d.data()||{};rowCnt+=(v.rows||[]).length;out.logbooks[d.id]=_plainDoc(v);
+      if(v._archive&&Array.isArray(v._archive.years)&&v._archive.years.length)archUids.push(d.id);});
+    // บัญชีโหมดคลัง: รวมแถวจากคลังทุกปีเข้าไปในไฟล์ด้วย ให้ไฟล์สำรองมีข้อมูลครบทุกแถว
+    // ถ้าคลังของใครโหลดไม่สำเร็จ ให้หยุดทั้งหมด — ไฟล์สำรองที่ขาดข้อมูลอันตรายกว่าไม่มีไฟล์
+    if(archUids.length){
+      setSt('กำลังดึงคลังข้อมูลเก่า '+archUids.length+' คน…');
+      await Promise.all(archUids.map(async uid=>{
+        const r=await loadDocMerged(uid);
+        const full=r.data.rows||[];
+        rowCnt+=full.length-(out.logbooks[uid].rows||[]).length;
+        out.logbooks[uid].rows=full;
+      }));
+      out._meta.archivedAccounts=archUids.length;
+    }
     const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);
     a.download='TVJ_Logbook_FULL_BACKUP_'+new Date().toISOString().slice(0,10)+'.json';
@@ -4136,7 +4394,7 @@ async function handleRestoreFile(evt){
         if(!c)st='missing';
         else if(bRows!==cRows||(b._savedAt||'')!==(c._savedAt||''))st='diff';
         items.push({uid:uid,name:bp.name||cp.name||'(ไม่มีชื่อ)',staffid:bp.staffid||cp.staffid||'-',
-          bRows:bRows,cRows:cRows,st:st,doc:b});
+          bRows:bRows,cRows:cRows,st:st,doc:b,arch:!!(b._archive||(c&&c._archive))});
       });
       items.sort((a,b)=>({missing:0,diff:1,same:2})[a.st]-({missing:0,diff:1,same:2})[b.st]||a.name.localeCompare(b.name,'th'));
       _restorePlan=items;
@@ -4185,6 +4443,12 @@ async function doRestore(){
   const picked=[];
   area.querySelectorAll('.rs-ck:checked').forEach(ck=>picked.push(_restorePlan[+ck.dataset.i]));
   if(!picked.length){alert('ยังไม่ได้เลือกรายการที่จะกู้คืน');return;}
+  const blocked=picked.filter(p=>p.arch);
+  if(blocked.length){
+    alert('⛔ มี '+blocked.length+' บัญชีที่อยู่ในโหมดคลังข้อมูลเก่า:\n\n'+blocked.map(p=>p.name).join('\n')
+      +'\n\n'+'บัญชีนี้อยู่ในโหมดคลังข้อมูลเก่า — การลบ/กู้คืนบัญชีแบบนี้จะรองรับในขั้นถัดไป'+'\nกรุณายกเลิกการเลือกบัญชีเหล่านี้ก่อน');
+    return;
+  }
   const nOver=picked.filter(p=>p.st!=='missing').length;
   let msg='กู้คืน '+picked.length+' รายการ?';
   if(nOver)msg+='\n\n⚠️ ในจำนวนนี้มี '+nOver+' รายการที่มีข้อมูลอยู่ในระบบแล้ว และจะถูกเขียนทับด้วยข้อมูลในไฟล์';
@@ -4204,12 +4468,14 @@ async function editUser(uid,name){
   if(uid===currentUser.uid){ closeUserModal(); showTab('tl'); return; } // own data: normal editing
   if(!confirm('เข้าสู่โหมดแก้ไขข้อมูลของ "'+name+'"?\n\nการบันทึกหรือลบแถวจะเขียนทับข้อมูลของพนักงานคนนี้โดยตรง')) return;
   try{
-    const doc=await fbDb.collection('logbooks').doc(uid).get();
-    if(!doc.exists){alert('ไม่พบข้อมูล');return;}
+    const r=await loadDocMerged(uid);    // รวมคลังข้อมูลเก่าด้วย ถ้าโหลดไม่ครบจะไม่เข้าโหมดแก้ไข
+    if(!r.exists){alert('ไม่พบข้อมูล');return;}
     editUid=uid; editName=name;
-    D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},doc.data());
+    D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},r.data);
     _baseSavedAt = D._savedAt || null;   // baseline สำหรับตรวจการชนกันของ doc พนักงานคนนี้
+    _archSig = r.archSig;
     _lastSig = contentSig();             // baseline สำหรับ dirty-check
+    _loadedTarget = uid;                 // อนุญาตให้บันทึกลงเอกสารของพนักงานคนนี้
     _conflictOpen = false;
     if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
     closeUserModal();      // remove modal if open (also renders current D)
