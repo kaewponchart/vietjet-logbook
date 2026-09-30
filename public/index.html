@@ -997,7 +997,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     <button class="btn adm-only" style="background:#2c5f2e;color:#fff" onclick="exportPDF('all')">📄 Export PDF</button>
     <button class="btn bb" onclick="saveAll()">💾 บันทึก</button>
     <button class="btn bp" onclick="exportData()" title="Export ข้อมูลเป็น JSON (สำรองข้อมูล)">📦 Export JSON</button>
-    <button class="btn bt" onclick="document.getElementById('ifile').click()" title="Import ข้อมูลจาก JSON">📂 Import JSON</button>
+    <button class="btn bt adm-only" onclick="document.getElementById('ifile').click()" title="Import ข้อมูลจาก JSON (เฉพาะแอดมิน)">📂 Import JSON</button>
     <input type="file" id="ifile" accept=".json" style="display:none" onchange="importData(event)">
     <span class="savind" id="sind"></span><span id="userkey_disp" style="font-size:10px;color:#aaa;margin-left:8px"></span>
   </div>
@@ -1302,6 +1302,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <button class="tmi" onclick="_tool(function(){openRoutine(70)})"><span>📊 งานตรวจประจำเกิน 70%</span><span id="mi-rt"></span></button>
         <button class="tmi" onclick="_tool(function(){openNear(70)})"><span>🎯 ใกล้ครบเกณฑ์ (ไม่ผ่าน)</span><span id="mi-nr"></span></button>
         <button class="tmi" onclick="_tool(openPQ)"><span>👤 ตรวจโปรไฟล์และบัญชี</span><span id="mi-pq"></span></button>
+        <button class="tmi" onclick="_tool(openSize)"><span>📦 เฝ้าระวังขนาดเอกสาร</span><span id="mi-sz"></span></button>
         <div class="tmh">ส่งออกรายงาน</div>
         <button class="tmi" onclick="_tool(exportAdminCSV)"><span>📊 ส่งออก Excel (CSV)</span></button>
         <button class="tmi" onclick="_tool(exportAdminPDF)"><span>📄 ส่งออก PDF</span></button>
@@ -1399,7 +1400,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.5.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.6.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -2138,6 +2139,8 @@ function hideSaveFail(){const b=document.getElementById('save-fail');if(b)b.styl
 window.addEventListener('beforeunload',e=>{if(_saveFailed){e.preventDefault();e.returnValue='';}});
 
 function importData(evt){
+  // สงวนไว้ให้แอดมินเท่านั้น — พนักงานที่ต้องการนำเข้าข้อมูลให้ติดต่อแอดมิน
+  if(!isAdmin()){evt.target.value='';alert('การ Import สงวนไว้สำหรับแอดมินเท่านั้น\n\nหากต้องการนำเข้าข้อมูล กรุณาติดต่อฝ่าย SSQA');return;}
   const f=evt.target.files[0];if(!f)return;
   const rd=new FileReader();
   rd.onload=e=>{
@@ -2633,7 +2636,8 @@ async function loadAllUsers(){
         staffId:(d.profile&&d.profile.staffid)||'-',position:(d.profile&&d.profile.position)||'-',
         rows:(d.rows||[]).length,rowsArr:(d.rows||[]),trainingArr:(d.training||[]),
         savedAt:(d._savedAtServer&&typeof d._savedAtServer.toDate==='function')?d._savedAtServer.toDate().toISOString():(d._savedAt||'-'),
-        amel:(d.profile&&d.profile.amel)||'',email:d._email||'-'});
+        amel:(d.profile&&d.profile.amel)||'',email:d._email||'-',
+        docBytes:_bytes(d)});   // ขนาดเอกสารโดยประมาณ ใช้เฝ้าระวังลิมิต 1 MiB
     });
     populatePosFilter(allUsersData);
     filterAdminTable();updateAdminStats(allUsersData);
@@ -2847,16 +2851,19 @@ function renderMonBar(){
     st.innerHTML='';['mi-risk','mi-idle','mi-dq'].forEach(i=>set(i,''));return;
   }
   const risk=riskList(30).length, idle=idleList(30).length, dq=dqScan().length, rt=routineList(70).length, nr=nearList().filter(x=>x.ratio>=70).length, pq=pqScan().length;
+  const szL=sizeList(), sz=szL.filter(x=>x.pct>=SIZE_WARN||(x.yrs!==null&&x.yrs<2)).length,
+        szCrit=szL.filter(x=>x.pct>=SIZE_CRIT).length;
   // ป้ายเล็กบนปุ่ม — เหลืองเมื่อมีเรื่องต้องดู, จางเมื่อเป็นศูนย์
   const pill=(icon,n,ok)=>'<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;'
     +'background:'+(ok?'rgba(255,255,255,.16)':'#ffd479')+';color:'+(ok?'#e8ecf3':'#5c3d00')
     +';border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800">'+icon+' '+n.toLocaleString('th-TH')+'</span>';
-  st.innerHTML=pill('⚠️',risk,risk===0)+pill('💤',idle,idle===0)+pill('🔍',dq,dq===0);
+  st.innerHTML=pill('⚠️',risk,risk===0)+pill('💤',idle,idle===0)+pill('🔍',dq,dq===0)
+    +(szCrit?pill('📦',szCrit,false):'');
   // ป้ายในเมนู
   const mb=(n,ok)=>'<span style="background:'+(ok?'#eaf5ea':'#fff2d6')+';color:'+(ok?'#2e7d32':'#8a5a00')
     +';border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:800">'+n.toLocaleString('th-TH')+'</span>';
   set('mi-risk',mb(risk,risk===0));set('mi-idle',mb(idle,idle===0));set('mi-dq',mb(dq,dq===0));
-  set('mi-rt',mb(rt,rt===0));set('mi-nr',mb(nr,nr===0));set('mi-pq',mb(pq,pq===0));
+  set('mi-rt',mb(rt,rt===0));set('mi-nr',mb(nr,nr===0));set('mi-pq',mb(pq,pq===0));set('mi-sz',mb(sz,sz===0));
 }
 
 // ══ ตรวจคุณภาพโปรไฟล์ + บัญชีซ้ำ/แปลกปลอม ═════════════════════════════════
@@ -2987,6 +2994,84 @@ function _pqRender(){
       +'<td style="padding:6px;font-size:10.5px;color:#777">'+esc(i.email)+'</td>'
       +'<td style="padding:6px;text-align:center">'+i.rows+'</td>'
       +'<td style="padding:6px;font-size:10.5px;color:#777">'+esc(i.note)+'</td></tr>';
+  });
+  box.innerHTML=h+'</table>';
+}
+
+// ══ เฝ้าระวังขนาดเอกสาร (ลิมิต 1 MiB ต่อคนของ Firestore) ════════════════════
+// ใช้ข้อมูลที่โหลดมาแล้ว ไม่อ่าน Firestore เพิ่ม · คาดการณ์จากอัตราลงงาน 12 เดือนล่าสุด
+const SIZE_WARN=70, SIZE_CRIT=90;
+function sizeList(){
+  const now=new Date(),ya=new Date(now);ya.setFullYear(ya.getFullYear()-1);
+  return (allUsersData||[]).map(u=>{
+    const b=u.docBytes||0, pct=b/DOC_LIMIT*100, n=u.rows||0;
+    const perYear=(u.rowsArr||[]).filter(r=>{const d=pDate(r.date);return d&&d>=ya&&d<=now;}).length;
+    const bpr=n?b/n:0, left=Math.max(0,DOC_LIMIT-b);
+    const yrs=(perYear&&bpr)?left/(perYear*bpr):null;
+    return {u,b,pct,perYear,yrs};
+  }).sort((a,b)=>b.pct-a.pct);
+}
+let _szAll=[],_szView=[];
+function openSize(){
+  _szAll=sizeList();
+  const warn=_szAll.filter(x=>x.pct>=SIZE_WARN).length, crit=_szAll.filter(x=>x.pct>=SIZE_CRIT).length;
+  const soon=_szAll.filter(x=>x.yrs!==null&&x.yrs<2).length;
+  let h='<div style="background:#f4f7fc;border:1px solid #d4e0f0;border-radius:8px;padding:11px 14px;margin-bottom:12px;font-size:12px;color:#33507a;line-height:1.75">'
+    +'Firestore จำกัดข้อมูลไว้ที่ <b>1 MiB ต่อคน</b> (ราว 3,000 แถวงาน) ถ้าเกิน <b>พนักงานคนนั้นจะบันทึกข้อมูลไม่ได้เลย</b><br>'
+    +(crit?'<b style="color:#c00000">🔴 '+crit+' คนเกิน '+SIZE_CRIT+'% — ต้องจัดการด่วน</b> &nbsp;':'')
+    +(warn-crit>0?'<b style="color:#b8860b">🟠 '+(warn-crit)+' คนเกิน '+SIZE_WARN+'%</b> &nbsp;':'')
+    +(soon?'<b style="color:#7a3500">⏳ '+soon+' คนคาดว่าจะเต็มภายใน 2 ปี</b>':'')
+    +(!warn&&!soon?'<b style="color:#2e7d32">✓ ทุกคนยังอยู่ในระดับปลอดภัย</b>':'')
+    +'<br><span style="color:#888">* ขนาดเป็นค่าประมาณ · การคาดการณ์คิดจากจำนวนแถวที่ลงใน 12 เดือนล่าสุด</span></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f9fc;border:1px solid #dde5f0;'
+    +'border-radius:8px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:2">'
+    +'<input id="sz-q" placeholder="🔍 ค้นหาชื่อ / Staff ID / อีเมล..." style="flex:1 1 240px;min-width:0;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+    +'<label style="font-size:12px;display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="sz-only"'+(warn?' checked':'')+'> เฉพาะที่เกิน '+SIZE_WARN+'% หรือเต็มใน 2 ปี</label></div>'
+    +'<div id="sz-count" style="font-size:12px;color:#666;margin-bottom:6px"></div><div id="sz-list"></div>';
+  _openInfoModal('📦 เฝ้าระวังขนาดเอกสาร','#1a3a6b',h,()=>{
+    const lines=[['ชื่อ-นามสกุล','Staff ID','อีเมล','จำนวนแถว','ขนาด (KB)','ใช้ไป (%)','ลงงานปีละ (แถว)','คาดว่าเต็มใน (ปี)'].map(_csvCell).join(',')];
+    _szView.forEach(x=>lines.push([x.u.name,x.u.staffId,x.u.email,x.u.rows,(x.b/1024).toFixed(0),x.pct.toFixed(1),
+      x.perYear,x.b>=DOC_LIMIT?'เต็มแล้ว':(x.yrs===null?'-':x.yrs.toFixed(1))].map(_csvCell).join(',')));
+    _dlCSV(lines,'DocSize_');
+  },true);
+  const q=document.getElementById('sz-q'),o=document.getElementById('sz-only');
+  if(q)q.addEventListener('input',_szRender);
+  if(o)o.addEventListener('change',_szRender);
+  _szRender();
+}
+function _szRender(){
+  const box=document.getElementById('sz-list');if(!box)return;
+  const q=((document.getElementById('sz-q')||{}).value||'').toLowerCase().trim();
+  const only=(document.getElementById('sz-only')||{}).checked;
+  _szView=_szAll.filter(x=>{
+    if(only&&!(x.pct>=SIZE_WARN||(x.yrs!==null&&x.yrs<2)))return false;
+    if(q&&!((x.u.name||'').toLowerCase().includes(q)||(x.u.staffId||'').toLowerCase().includes(q)
+      ||(x.u.email||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+  const cnt=document.getElementById('sz-count');
+  if(cnt)cnt.innerHTML='แสดง <b>'+_szView.length+'</b> จาก '+_szAll.length+' คน';
+  if(!_szView.length){box.innerHTML='<div style="text-align:center;padding:26px;color:#2e7d32;font-weight:700">✓ ไม่มีรายการตามเงื่อนไข</div>';return;}
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#eef2fa"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+    +'<th style="padding:8px">Staff ID</th><th style="padding:8px">แถวงาน</th><th style="padding:8px">ขนาด</th>'
+    +'<th style="padding:8px">ใช้ไปแล้ว</th><th style="padding:8px">ลงงานปีละ</th><th style="padding:8px">คาดว่าเต็มใน</th></tr>';
+  _szView.forEach(x=>{
+    const col=x.pct>=SIZE_CRIT?'#c00000':(x.pct>=SIZE_WARN?'#b8860b':'#2e7d32');
+    const w=Math.min(100,x.pct);
+    const yc=x.yrs===null?'#bbb':(x.yrs<2?'#c00000':(x.yrs<5?'#b8860b':'#2e7d32'));
+    h+='<tr style="border-bottom:1px solid #f0f0f0">'
+      +'<td style="padding:7px 8px"><b style="color:#1a3a6b">'+esc(x.u.name)+'</b><br><span style="color:#999;font-size:10.5px">'+esc(x.u.email)+'</span></td>'
+      +'<td style="padding:7px 8px;text-align:center">'+esc(x.u.staffId)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+(x.u.rows||0).toLocaleString('th-TH')+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+(x.b/1024).toFixed(0)+' KB</td>'
+      +'<td style="padding:7px 8px;text-align:center;white-space:nowrap">'
+        +'<div style="background:#eee;border-radius:5px;height:8px;width:80px;display:inline-block;overflow:hidden;vertical-align:middle">'
+        +'<div style="height:100%;width:'+w+'%;background:'+col+'"></div></div> '
+        +'<b style="color:'+col+';font-size:11.5px">'+x.pct.toFixed(0)+'%</b></td>'
+      +'<td style="padding:7px 8px;text-align:center">'+x.perYear.toLocaleString('th-TH')+' แถว</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:'+yc+'">'
+        +(x.b>=DOC_LIMIT?'⛔ เต็มแล้ว':(x.yrs===null?'-':(x.yrs>20?'> 20 ปี':'~'+x.yrs.toFixed(1)+' ปี')))+'</td></tr>';
   });
   box.innerHTML=h+'</table>';
 }
