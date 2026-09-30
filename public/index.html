@@ -1310,7 +1310,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <button class="tmi" onclick="_tool(monthlyReport)"><span>📅 รายงานประจำเดือน</span></button>
         <div class="tmh">จัดการข้อมูล</div>
         <button class="tmi" onclick="_tool(loadAllUsers)"><span>🔄 โหลดข้อมูลใหม่</span></button>
-        <button class="tmi" onclick="_tool(openBackup)"><span>💾 สำรอง / กู้คืนข้อมูล</span></button>
+        <button class="tmi" onclick="_tool(openBackup)"><span>💾 สำรอง / กู้คืนข้อมูล</span><span id="mi-bk"></span></button>
         <button class="tmi" onclick="_tool(openTrash)"><span>🗑 ถังขยะ</span></button>
         <button class="tmi" onclick="_tool(openJunkClean)"><span>🧹 ล้างข้อมูลขยะจาก Import</span></button>
         <button class="tmi" onclick="_tool(openArchiveTool)"><span>📚 คลังข้อมูลเก่า</span></button>
@@ -1401,7 +1401,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.8.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.9.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1578,6 +1578,46 @@ function addArchiveOps(batch,uid,fullRows,prevYears,prevSig){
   (prevYears||[]).forEach(y=>{if(!byYear[y])batch.delete(_archCol(uid).doc(String(y)));});
   return {recent,newSig,meta:{years:years,count:count,cutoff:dToIso(cut),updatedAt:new Date().toISOString()}};
 }
+// ══ ตัวเตือนการสำรองข้อมูล ═════════════════════════════════════════════════
+// แพลน Spark ไม่มีระบบสำรองอัตโนมัติ ไฟล์สำรองจึงเป็นทางกู้ข้อมูลทางเดียว — ต้องไม่ให้ถูกลืม
+// บันทึกเวลาสำรองล่าสุดไว้ที่ meta/backupState (เขียน 1 ครั้งต่อการสำรอง อ่าน 1 ครั้งต่อการเปิดแดชบอร์ด)
+const BACKUP_DUE_DAYS=30, BACKUP_WARN_DAYS=25;
+let _lastBackup=null;          // null = ยังอ่านไม่ได้ · {} = ไม่เคยสำรอง · {atISO,...} = มีข้อมูล
+async function _loadBackupState(){
+  try{const sn=await fbDb.collection('meta').doc('backupState').get();_lastBackup=sn.exists?(sn.data()||{}):{};}
+  catch(e){_lastBackup=null;console.warn('backupState',e);}
+}
+function _backupAgeDays(){
+  if(!_lastBackup||!_lastBackup.atISO)return null;
+  const t=new Date(_lastBackup.atISO).getTime();
+  return isNaN(t)?null:Math.floor((Date.now()-t)/86400000);
+}
+// ok = ภายในกำหนด · warn = ใกล้ครบกำหนด · due = เกินกำหนดหรือไม่เคยสำรอง · unknown = อ่านสถานะไม่ได้
+function _backupLevel(){
+  if(_lastBackup===null)return 'unknown';
+  const a=_backupAgeDays();
+  if(a===null)return 'due';
+  return a>BACKUP_DUE_DAYS?'due':(a>=BACKUP_WARN_DAYS?'warn':'ok');
+}
+function _backupText(){
+  const lv=_backupLevel(),a=_backupAgeDays();
+  if(lv==='unknown')return 'อ่านสถานะการสำรองไม่ได้';
+  if(a===null)return 'ยังไม่เคยสำรองข้อมูล';
+  const d=new Date(_lastBackup.atISO).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'});
+  return 'สำรองล่าสุด '+d+' ('+(a===0?'วันนี้':a+' วันก่อน')+')';
+}
+function _renderBackupStatus(){
+  const el=document.getElementById('backup-last');if(!el)return;
+  const lv=_backupLevel();
+  const c={ok:['#eaf5ea','#2e7d32'],warn:['#fff6e5','#8a5a00'],due:['#fdecec','#c00000'],unknown:['#f2f2f2','#777']}[lv];
+  el.style.cssText='margin:0 0 10px;padding:7px 11px;border-radius:6px;font-size:12px;font-weight:700;background:'+c[0]+';color:'+c[1];
+  el.innerHTML=(lv==='ok'?'✓ ':(lv==='unknown'?'':'⚠️ '))+esc(_backupText())
+    +(lv==='due'?' — เกินกำหนด '+BACKUP_DUE_DAYS+' วัน กรุณาสำรองข้อมูลตอนนี้':'')
+    +(lv==='warn'?' — ใกล้ครบกำหนด '+BACKUP_DUE_DAYS+' วัน':'')
+    +(_lastBackup&&_lastBackup.by?'<br><span style="font-weight:400">โดย '+esc(_lastBackup.by)
+      +(_lastBackup.count?' · '+_lastBackup.count+' คน':'')+'</span>':'');
+}
+
 // ══ ขั้นที่ 2: ย้ายบัญชีโหมดคลังเข้า-ออกถังขยะ ══════════════════════════════
 // ถังขยะเก็บโครงสร้างแบบเดียวกับของจริง: deletedLogbooks/{uid} + deletedLogbooks/{uid}/archive/{ปี}
 // (ไม่รวมเป็นเอกสารเดียว เพราะบัญชีที่ใหญ่พอจะเข้าโหมดคลัง รวมแล้วอาจเกินลิมิต 1 MiB)
@@ -2852,6 +2892,7 @@ async function loadAllUsers(){
     }
     populatePosFilter(allUsersData);
     filterAdminTable();updateAdminStats(allUsersData);
+    await _loadBackupState();
     renderMonBar();
     checkStatusAlerts(allUsersData);   // ตรวจสถานะหล่นผ่าน→ไม่ผ่าน แล้วแจ้งเตือน (ไม่บล็อกการแสดงตาราง)
   }catch(e){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#c00000">Error: '+e.message+'</td></tr>';}
@@ -3069,12 +3110,21 @@ function renderMonBar(){
     +'background:'+(ok?'rgba(255,255,255,.16)':'#ffd479')+';color:'+(ok?'#e8ecf3':'#5c3d00')
     +';border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800">'+icon+' '+n.toLocaleString('th-TH')+'</span>';
   st.innerHTML=pill('⚠️',risk,risk===0)+pill('💤',idle,idle===0)+pill('🔍',dq,dq===0)
-    +(szCrit?pill('📦',szCrit,false):'');
+    +(szCrit?pill('📦',szCrit,false):'')
+    +((_backupLevel()==='due'||_backupLevel()==='warn')
+      ?'<span title="'+esc(_backupText())+'" style="display:inline-flex;align-items:center;margin-left:6px;background:'
+        +(_backupLevel()==='due'?'#ff9b9b;color:#5c0000':'#ffd479;color:#5c3d00')
+        +';border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800">💾 '
+        +(_backupAgeDays()===null?'ยังไม่สำรอง':_backupAgeDays()+' วัน')+'</span>':'');
   // ป้ายในเมนู
   const mb=(n,ok)=>'<span style="background:'+(ok?'#eaf5ea':'#fff2d6')+';color:'+(ok?'#2e7d32':'#8a5a00')
     +';border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:800">'+n.toLocaleString('th-TH')+'</span>';
   set('mi-risk',mb(risk,risk===0));set('mi-idle',mb(idle,idle===0));set('mi-dq',mb(dq,dq===0));
   set('mi-rt',mb(rt,rt===0));set('mi-nr',mb(nr,nr===0));set('mi-pq',mb(pq,pq===0));set('mi-sz',mb(sz,sz===0));
+  const bl=_backupLevel(),ba=_backupAgeDays();
+  const bc={ok:['#eaf5ea','#2e7d32'],warn:['#fff2d6','#8a5a00'],due:['#fdecec','#c00000'],unknown:['#f2f2f2','#888']}[bl];
+  set('mi-bk','<span style="background:'+bc[0]+';color:'+bc[1]+';border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:800">'
+    +(bl==='unknown'?'?':(ba===null?'ยังไม่เคย':(ba===0?'วันนี้':ba+' วัน')))+'</span>');
 }
 
 // ══ ตรวจคุณภาพโปรไฟล์ + บัญชีซ้ำ/แปลกปลอม ═════════════════════════════════
@@ -4611,7 +4661,8 @@ function openBackup(){
     +'<div style="border:1px solid #cfe0e4;background:#f4fafb;border-radius:8px;padding:14px;margin-bottom:14px">'
       +'<div style="font-weight:800;font-size:13px;color:#0b5566;margin-bottom:6px">1) สำรองข้อมูล (Backup)</div>'
       +'<p style="font-size:12px;color:#666;line-height:1.6;margin:0 0 10px">ดึงข้อมูลพนักงานทุกคนออกมาเป็นไฟล์ JSON ไฟล์เดียว รวมรายละเอียดทุกบรรทัดและ Training ทั้งหมด '
-      +'แนะนำให้ทำสัปดาห์ละครั้ง แล้วเก็บไฟล์ไว้บน SharePoint หรือ Drive ของบริษัท</p>'
+      +'ควรทำอย่างน้อยเดือนละครั้ง แล้วเก็บไฟล์ไว้บน SharePoint หรือ Drive ของบริษัท</p>'
+      +'<div id="backup-last"></div>'
       +'<button class="btn" id="btn-do-backup" style="background:#0b5566;color:#fff">⬇ ดาวน์โหลดไฟล์สำรองทั้งระบบ</button>'
       +'<span id="backup-stat" style="font-size:12px;color:#666;margin-left:10px"></span>'
     +'</div>'
@@ -4626,6 +4677,7 @@ function openBackup(){
   document.getElementById('backup-close').onclick=closeBackup;
   _lockScroll();
   document.getElementById('btn-do-backup').onclick=backupAll;
+  _renderBackupStatus();
   document.getElementById('btn-pick-restore').onclick=()=>document.getElementById('restore-file').click();
   modal.addEventListener('click',e=>{if(e.target===modal)closeBackup();});
 }
@@ -4658,6 +4710,13 @@ async function backupAll(){
     a.download='TVJ_Logbook_FULL_BACKUP_'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a);a.click();a.remove();
     setSt('✓ สำเร็จ — '+snap.size+' คน, '+rowCnt.toLocaleString()+' บรรทัด, '+(blob.size/1048576).toFixed(2)+' MB');
+    // บันทึกว่าสำรองแล้วเมื่อไร — ถ้าบันทึกไม่ได้ ไฟล์สำรองยังได้ครบ แค่ตัวเตือนจะไม่รู้
+    try{
+      const bs={atISO:new Date().toISOString(),by:(currentUser&&currentUser.email)||'-',count:snap.size,
+        rows:rowCnt,archived:archUids.length,at:firebase.firestore.FieldValue.serverTimestamp()};
+      await fbDb.collection('meta').doc('backupState').set(bs);
+      _lastBackup=bs;_renderBackupStatus();renderMonBar();
+    }catch(e){console.warn('backupState write',e);toastMsg('⚠️ สำรองสำเร็จ แต่บันทึกเวลาสำรองไม่ได้ — ตัวเตือนอาจไม่อัปเดต');}
     toastMsg('💾 สำรองข้อมูลสำเร็จ '+snap.size+' คน');
   }catch(e){setSt('');alert('สำรองข้อมูลไม่สำเร็จ: '+e.message);}
 }
