@@ -1401,7 +1401,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.7.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.7.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -3215,23 +3215,89 @@ function _archPreview(u){
   const after=Math.max(0,(u.docBytes||0)-(_bytes(all)-_bytes(recent)));
   return {mode:'normal',cut:cut,byYear:byYear,years:ys,moved:moved,keep:recent.length,total:all.length,after:after};
 }
+let _arAll=[],_arSel='';
 function openArchiveTool(){
   if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
   if(!allUsersData||!allUsersData.length){alert('ยังไม่มีข้อมูล — กด "โหลดข้อมูลใหม่" ก่อน');return;}
-  const list=allUsersData.slice().sort((a,b)=>(b.docBytes||0)-(a.docBytes||0));
+  // คำนวณล่วงหน้าว่าแต่ละคนย้ายได้กี่แถว (ใช้ข้อมูลที่โหลดไว้แล้ว ไม่อ่าน Firestore เพิ่ม)
+  _arAll=allUsersData.map(u=>{
+    const archived=!!(u.arch&&u.arch.length), p=_archPreview(u);
+    return {u,archived,pct:(u.docBytes||0)/DOC_LIMIT*100,
+      movable:archived?p.archRows:p.moved, after:archived?null:p.after/DOC_LIMIT*100};
+  }).sort((a,b)=>b.pct-a.pct);
+  const nArch=_arAll.filter(x=>x.archived).length;
+  const sel=(id,opts)=>'<select id="'+id+'" style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff">'
+    +opts.map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join('')+'</select>';
   let h='<div style="background:#fff8ec;border:1px solid #e8cfa0;border-radius:8px;padding:11px 14px;margin-bottom:12px;font-size:12px;color:#6b4a10;line-height:1.75">'
     +'<b>🧪 ขั้นทดลอง</b> — ย้ายแถวงานที่เก่ากว่า <b>'+ARCH_KEEP_MONTHS+' เดือน</b> ไปเก็บในคลังแยกรายปี เอกสารหลักจะเล็กลงและไม่ชนลิมิตอีก<br>'
     +'พนักงาน<b>ยังเห็นข้อมูลครบทุกแถวเหมือนเดิม</b> ระบบรวมกลับให้อัตโนมัติ ตัวเลข compliance ไม่เปลี่ยน<br>'
-    +'แนะนำให้ทดลองกับ<b>บัญชีทดสอบก่อน 1 บัญชี</b> · ต้องอัปเดต Firestore Rules ก่อนใช้งาน · ขั้นนี้ยังลบ/กู้คืนบัญชีโหมดคลังไม่ได้</div>'
-    +'<label style="display:flex;flex-direction:column;gap:4px;font-size:12px;color:#555;font-weight:600;margin-bottom:12px">เลือกบัญชี'
-    +'<select id="ar-user" style="border:1px solid #ccd2dd;border-radius:7px;padding:8px 10px;font-size:13px;background:#fff">'
-    +'<option value="">— เลือกบัญชี —</option>'
-    +list.map(u=>'<option value="'+esc(u.uid)+'">'+(u.arch&&u.arch.length?'📚 ':'')+esc(u.name)+' · '+esc(u.email)
-      +' · '+((u.docBytes||0)/DOC_LIMIT*100).toFixed(0)+'%'+(u.arch&&u.arch.length?' (โหมดคลัง)':'')+'</option>').join('')
-    +'</select></label><div id="ar-prev"></div>';
+    +'แนะนำให้ทดลองกับ<b>บัญชีทดสอบก่อน 1 บัญชี</b> · ต้องอัปเดต Firestore Rules ก่อนใช้งาน · ขั้นนี้ยังลบ/กู้คืนบัญชีโหมดคลังไม่ได้<br>'
+    +'ตอนนี้อยู่ในโหมดคลังแล้ว <b>'+nArch+'</b> จาก '+_arAll.length+' บัญชี</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f9fc;border:1px solid #dde5f0;'
+    +'border-radius:8px;padding:10px 12px;margin-bottom:8px;position:sticky;top:0;z-index:2">'
+    +'<input id="ar-q" placeholder="🔍 ค้นหาชื่อ / Staff ID / อีเมล..." style="flex:1 1 220px;min-width:0;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+    +sel('ar-st',[['','ทุกสถานะ'],['no','ยังไม่เข้าคลัง'],['yes','📚 โหมดคลังแล้ว']])
+    +sel('ar-sz',[['0','ทุกขนาด'],['30','ใช้ไป ≥ 30%'],['50','ใช้ไป ≥ 50%'],['70','ใช้ไป ≥ 70%']])
+    +'<label style="font-size:12px;display:flex;gap:5px;align-items:center;cursor:pointer;white-space:nowrap">'
+    +'<input type="checkbox" id="ar-mv"> เฉพาะที่มีแถวให้ย้าย</label>'
+    +'<button class="btn" id="ar-clear" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้าง</button></div>'
+    +'<div id="ar-count" style="font-size:12px;color:#666;margin-bottom:6px"></div>'
+    +'<div id="ar-list" style="max-height:42vh;overflow:auto;border:1px solid #eee;border-radius:8px;margin-bottom:14px"></div>'
+    +'<div id="ar-prev"></div>';
   _openInfoModal('📚 คลังข้อมูลเก่า (ทดลอง)','#6b4a10',h,null,true);
-  const sel=document.getElementById('ar-user');
-  if(sel)sel.onchange=()=>_arRenderPreview(sel.value);
+  const ids=['ar-q','ar-st','ar-sz','ar-mv'];
+  ids.forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener(id==='ar-q'?'input':'change',_arRender);});
+  const cl=document.getElementById('ar-clear');
+  if(cl)cl.onclick=()=>{const q=document.getElementById('ar-q');if(q)q.value='';
+    ['ar-st','ar-sz'].forEach(id=>{const e=document.getElementById(id);if(e)e.selectedIndex=0;});
+    const m=document.getElementById('ar-mv');if(m)m.checked=false;_arRender();};
+  _arSel='';_arRender();
+}
+function _arRender(){
+  const box=document.getElementById('ar-list');if(!box)return;
+  const q=((document.getElementById('ar-q')||{}).value||'').toLowerCase().trim();
+  const st=(document.getElementById('ar-st')||{}).value||'';
+  const sz=+((document.getElementById('ar-sz')||{}).value||0);
+  const mv=(document.getElementById('ar-mv')||{}).checked;
+  const view=_arAll.filter(x=>{
+    if(st==='yes'&&!x.archived)return false;
+    if(st==='no'&&x.archived)return false;
+    if(x.pct<sz)return false;
+    if(mv&&(x.archived||!x.movable))return false;
+    if(q&&!((x.u.name||'').toLowerCase().includes(q)||(x.u.staffId||'').toLowerCase().includes(q)
+      ||(x.u.email||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+  const cnt=document.getElementById('ar-count');
+  if(cnt)cnt.innerHTML='แสดง <b>'+view.length+'</b> จาก '+_arAll.length+' บัญชี · <span style="color:#999">กดที่แถวเพื่อดูรายละเอียดและดำเนินการ</span>';
+  if(!view.length){box.innerHTML='<div style="text-align:center;padding:24px;color:#999">ไม่พบบัญชีตามเงื่อนไข</div>';return;}
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#f5ead2;position:sticky;top:0"><th style="padding:7px;text-align:left">ชื่อ / อีเมล</th>'
+    +'<th style="padding:7px">Staff ID</th><th style="padding:7px">แถวงาน</th><th style="padding:7px">ขนาดตอนนี้</th>'
+    +'<th style="padding:7px">ย้ายได้</th><th style="padding:7px">หลังย้าย</th><th style="padding:7px">สถานะ</th></tr>';
+  view.forEach(x=>{
+    const col=x.pct>=90?'#c00000':(x.pct>=70?'#b8860b':'#555');
+    const picked=x.u.uid===_arSel;
+    h+='<tr class="ar-row" data-uid="'+esc(x.u.uid)+'" style="border-bottom:1px solid #f0f0f0;cursor:pointer;'
+      +(picked?'background:#fff1d6;box-shadow:inset 3px 0 0 #6b4a10':'')+'">'
+      +'<td style="padding:6px 8px"><b style="color:#1a3a6b">'+esc(x.u.name)+'</b><br><span style="color:#999;font-size:10.5px">'+esc(x.u.email)+'</span></td>'
+      +'<td style="padding:6px 8px;text-align:center">'+esc(x.u.staffId)+'</td>'
+      +'<td style="padding:6px 8px;text-align:center">'+(x.u.rows||0).toLocaleString('th-TH')+'</td>'
+      +'<td style="padding:6px 8px;text-align:center;font-weight:700;color:'+col+'">'+x.pct.toFixed(0)+'%</td>'
+      +'<td style="padding:6px 8px;text-align:center">'+(x.archived?'<span style="color:#999">'+x.movable+' ในคลัง</span>'
+        :(x.movable?'<b style="color:#6b4a10">'+x.movable.toLocaleString('th-TH')+'</b>':'<span style="color:#ccc">0</span>'))+'</td>'
+      +'<td style="padding:6px 8px;text-align:center;color:#2e7d32;font-weight:700">'+(x.after===null?'-':'~'+x.after.toFixed(0)+'%')+'</td>'
+      +'<td style="padding:6px 8px;text-align:center">'+(x.archived
+        ?'<span style="background:#6b4a10;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:800">📚 '+x.u.arch.length+' ปี</span>'
+        :'<span style="color:#aaa;font-size:11px">ปกติ</span>')+'</td></tr>';
+  });
+  box.innerHTML=h+'</table>';
+  box.querySelectorAll('.ar-row').forEach(tr=>tr.onclick=()=>_arPick(tr.dataset.uid));
+}
+function _arPick(uid){
+  _arSel=uid;_arRender();_arRenderPreview(uid);
+  const p=document.getElementById('ar-prev');
+  if(p)p.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function _arRenderPreview(uid){
   const box=document.getElementById('ar-prev');if(!box)return;
