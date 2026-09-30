@@ -1401,7 +1401,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.7.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.7.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -3314,8 +3314,10 @@ function _arRenderPreview(uid){
     h+='<div style="margin-top:12px"><button class="btn" id="ar-undo" '+(ok?'':'disabled ')
       +'style="background:#7a3500;color:#fff">↩ ยกเลิกโหมดคลัง (รวมกลับเป็นเอกสารเดียว)</button>'
       +(ok?'':' <span style="color:#c00000;font-size:12px">รวมกลับแล้วจะเกินลิมิต จึงยกเลิกไม่ได้</span>')+'</div>';
+    h+=_arPathPanel(uid,p.years);
     box.innerHTML=h;
     const b=document.getElementById('ar-undo');if(b&&ok)b.onclick=()=>runUnarchiveOne(uid,u.name);
+    _arWirePathPanel(uid);
     return;
   }
   const rowsY=p.years.map(y=>y+': '+p.byYear[y].length+' แถว').join(' · ');
@@ -3325,8 +3327,72 @@ function _arRenderPreview(uid){
     +'<b>อยู่เอกสารหลัก:</b> '+p.keep.toLocaleString('th-TH')+' แถว · <b>ขนาดหลังย้าย:</b> ~'+(p.after/DOC_LIMIT*100).toFixed(0)+'% ของลิมิต</div>'
     +(p.moved?'':'<p style="font-size:12px;color:#b8860b;margin-top:8px">ℹ️ ยังไม่มีแถวที่เก่าพอจะย้าย — ถ้าเปิดโหมดคลังไว้ ระบบจะทยอยย้ายให้เองเมื่อแถวเก่าลง</p>')
     +'<div style="margin-top:12px"><button class="btn" id="ar-go" style="background:#6b4a10;color:#fff">📚 เปิดโหมดคลังให้บัญชีนี้</button></div>';
+  h+=_arPathPanel(uid,[]);
   box.innerHTML=h;
   document.getElementById('ar-go').onclick=()=>runArchiveOne(uid,u.name,p);
+  _arWirePathPanel(uid);
+}
+// ── แผงบอกตำแหน่งใน Firestore + ตรวจสอบสดจากฐานข้อมูลจริง ──
+function _arPathPanel(uid,years){
+  const mono='font-family:Consolas,Menlo,monospace;font-size:11.5px;background:#f4f4f4;border-radius:4px;padding:1px 6px';
+  let h='<div style="margin-top:14px;border:1px dashed #c9b27a;border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.9;color:#555">'
+    +'<b style="color:#6b4a10">📍 ตำแหน่งใน Firestore</b><br>'
+    +'UID (ชื่อเอกสาร): <span style="'+mono+'">'+esc(uid)+'</span> '
+    +'<button class="btn" id="ar-cp" style="background:#e8e8e8;color:#444;font-size:11px;padding:2px 9px">📋 คัดลอก</button><br>'
+    +'เอกสารหลัก: <span style="'+mono+'">logbooks / '+esc(uid)+'</span><br>';
+  if(years&&years.length){
+    h+='คลังรายปี: '+years.map(y=>'<span style="'+mono+'">logbooks / '+esc(uid)+' / archive / '+y+'</span>').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;')+'<br>';
+  }else{
+    h+='<span style="color:#999">ยังไม่มีคลัง — เอกสารหลักจะไม่มีฟิลด์ <span style="'+mono+'">_archive</span></span><br>';
+  }
+  h+='<button class="btn" id="ar-verify-btn" style="background:#6b4a10;color:#fff;font-size:12px;padding:5px 12px;margin-top:6px">'
+    +'🔍 ตรวจกับ Firestore ตอนนี้</button><div id="ar-verify" style="margin-top:8px"></div></div>';
+  return h;
+}
+function _arWirePathPanel(uid){
+  const cp=document.getElementById('ar-cp');
+  if(cp)cp.onclick=()=>{
+    const done=()=>toastMsg('📋 คัดลอก UID แล้ว');
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(uid).then(done).catch(()=>_copyFallback(uid,done));
+    else _copyFallback(uid,done);
+  };
+  const vb=document.getElementById('ar-verify-btn');
+  if(vb)vb.onclick=()=>verifyArchive(uid);
+}
+// อ่านจากฐานข้อมูลจริงทีละเอกสาร (ไม่ใช้ข้อมูลในหน่วยความจำ) แล้วรายงานว่าแต่ละที่มีกี่แถว
+async function verifyArchive(uid){
+  const out=document.getElementById('ar-verify');if(!out)return;
+  out.innerHTML='<span style="color:#888">กำลังอ่านจาก Firestore…</span>';
+  try{
+    const main=await fbDb.collection('logbooks').doc(uid).get();
+    if(!main.exists){out.innerHTML='<span style="color:#c00000">ไม่พบเอกสารหลัก</span>';return;}
+    const d=main.data()||{};
+    const meta=d._archive||null;
+    const list=[{path:'logbooks/'+uid,label:'เอกสารหลัก',n:(d.rows||[]).length,ok:true}];
+    let total=(d.rows||[]).length,bad=0;
+    for(const y of ((meta&&meta.years)||[])){
+      const sn=await _archCol(uid).doc(String(y)).get();
+      if(!sn.exists){list.push({path:'logbooks/'+uid+'/archive/'+y,label:'คลังปี '+y,n:0,ok:false});bad++;continue;}
+      const n=((sn.data()||{}).rows||[]).length;total+=n;
+      list.push({path:'logbooks/'+uid+'/archive/'+y,label:'คลังปี '+y,n:n,ok:true});
+    }
+    const archSum=total-(d.rows||[]).length;
+    const metaOk=!meta||meta.count===archSum;
+    let h='<table style="border-collapse:collapse;font-size:11.5px;margin-top:4px">';
+    list.forEach(x=>{
+      h+='<tr><td style="padding:3px 10px 3px 0;font-family:Consolas,Menlo,monospace">'+esc(x.path)+'</td>'
+        +'<td style="padding:3px 10px">'+x.label+'</td>'
+        +'<td style="padding:3px 10px;text-align:right;font-weight:700">'+x.n.toLocaleString('th-TH')+' แถว</td>'
+        +'<td style="padding:3px 0;color:'+(x.ok?'#2e7d32':'#c00000')+';font-weight:700">'+(x.ok?'✓':'✗ ไม่พบ')+'</td></tr>';
+    });
+    h+='</table><div style="margin-top:6px;font-weight:700;color:'+(bad||!metaOk?'#c00000':'#2e7d32')+'">'
+      +(meta?'📚 อยู่ในโหมดคลัง · ':'ยังไม่อยู่ในโหมดคลัง · ')
+      +'รวมทั้งหมด '+total.toLocaleString('th-TH')+' แถว'
+      +(meta?(' · ฟิลด์ _archive ระบุคลัง '+meta.count+' แถว '+(metaOk?'= ตรงกับที่นับได้จริง ✓':'≠ ที่นับได้จริง '+archSum+' ⚠️')):'')
+      +(bad?' · ⚠️ เอกสารคลังหาย '+bad+' ปี — ห้ามแก้ไขบัญชีนี้ กรุณาแจ้งผู้พัฒนา':'')+'</div>';
+    out.innerHTML=h;
+  }catch(e){out.innerHTML='<span style="color:#c00000">อ่านไม่สำเร็จ: '+esc(e.message)
+    +(/permission/i.test(e.message)?' — น่าจะยังไม่ได้อัปเดต Firestore Rules':'')+'</span>';}
 }
 async function runArchiveOne(uid,name,p){
   if(!isAdmin())return;
