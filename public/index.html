@@ -1401,7 +1401,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.7.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.7.4';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1505,6 +1505,11 @@ function sanitizeD(obj){
   Object.keys(obj||{}).forEach(k=>{if(KNOWN_KEYS.has(k))out[k]=obj[k];});
   return out;
 }
+// แถวที่ทุกช่องว่างเปล่า (เกิดจากกด "+ เพิ่มแถว" แล้วไม่ได้กรอก) — ไม่มีประโยชน์ กินพื้นที่
+// และในโหมดคลังจะค้างอยู่เอกสารหลักตลอดไปเพราะไม่มีวันที่ให้จัดปี จึงไม่บันทึกแถวแบบนี้
+const ROW_FIELDS=['date','actype','reg','workref','desc','ata','skill','mxloc','a1','a2','a3','a4','a5','dur','sig'];
+function isBlankRow(r){return !r||ROW_FIELDS.every(k=>!String(r[k]==null?'':r[k]).trim());}
+function pruneBlankRows(rows){return (rows||[]).filter(r=>!isBlankRow(r));}
 function junkKeys(obj){return Object.keys(obj||{}).filter(k=>!KNOWN_KEYS.has(k));}
 
 // ══ คลังข้อมูลเก่า (Archive) ═══════════════════════════════════════════════
@@ -1736,6 +1741,8 @@ async function saveData(){
     // _savedAt (ISO ฝั่ง client) ยังใช้ตรวจการชนกันเหมือนเดิม, _savedAtServer ใช้แสดงผลจริง
     // ตัดฟิลด์ขยะออกก่อนบันทึกทุกครั้ง — เอกสารที่บวมจะหดกลับเองในการบันทึกครั้งถัดไป
     D = sanitizeD(D);
+    // ตัดแถวว่างออกก่อนบันทึก — แถวบนจอยังอยู่ให้กรอกต่อได้ตามปกติ จะหายไปเองเมื่อโหลดหน้าใหม่
+    D.rows = pruneBlankRows(D.rows);
     if(D._archive){
       // บัญชีโหมดคลัง: แยกแถวเก่าไปคลังรายปี + บันทึกเอกสารหลักในชุดเดียวกัน (atomic)
       const batch=fbDb.batch();
@@ -3333,15 +3340,27 @@ function _arRenderPreview(uid){
   _arWirePathPanel(uid);
 }
 // ── แผงบอกตำแหน่งใน Firestore + ตรวจสอบสดจากฐานข้อมูลจริง ──
+// ลิงก์เปิดเอกสารใน Firebase Console โดยตรง (~2F คือเครื่องหมาย / ในรูปแบบ URL ของ Console)
+function _consoleLink(segs){
+  const pid=(typeof FB_CONFIG!=='undefined'&&FB_CONFIG.projectId)||'';
+  return 'https://console.firebase.google.com/project/'+encodeURIComponent(pid)
+    +'/firestore/databases/-default-/data/~2F'+segs.map(encodeURIComponent).join('~2F');
+}
+function _consoleBtn(segs){
+  return ' <a href="'+_consoleLink(segs)+'" target="_blank" rel="noopener" title="เปิดเอกสารนี้ใน Firebase Console" '
+    +'style="font-size:11px;background:#fff3e0;color:#b35900;border:1px solid #f0c890;border-radius:4px;'
+    +'padding:1px 7px;text-decoration:none;white-space:nowrap">🔗 เปิดใน Console</a>';
+}
 function _arPathPanel(uid,years){
   const mono='font-family:Consolas,Menlo,monospace;font-size:11.5px;background:#f4f4f4;border-radius:4px;padding:1px 6px';
   let h='<div style="margin-top:14px;border:1px dashed #c9b27a;border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.9;color:#555">'
     +'<b style="color:#6b4a10">📍 ตำแหน่งใน Firestore</b><br>'
     +'UID (ชื่อเอกสาร): <span style="'+mono+'">'+esc(uid)+'</span> '
     +'<button class="btn" id="ar-cp" style="background:#e8e8e8;color:#444;font-size:11px;padding:2px 9px">📋 คัดลอก</button><br>'
-    +'เอกสารหลัก: <span style="'+mono+'">logbooks / '+esc(uid)+'</span><br>';
+    +'เอกสารหลัก: <span style="'+mono+'">logbooks / '+esc(uid)+'</span>'+_consoleBtn(['logbooks',uid])+'<br>';
   if(years&&years.length){
-    h+='คลังรายปี: '+years.map(y=>'<span style="'+mono+'">logbooks / '+esc(uid)+' / archive / '+y+'</span>').join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;')+'<br>';
+    h+='คลังรายปี: '+years.map(y=>'<span style="'+mono+'">logbooks / '+esc(uid)+' / archive / '+y+'</span>'
+      +_consoleBtn(['logbooks',uid,'archive',String(y)])).join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;')+'<br>';
   }else{
     h+='<span style="color:#999">ยังไม่มีคลัง — เอกสารหลักจะไม่มีฟิลด์ <span style="'+mono+'">_archive</span></span><br>';
   }
@@ -3403,6 +3422,7 @@ async function runArchiveOne(uid,name,p){
     if(!doc.exists){alert('ไม่พบข้อมูล');return;}
     const d=sanitizeD(doc.data()||{});
     if(d._archive){alert('บัญชีนี้อยู่ในโหมดคลังแล้ว');return;}
+    d.rows=pruneBlankRows(d.rows);              // แถวว่างไม่ต้องย้าย ทิ้งไปเลย
     const before=(d.rows||[]).length;
     const batch=fbDb.batch();
     const ar=addArchiveOps(batch,uid,d.rows||[],[],{});
@@ -3429,6 +3449,7 @@ async function runUnarchiveOne(uid,name){
     if(!r.exists){alert('ไม่พบข้อมูล');return;}
     const d=sanitizeD(r.data);
     const years=(d._archive&&d._archive.years)||[];
+    d.rows=pruneBlankRows(d.rows);
     const before=(d.rows||[]).length;
     delete d._archive;
     const now=new Date().toISOString();
