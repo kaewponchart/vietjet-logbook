@@ -1311,6 +1311,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <button class="tmi" onclick="_tool(loadAllUsers)"><span>🔄 โหลดข้อมูลใหม่</span></button>
         <button class="tmi" onclick="_tool(openBackup)"><span>💾 สำรอง / กู้คืนข้อมูล</span></button>
         <button class="tmi" onclick="_tool(openTrash)"><span>🗑 ถังขยะ</span></button>
+        <button class="tmi" onclick="_tool(openJunkClean)"><span>🧹 ล้างข้อมูลขยะจาก Import</span></button>
       </div>
     </div>
   </div>
@@ -1398,7 +1399,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.4.5';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.5.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1491,6 +1492,18 @@ const SKILL_RULES=[
   {re:/\b(?:transit|pre\s*-?\s*flight|daily|weekly|a)\s*check\b/i, sk:'Airframe (AF)'},
   {re:/\b(?:apu|engine)\s*change\b/i,                              sk:'Engine (EN)'}
 ];
+
+// ── ฟิลด์ระดับบนสุดที่ระบบใช้จริง — อะไรนอกเหนือจากนี้ถือเป็นขยะ ──
+// ขยะส่วนใหญ่มาจากการ Import ไฟล์ Excel ที่ถูกแปลงเป็น JSON ด้วยเครื่องมือภายนอก
+// ทำให้เอกสารบวมจนชนลิมิต 1 MiB ของ Firestore และบันทึกไม่ได้
+const KNOWN_KEYS=new Set(['profile','rows','training','pmode','pfrom','pto',
+  '_savedAt','_uid','_email','_userName','_lastEditedBy','_lastEditedAt','_savedAtServer']);
+function sanitizeD(obj){
+  const out={};
+  Object.keys(obj||{}).forEach(k=>{if(KNOWN_KEYS.has(k))out[k]=obj[k];});
+  return out;
+}
+function junkKeys(obj){return Object.keys(obj||{}).filter(k=>!KNOWN_KEYS.has(k));}
 
 // ══ STATE ═════════════════════════════════════════════════════════════════
 let D={profile:{name:'',staffid:'',amel:'',position:''},rows:[],training:[],pmode:'auto',pfrom:'',pto:''};
@@ -1626,13 +1639,18 @@ async function saveData(){
     }
     // เขียนเวลาจากเซิร์ฟเวอร์ Firestore ด้วย (แม่นยำ ไม่ขึ้นกับนาฬิกาเครื่องผู้ใช้)
     // _savedAt (ISO ฝั่ง client) ยังใช้ตรวจการชนกันเหมือนเดิม, _savedAtServer ใช้แสดงผลจริง
+    // ตัดฟิลด์ขยะออกก่อนบันทึกทุกครั้ง — เอกสารที่บวมจะหดกลับเองในการบันทึกครั้งถัดไป
+    D = sanitizeD(D);
     const payload = Object.assign({}, D, {_savedAtServer: firebase.firestore.FieldValue.serverTimestamp()});
     await fbDb.collection('logbooks').doc(target).set(payload);
     _baseSavedAt = now;                       // เวอร์ชันของเราคือเวอร์ชันล่าสุดแล้ว
     _lastSig     = sig;                       // จำเนื้อหาที่เพิ่งบันทึก
     showSaved((editUid?('✓ บันทึกข้อมูลของ '+editName+' — '):'✓ บันทึกแล้ว — ') + new Date().toLocaleTimeString('th-TH'));
+    _saveFailed=false;hideSaveFail();
   } catch(e){
     showSaved('❌ บันทึกไม่สำเร็จ: ' + e.message);
+    _saveFailed=true;
+    showSaveFail(e);
   } finally {
     _saving = false;
   }
@@ -2095,22 +2113,96 @@ function exportData(){
   const nm=(D.profile.name||'logbook').replace(/\s+/g,'_');
   a.download='Logbook_'+nm+'_'+new Date().toISOString().slice(0,10)+'.json';a.click();
 }
+// ── แถบแจ้งเตือนบันทึกล้มเหลว: ค้างอยู่จนกว่าจะบันทึกสำเร็จ ──
+let _saveFailed=false;
+function showSaveFail(e){
+  let b=document.getElementById('save-fail');
+  if(!b){
+    b=document.createElement('div');b.id='save-fail';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:20000;background:#c00000;color:#fff;'
+      +'padding:10px 16px;font-size:13px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.3);'
+      +'display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+    document.body.appendChild(b);
+  }
+  const msg=String((e&&e.message)||e||'');
+  const tooBig=/exceed|maximum|too large|size/i.test(msg);
+  b.innerHTML='⚠️ บันทึกข้อมูลไม่สำเร็จ — ข้อมูลที่เพิ่งกรอกยังไม่ถูกบันทึก <u>อย่าเพิ่งปิดหน้านี้</u>'
+    +'<span style="font-weight:400">· '+(tooBig?'เอกสารใหญ่เกินลิมิตของระบบ ลองกดบันทึกอีกครั้ง ถ้ายังไม่ได้กรุณาแจ้งแอดมิน'
+      :esc(msg).slice(0,140))+'</span>'
+    +'<button onclick="saveAll()" style="margin-left:auto;background:#fff;color:#c00000;border:none;'
+    +'border-radius:6px;padding:5px 12px;font-weight:800;cursor:pointer">ลองบันทึกอีกครั้ง</button>';
+  b.style.display='flex';
+}
+function hideSaveFail(){const b=document.getElementById('save-fail');if(b)b.style.display='none';}
+// กันปิดหน้าทิ้งขณะที่ยังมีข้อมูลค้างไม่ได้บันทึก
+window.addEventListener('beforeunload',e=>{if(_saveFailed){e.preventDefault();e.returnValue='';}});
+
 function importData(evt){
   const f=evt.target.files[0];if(!f)return;
   const rd=new FileReader();
   rd.onload=e=>{
-    try{
-      const imp=JSON.parse(e.target.result);
-      if(!imp||typeof imp!=='object'||Array.isArray(imp)||(imp.rows&&!Array.isArray(imp.rows))||(imp.training&&!Array.isArray(imp.training))){
-        alert('ไฟล์ไม่ใช่ข้อมูล Logbook ที่ถูกต้อง');evt.target.value='';return;
-      }
-      if(confirm('Import จะเขียนทับข้อมูลทั้งหมด ยืนยัน?')){
-        D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},imp);
-        renderAll();saveData();alert('Import สำเร็จ! มี '+(D.rows||[]).length+' แถว');
-      }
-    }catch(ex){alert('ไฟล์ไม่ถูกต้อง: '+ex.message);}
     evt.target.value='';
-  };rd.readAsText(f);
+    let imp;
+    try{imp=JSON.parse(e.target.result);}
+    catch(ex){alert('❌ ไฟล์นี้ไม่ใช่ JSON ที่ถูกต้อง\n\n'+ex.message);return;}
+
+    // ด่านที่ 1: ต้องเป็นไฟล์ที่ส่งออกจากแอปนี้เท่านั้น — ต้องมี rows เป็น array
+    // (บั๊กเดิม: ไฟล์ที่ไม่มี rows เลยหลุดผ่าน แล้วล้างข้อมูลทั้งหมดเป็นค่าว่าง)
+    if(!imp||typeof imp!=='object'||Array.isArray(imp)||!Array.isArray(imp.rows)){
+      alert('❌ ไฟล์นี้ไม่ใช่ไฟล์ Logbook ที่ส่งออกจากแอปนี้\n\n'
+        +'รองรับเฉพาะไฟล์จากปุ่ม 📦 Export JSON ของแอปนี้เท่านั้น\n'
+        +'ไฟล์ Excel ที่แปลงเป็น JSON ด้วยเครื่องมืออื่นใช้ไม่ได้\n\nข้อมูลเดิมของคุณยังอยู่ครบ ไม่ถูกแตะ');
+      return;
+    }
+    if(imp.training!==undefined&&!Array.isArray(imp.training)){
+      alert('❌ ข้อมูล Training ในไฟล์ผิดรูปแบบ — ยกเลิกการนำเข้า\n\nข้อมูลเดิมของคุณยังอยู่ครบ');return;
+    }
+    // ด่านที่ 2: แถวต้องมีหน้าตาเป็นแถว logbook จริง
+    const isRow=r=>r&&typeof r==='object'&&!Array.isArray(r)&&('date' in r||'desc' in r||'actype' in r||'workref' in r);
+    const good=imp.rows.filter(isRow);
+    if(imp.rows.length&&!good.length){
+      alert('❌ แถวในไฟล์ไม่ใช่รูปแบบของ Logbook — ยกเลิกการนำเข้า\n\nข้อมูลเดิมของคุณยังอยู่ครบ');return;
+    }
+    const nNew=good.length, nOld=(D.rows||[]).length;
+    const tNew=Array.isArray(imp.training)?imp.training.length:0, tOld=(D.training||[]).length;
+    // ด่านที่ 3: ห้ามนำเข้าไฟล์ว่าง ถ้าของเดิมมีข้อมูลอยู่ — ป้องกันการล้างข้อมูลทั้งหมด
+    if(nNew===0&&nOld>0){
+      alert('⛔ ไฟล์นี้ไม่มีข้อมูลงานเลยสักแถว\n\nถ้านำเข้า ข้อมูลเดิม '+nOld+' แถวจะหายทั้งหมด ระบบจึงไม่อนุญาต\n\nข้อมูลเดิมของคุณยังอยู่ครบ');
+      return;
+    }
+    let msg='นำเข้าข้อมูลจากไฟล์?\n\n'
+      +'• งานในไฟล์: '+nNew+' แถว   (ปัจจุบัน '+nOld+' แถว)\n'
+      +'• Training ในไฟล์: '+tNew+' รายการ   (ปัจจุบัน '+tOld+' รายการ)\n\n'
+      +'ข้อมูลปัจจุบันทั้งหมดจะถูกแทนที่ด้วยข้อมูลในไฟล์';
+    if(nOld>0)msg+='\n\n💾 ระบบจะดาวน์โหลดสำเนาข้อมูลปัจจุบันเก็บไว้ให้ก่อนอัตโนมัติ';
+    if(nOld>0&&nNew<nOld*0.8)
+      msg='⚠️ คำเตือน: ไฟล์มีงานน้อยกว่าของเดิมมาก ('+nNew+' แถว จากเดิม '+nOld+' แถว)\nข้อมูลจะหายไป '+(nOld-nNew)+' แถว\n\n'+msg;
+    if(!confirm(msg))return;
+
+    // สำรองของเดิมไว้ให้ก่อนเขียนทับ
+    if(nOld>0){
+      try{
+        const bak={};Object.keys(D).forEach(k=>{if(k.charAt(0)!=='_'&&KNOWN_KEYS.has(k))bak[k]=D[k];});
+        const b=new Blob([JSON.stringify(bak,null,2)],{type:'application/json'});
+        const a=document.createElement('a');a.href=URL.createObjectURL(b);
+        a.download='Logbook_'+((D.profile&&D.profile.name)||'backup').replace(/\s+/g,'_')
+          +'_BEFORE-IMPORT_'+new Date().toISOString().slice(0,10)+'.json';
+        document.body.appendChild(a);a.click();a.remove();
+      }catch(x){}
+    }
+    // รับเฉพาะฟิลด์ที่ระบบรู้จัก ทิ้งขยะทั้งหมด และคงฟิลด์ระบบ (_email ฯลฯ) ของเดิมไว้
+    const next={
+      profile:(imp.profile&&typeof imp.profile==='object'&&!Array.isArray(imp.profile))?imp.profile:(D.profile||{}),
+      rows:good,
+      training:Array.isArray(imp.training)?imp.training:[],
+      pmode:imp.pmode||'auto',pfrom:imp.pfrom||'',pto:imp.pto||''
+    };
+    Object.keys(D).forEach(k=>{if(k.charAt(0)==='_')next[k]=D[k];});
+    D=next;
+    renderAll();saveData();
+    alert('✅ นำเข้าสำเร็จ — งาน '+nNew+' แถว, Training '+next.training.length+' รายการ');
+  };
+  rd.readAsText(f);
 }
 
 // ══ RENDER ALL ═════════════════════════════════════════════════════════════
@@ -2897,6 +2989,107 @@ function _pqRender(){
       +'<td style="padding:6px;font-size:10.5px;color:#777">'+esc(i.note)+'</td></tr>';
   });
   box.innerHTML=h+'</table>';
+}
+
+// ══ ล้างข้อมูลขยะจากการ Import ════════════════════════════════════════════
+// ลบ "ระดับฟิลด์" ด้วย FieldValue.delete() — ไม่เขียนทับเอกสาร ไม่แตะ rows/training/profile เลย
+const DOC_LIMIT=1048576;
+let _jcItems=[];
+function _bytes(o){try{return new Blob([JSON.stringify(o)]).size;}catch(e){return 0;}}
+async function openJunkClean(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  _openInfoModal('🧹 ล้างข้อมูลขยะจาก Import','#5a3d7a',
+    '<div id="jc-body" style="padding:20px;color:#666">กำลังสแกนเอกสารทั้งหมด…</div>',null,true);
+  try{
+    const snap=await fbDb.collection('logbooks').get();
+    const items=[];let totalDocs=0;
+    snap.forEach(doc=>{
+      totalDocs++;
+      const d=doc.data()||{};
+      const jk=junkKeys(d);
+      if(!jk.length)return;
+      const jo={};jk.forEach(k=>jo[k]=d[k]);
+      items.push({uid:doc.id,email:d._email||'-',name:(d.profile&&d.profile.name)||d._userName||'-',
+        rows:(d.rows||[]).length,keys:jk,total:_bytes(d),junk:_bytes(jo)});
+    });
+    items.sort((a,b)=>b.total-a.total);
+    _jcItems=items;
+    const box=document.getElementById('jc-body');if(!box)return;
+    if(!items.length){
+      box.innerHTML='<div style="text-align:center;padding:30px;color:#2e7d32;font-weight:700">✓ ไม่พบข้อมูลขยะในเอกสารทั้ง '+totalDocs+' บัญชี</div>';return;
+    }
+    const over=items.filter(i=>i.total>DOC_LIMIT).length;
+    const near=items.filter(i=>i.total>DOC_LIMIT*0.8&&i.total<=DOC_LIMIT).length;
+    const sum=items.reduce((a,i)=>a+i.junk,0);
+    let h='<div style="background:#f6f1fb;border:1px solid #d9c8ea;border-radius:8px;padding:11px 14px;margin-bottom:12px;font-size:12px;color:#4a2f66;line-height:1.75">'
+      +'พบ <b>'+items.length+'</b> บัญชีที่มีข้อมูลขยะ รวม <b>'+(sum/1048576).toFixed(1)+' MB</b> จากทั้งหมด '+totalDocs+' บัญชี<br>'
+      +(over?'<b style="color:#c00000">🔴 '+over+' บัญชีเกินลิมิต 1 MiB — บันทึกข้อมูลใหม่ไม่ได้แล้ว</b><br>':'')
+      +(near?'<b style="color:#b8860b">🟠 '+near+' บัญชีใกล้ชนลิมิต</b><br>':'')
+      +'การล้างจะ<b>ลบเฉพาะฟิลด์ขยะ</b> ข้อมูลงาน Training และโปรไฟล์ไม่ถูกแตะเลย<br>'
+      +'⚠️ แนะนำให้กด <b>💾 สำรองข้อมูล</b> ก่อนเสมอ</div>'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">'
+      +'<label style="font-size:12px;display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="jc-all" checked> เลือกทั้งหมด</label>'
+      +'<span id="jc-stat" style="font-size:12px;color:#666"></span>'
+      +'<button class="btn" id="jc-go" style="margin-left:auto;background:#5a3d7a;color:#fff">🧹 ล้างขยะรายการที่เลือก</button></div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:11.5px">'
+      +'<tr style="background:#efe7f6"><th style="padding:7px;width:34px"></th><th style="padding:7px;text-align:left">ชื่อ / อีเมล</th>'
+      +'<th style="padding:7px">แถวงาน</th><th style="padding:7px">ขนาดเอกสาร</th><th style="padding:7px">ขยะ</th>'
+      +'<th style="padding:7px">หลังล้าง</th><th style="padding:7px;text-align:left">ฟิลด์ขยะที่จะลบ</th></tr>';
+    items.forEach((it,i)=>{
+      const pct=it.total/DOC_LIMIT*100, after=(it.total-it.junk)/DOC_LIMIT*100;
+      const col=it.total>DOC_LIMIT?'#c00000':(pct>80?'#b8860b':'#555');
+      h+='<tr style="border-bottom:1px solid #f0f0f0'+(it.total>DOC_LIMIT?';background:#fff5f5':'')+'">'
+        +'<td style="padding:6px;text-align:center"><input type="checkbox" class="jc-ck" data-i="'+i+'" checked></td>'
+        +'<td style="padding:6px"><b style="color:#1a3a6b">'+esc(it.name)+'</b><br><span style="color:#888;font-size:10.5px">'+esc(it.email)+'</span></td>'
+        +'<td style="padding:6px;text-align:center">'+it.rows+'</td>'
+        +'<td style="padding:6px;text-align:center;font-weight:700;color:'+col+'">'+(it.total/1024).toFixed(0)+' KB<br><span style="font-size:10px">('+pct.toFixed(0)+'%)</span></td>'
+        +'<td style="padding:6px;text-align:center;color:#c00000">'+(it.junk/1024).toFixed(0)+' KB</td>'
+        +'<td style="padding:6px;text-align:center;color:#2e7d32;font-weight:700">'+after.toFixed(0)+'%</td>'
+        +'<td style="padding:6px;font-size:10.5px;color:#777">'+it.keys.map(esc).join(', ')+'</td></tr>';
+    });
+    box.innerHTML=h+'</table>';
+    const cks=box.querySelectorAll('.jc-ck');
+    const upd=()=>{const n=box.querySelectorAll('.jc-ck:checked').length;
+      const st=document.getElementById('jc-stat');if(st)st.textContent='เลือกไว้ '+n+' บัญชี';
+      const a=document.getElementById('jc-all');if(a)a.checked=n===cks.length;};
+    cks.forEach(c=>c.onchange=upd);
+    document.getElementById('jc-all').onchange=function(){cks.forEach(c=>c.checked=this.checked);upd();};
+    document.getElementById('jc-go').onclick=runJunkClean;
+    upd();
+  }catch(e){
+    const box=document.getElementById('jc-body');
+    if(box)box.innerHTML='<div style="color:#c00000;padding:16px">สแกนไม่สำเร็จ: '+esc(e.message)+'</div>';
+  }
+}
+async function runJunkClean(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  const picked=[];
+  document.querySelectorAll('#jc-body .jc-ck:checked').forEach(c=>{const it=_jcItems[+c.dataset.i];if(it)picked.push(it);});
+  if(!picked.length){alert('ยังไม่ได้เลือกรายการ');return;}
+  const nk=picked.reduce((a,i)=>a+i.keys.length,0);
+  if(!confirm('ล้างข้อมูลขยะจาก '+picked.length+' บัญชี ('+nk+' ฟิลด์)?\n\n'
+    +'จะลบเฉพาะฟิลด์ขยะเท่านั้น ข้อมูลงาน Training และโปรไฟล์ไม่ถูกแตะ\n\nได้สำรองข้อมูลไว้แล้วใช่ไหม?'))return;
+  const btn=document.getElementById('jc-go');if(btn)btn.disabled=true;
+  const del=firebase.firestore.FieldValue.delete();
+  let done=0;
+  try{
+    for(const grp of _chunk(picked,200)){
+      const batch=fbDb.batch();
+      grp.forEach(it=>{
+        // FieldPath รองรับชื่อฟิลด์ที่มีช่องว่าง/ขีด/อักขระพิเศษ เช่น "Summary Sheet"
+        const args=[];
+        it.keys.forEach(k=>{args.push(new firebase.firestore.FieldPath(k),del);});
+        batch.update(fbDb.collection('logbooks').doc(it.uid),...args);
+      });
+      await batch.commit();done+=grp.length;
+    }
+    toastMsg('🧹 ล้างขยะเรียบร้อย '+done+' บัญชี');
+    if(_closeInfo)_closeInfo();
+    loadAllUsers();
+  }catch(e){
+    alert('ล้างไม่สำเร็จ: '+e.message+(done?'\n\nล้างสำเร็จไปแล้ว '+done+' บัญชี':''));
+    if(btn)btn.disabled=false;
+  }
 }
 
 // ══ ส่งออกข้อมูลดิบทุกแถวของทุกคน (หลักฐานสำหรับตรวจสอบ / ทำ Pivot ใน Excel) ══
@@ -3707,7 +3900,7 @@ async function bulkRestore(){
     for(const grp of _chunk(picked,100)){
       const batch=fbDb.batch();
       grp.forEach(it=>{
-        const data=Object.assign({},it.v);delete data._del;
+        const data=sanitizeD(it.v);
         batch.set(fbDb.collection('logbooks').doc(it.uid),data);
         batch.delete(fbDb.collection('deletedLogbooks').doc(it.uid));
       });
@@ -3744,7 +3937,7 @@ async function restoreUser(it){
     }else{
       if(!confirm('กู้คืนข้อมูลของ "'+nm+'" ใช่หรือไม่?'))return;
     }
-    const data=Object.assign({},it.v);delete data._del;
+    const data=sanitizeD(it.v);          // ตัด _del และขยะออกในคราวเดียว
     await fbDb.collection('logbooks').doc(it.uid).set(data);
     await fbDb.collection('deletedLogbooks').doc(it.uid).delete();
     toastMsg('♻ กู้คืน "'+nm+'" เรียบร้อยแล้ว');
@@ -3913,7 +4106,8 @@ async function doRestore(){
   if(!confirm(msg))return;
   try{
     const batch=fbDb.batch();
-    picked.forEach(p=>batch.set(fbDb.collection('logbooks').doc(p.uid),_rehydrateDoc(p.doc)));
+    // กรองขยะออกก่อนเขียนกลับ — กันเอกสารบวมเกินลิมิตแล้วกู้คืนไม่สำเร็จ
+    picked.forEach(p=>batch.set(fbDb.collection('logbooks').doc(p.uid),sanitizeD(_rehydrateDoc(p.doc))));
     await batch.commit();   // เขียนทีเดียวพร้อมกัน ถ้าพลาดคือไม่เขียนเลย ไม่มีสภาพครึ่งๆ กลางๆ
     toastMsg('♻ กู้คืนสำเร็จ '+picked.length+' รายการ');
     closeBackup();loadAllUsers();
