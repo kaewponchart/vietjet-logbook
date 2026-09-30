@@ -1401,7 +1401,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.8.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.8.2';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1542,23 +1542,27 @@ function splitRows(rows){
 }
 // โหลดเอกสารหลัก + คลังทุกปี แล้วรวมแถว — ถ้าคลังปีใดโหลดไม่ได้จะโยน error
 // ห้ามใช้ข้อมูลที่โหลดมาไม่ครบเด็ดขาด เพราะการบันทึกครั้งถัดไปจะลบคลังที่หายไปทิ้ง
+// อ่านเฉพาะเอกสารคลังของปีที่ระบุ (ใช้เมื่อมีเอกสารหลักอยู่ในมือแล้ว ไม่ต้องอ่านซ้ำ)
+async function _fetchArchRows(uid,meta){
+  const years=(meta&&Array.isArray(meta.years))?meta.years:[];
+  const sig={},arch=[];
+  if(!years.length)return {rows:arch,sig:sig};
+  const snaps=await Promise.all(years.map(y=>_archCol(uid).doc(String(y)).get()));
+  snaps.forEach((sn,i)=>{
+    if(!sn.exists)throw new Error('ไม่พบคลังข้อมูลปี '+years[i]);
+    const rs=(sn.data()||{}).rows||[];
+    sig[years[i]]=JSON.stringify(rs);
+    rs.forEach(x=>arch.push(x));
+  });
+  return {rows:arch,sig:sig};
+}
 async function loadDocMerged(uid){
   const doc=await fbDb.collection('logbooks').doc(uid).get();
   if(!doc.exists)return {exists:false,data:null,archSig:{}};
   const d=doc.data()||{};
-  const meta=d._archive,sig={};
-  if(meta&&Array.isArray(meta.years)&&meta.years.length){
-    const snaps=await Promise.all(meta.years.map(y=>_archCol(uid).doc(String(y)).get()));
-    const arch=[];
-    snaps.forEach((sn,i)=>{
-      if(!sn.exists)throw new Error('ไม่พบคลังข้อมูลปี '+meta.years[i]);
-      const rs=(sn.data()||{}).rows||[];
-      sig[meta.years[i]]=JSON.stringify(rs);
-      rs.forEach(x=>arch.push(x));
-    });
-    d.rows=arch.concat(d.rows||[]);
-  }
-  return {exists:true,data:d,archSig:sig};
+  const a=await _fetchArchRows(uid,d._archive);
+  if(a.rows.length||(d._archive&&d._archive.years&&d._archive.years.length))d.rows=a.rows.concat(d.rows||[]);
+  return {exists:true,data:d,archSig:a.sig};
 }
 // ใส่คำสั่งเขียนคลังลงใน batch — คืนค่าแถวใหม่สำหรับเอกสารหลัก + ข้อมูลกำกับคลัง
 function addArchiveOps(batch,uid,fullRows,prevYears,prevSig){
@@ -2838,8 +2842,9 @@ async function loadAllUsers(){
     if(_au.length){
       await Promise.all(_au.map(async u=>{
         try{
-          const r=await loadDocMerged(u.uid);
-          if(r.exists){u.rowsArr=r.data.rows||[];u.rows=u.rowsArr.length;}
+          // มีเอกสารหลักอยู่ในมือแล้ว อ่านเฉพาะคลัง (ประหยัดการอ่านบัญชีละ 1 ครั้ง)
+          const a=await _fetchArchRows(u.uid,{years:u.arch});
+          u.rowsArr=a.rows.concat(u.rowsArr||[]);u.rows=u.rowsArr.length;
         }catch(e){u.archFail=true;console.warn('archive load',u.uid,e);}
       }));
       const nf=_au.filter(u=>u.archFail).length;
@@ -3299,7 +3304,7 @@ function _archPreview(u){
   const after=Math.max(0,(u.docBytes||0)-(_bytes(all)-_bytes(recent)));
   return {mode:'normal',cut:cut,byYear:byYear,years:ys,moved:moved,keep:recent.length,total:all.length,after:after};
 }
-let _arAll=[],_arSel='';
+let _arAll=[],_arSel='';const _arPick2=new Set();   // บัญชีที่ติ๊กเลือกไว้เพื่อเปิดโหมดคลังพร้อมกัน
 function openArchiveTool(){
   if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
   if(!allUsersData||!allUsersData.length){alert('ยังไม่มีข้อมูล — กด "โหลดข้อมูลใหม่" ก่อน');return;}
@@ -3325,6 +3330,11 @@ function openArchiveTool(){
     +'<label style="font-size:12px;display:flex;gap:5px;align-items:center;cursor:pointer;white-space:nowrap">'
     +'<input type="checkbox" id="ar-mv"> เฉพาะที่มีแถวให้ย้าย</label>'
     +'<button class="btn" id="ar-clear" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้าง</button></div>'
+    +'<div id="ar-bulk" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fff4e0;border:1px solid #e8c98a;'
+    +'border-radius:8px;padding:9px 13px;margin-bottom:8px">'
+    +'<span id="ar-bulk-stat" style="font-size:12px;color:#6b4a10;font-weight:700"></span>'
+    +'<button class="btn" id="ar-bulk-go" style="margin-left:auto;background:#6b4a10;color:#fff;font-size:12px;padding:6px 13px">📚 เปิดโหมดคลังให้ที่เลือก</button>'
+    +'<button class="btn" id="ar-bulk-clr" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้างการเลือก</button></div>'
     +'<div id="ar-count" style="font-size:12px;color:#666;margin-bottom:6px"></div>'
     +'<div id="ar-list" style="max-height:42vh;overflow:auto;border:1px solid #eee;border-radius:8px;margin-bottom:14px"></div>'
     +'<div id="ar-prev"></div>';
@@ -3335,7 +3345,10 @@ function openArchiveTool(){
   if(cl)cl.onclick=()=>{const q=document.getElementById('ar-q');if(q)q.value='';
     ['ar-st','ar-sz'].forEach(id=>{const e=document.getElementById(id);if(e)e.selectedIndex=0;});
     const m=document.getElementById('ar-mv');if(m)m.checked=false;_arRender();};
-  _arSel='';_arRender();
+  _arSel='';_arPick2.clear();
+  const bg=document.getElementById('ar-bulk-go');if(bg)bg.onclick=runArchiveBulk;
+  const bc=document.getElementById('ar-bulk-clr');if(bc)bc.onclick=()=>{_arPick2.clear();_arRender();};
+  _arRender();
 }
 function _arRender(){
   const box=document.getElementById('ar-list');if(!box)return;
@@ -3356,7 +3369,9 @@ function _arRender(){
   if(cnt)cnt.innerHTML='แสดง <b>'+view.length+'</b> จาก '+_arAll.length+' บัญชี · <span style="color:#999">กดที่แถวเพื่อดูรายละเอียดและดำเนินการ</span>';
   if(!view.length){box.innerHTML='<div style="text-align:center;padding:24px;color:#999">ไม่พบบัญชีตามเงื่อนไข</div>';return;}
   let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
-    +'<tr style="background:#f5ead2;position:sticky;top:0"><th style="padding:7px;text-align:left">ชื่อ / อีเมล</th>'
+    +'<tr style="background:#f5ead2;position:sticky;top:0">'
+    +'<th style="padding:7px;width:32px"><input type="checkbox" id="ar-all" title="เลือกทั้งหมดที่แสดงอยู่ (เฉพาะที่ยังไม่เข้าคลัง)"></th>'
+    +'<th style="padding:7px;text-align:left">ชื่อ / อีเมล</th>'
     +'<th style="padding:7px">Staff ID</th><th style="padding:7px">แถวงาน</th><th style="padding:7px">ขนาดตอนนี้</th>'
     +'<th style="padding:7px">ย้ายได้</th><th style="padding:7px">หลังย้าย</th><th style="padding:7px">สถานะ</th></tr>';
   view.forEach(x=>{
@@ -3364,6 +3379,8 @@ function _arRender(){
     const picked=x.u.uid===_arSel;
     h+='<tr class="ar-row" data-uid="'+esc(x.u.uid)+'" style="border-bottom:1px solid #f0f0f0;cursor:pointer;'
       +(picked?'background:#fff1d6;box-shadow:inset 3px 0 0 #6b4a10':'')+'">'
+      +'<td style="padding:6px 8px;text-align:center">'+(x.archived?''
+        :'<input type="checkbox" class="ar-ck" data-uid="'+esc(x.u.uid)+'"'+(_arPick2.has(x.u.uid)?' checked':'')+'>')+'</td>'
       +'<td style="padding:6px 8px"><b style="color:#1a3a6b">'+esc(x.u.name)+'</b><br><span style="color:#999;font-size:10.5px">'+esc(x.u.email)+'</span></td>'
       +'<td style="padding:6px 8px;text-align:center">'+esc(x.u.staffId)+'</td>'
       +'<td style="padding:6px 8px;text-align:center">'+(x.u.rows||0).toLocaleString('th-TH')+'</td>'
@@ -3376,7 +3393,63 @@ function _arRender(){
         :'<span style="color:#aaa;font-size:11px">ปกติ</span>')+'</td></tr>';
   });
   box.innerHTML=h+'</table>';
-  box.querySelectorAll('.ar-row').forEach(tr=>tr.onclick=()=>_arPick(tr.dataset.uid));
+  box.querySelectorAll('.ar-row').forEach(tr=>tr.onclick=e=>{if(e.target.classList.contains('ar-ck'))return;_arPick(tr.dataset.uid);});
+  box.querySelectorAll('.ar-ck').forEach(ck=>ck.onchange=()=>{
+    if(ck.checked)_arPick2.add(ck.dataset.uid);else _arPick2.delete(ck.dataset.uid);_arBulkBar(view);});
+  const all=document.getElementById('ar-all');
+  if(all)all.onchange=()=>{view.filter(x=>!x.archived).forEach(x=>{if(all.checked)_arPick2.add(x.u.uid);else _arPick2.delete(x.u.uid);});_arRender();};
+  _arBulkBar(view);
+}
+// สรุปสิ่งที่เลือก + ต้นทุนการอ่านที่จะเพิ่มขึ้น ให้เห็นก่อนตัดสินใจ
+function _arBulkSummary(){
+  const sel=_arAll.filter(x=>_arPick2.has(x.u.uid)&&!x.archived);
+  let moved=0,years=0,useless=0;
+  sel.forEach(x=>{const {byYear}=splitRows(pruneBlankRows(x.u.rowsArr||[]));
+    const y=Object.keys(byYear).length;years+=y;moved+=x.movable;if(!x.movable)useless++;});
+  return {sel,moved,years,useless};
+}
+function _arBulkBar(view){
+  const bar=document.getElementById('ar-bulk');if(!bar)return;
+  const sm=_arBulkSummary();
+  bar.style.display=sm.sel.length?'flex':'none';
+  const st=document.getElementById('ar-bulk-stat');
+  if(st)st.innerHTML='เลือกไว้ '+sm.sel.length+' บัญชี · ย้ายรวม '+sm.moved.toLocaleString('th-TH')+' แถว'
+    +' · <span style="color:#b35900">การอ่านตอนเปิดแดชบอร์ดเพิ่ม ~'+sm.years+' ครั้ง</span>'
+    +(sm.useless?' · <span style="color:#c00000">'+sm.useless+' บัญชีย้ายไม่ได้สักแถว</span>':'');
+  const all=document.getElementById('ar-all');
+  if(all){const el=(view||[]).filter(x=>!x.archived);all.checked=el.length>0&&el.every(x=>_arPick2.has(x.u.uid));}
+}
+async function runArchiveBulk(){
+  if(!isAdmin())return;
+  const sm=_arBulkSummary();
+  if(!sm.sel.length){alert('ยังไม่ได้เลือกบัญชี');return;}
+  let msg='เปิดโหมดคลังให้ '+sm.sel.length+' บัญชี?\n\n'
+    +'• ย้ายเข้าคลังรวม '+sm.moved.toLocaleString('th-TH')+' แถว\n'
+    +'• การอ่าน Firestore ตอนเปิดแดชบอร์ดแอดมินจะเพิ่มราว '+sm.years+' ครั้งต่อการเปิด 1 รอบ\n'
+    +'• พนักงานแต่ละคนจะอ่านเพิ่มตามจำนวนปีในคลังของตัวเองทุกครั้งที่เปิดแอป\n'
+    +'• ทุกบัญชียังเห็นข้อมูลครบทุกแถวเหมือนเดิม';
+  if(sm.useless)msg+='\n\n⚠️ มี '+sm.useless+' บัญชีที่ย้ายไม่ได้สักแถว — จะเพิ่มต้นทุนโดยไม่ได้ประโยชน์ในตอนนี้';
+  msg+='\n\nได้สำรองข้อมูลและอัปเดต Firestore Rules แล้วใช่ไหม?';
+  if(!confirm(msg))return;
+  const btn=document.getElementById('ar-bulk-go');if(btn)btn.disabled=true;
+  const st=document.getElementById('ar-bulk-stat');
+  let okN=0;const bad=[];
+  for(let i=0;i<sm.sel.length;i++){
+    const x=sm.sel[i];
+    if(st)st.textContent='กำลังดำเนินการ '+(i+1)+' / '+sm.sel.length+' — '+x.u.name;
+    try{
+      const r=await _archiveOneCore(x.u.uid);
+      if(r.ok)okN++;else bad.push(x.u.name+' — '+r.err);
+    }catch(e){
+      bad.push(x.u.name+' — '+e.message);
+      if(/permission/i.test(e.message)){bad.push('(หยุดทำงาน: น่าจะยังไม่ได้อัปเดต Firestore Rules)');break;}
+    }
+  }
+  _arPick2.clear();
+  alert('📚 เปิดโหมดคลังสำเร็จ '+okN+' บัญชี (ทุกบัญชีที่สำเร็จผ่านการตรวจทานจำนวนแถวแล้ว)'
+    +(bad.length?'\n\n⚠️ ไม่สำเร็จ '+bad.length+' รายการ:\n'+bad.slice(0,12).join('\n')+(bad.length>12?'\n…':''):''));
+  if(_closeInfo)_closeInfo();
+  loadAllUsers();
 }
 function _arPick(uid){
   _arSel=uid;_arRender();_arRenderPreview(uid);
@@ -3489,6 +3562,26 @@ async function verifyArchive(uid){
     out.innerHTML=h;
   }catch(e){out.innerHTML='<span style="color:#c00000">อ่านไม่สำเร็จ: '+esc(e.message)
     +(/permission/i.test(e.message)?' — น่าจะยังไม่ได้อัปเดต Firestore Rules':'')+'</span>';}
+}
+// แกนการเปิดโหมดคลัง 1 บัญชี — ไม่มี UI คืนผลลัพธ์ให้ผู้เรียกจัดการเอง
+async function _archiveOneCore(uid){
+  const doc=await fbDb.collection('logbooks').doc(uid).get();
+  if(!doc.exists)return {ok:false,err:'ไม่พบข้อมูล'};
+  const d=sanitizeD(doc.data()||{});
+  if(d._archive)return {ok:false,err:'อยู่ในโหมดคลังแล้ว'};
+  d.rows=pruneBlankRows(d.rows);
+  const before=d.rows.length;
+  const batch=fbDb.batch();
+  const ar=addArchiveOps(batch,uid,d.rows,[],{});
+  const payload=Object.assign({},d,{rows:ar.recent,_archive:ar.meta,_savedAt:new Date().toISOString(),
+    _savedAtServer:firebase.firestore.FieldValue.serverTimestamp()});
+  batch.set(fbDb.collection('logbooks').doc(uid),payload);
+  await batch.commit();
+  // ตรวจทานทันที: อ่านกลับมารวมแล้วต้องได้จำนวนแถวเท่าเดิมพอดี
+  const a=await _fetchArchRows(uid,ar.meta);
+  const after=a.rows.length+ar.recent.length;
+  return {ok:after===before,before,after,moved:ar.meta.count,years:ar.meta.years.length,
+    err:after===before?'':'ตรวจทานไม่ผ่าน ก่อน '+before+' / หลัง '+after};
 }
 async function runArchiveOne(uid,name,p){
   if(!isAdmin())return;
@@ -4546,18 +4639,17 @@ async function backupAll(){
     const out={_meta:{app:'TVJ Experience Individual Logbook',form:'TVJ-QA-F-057',
       appVersion:APP_VERSION,exportedAt:new Date().toISOString(),
       exportedBy:(currentUser&&currentUser.email)||'-',count:snap.size},logbooks:{}};
-    let rowCnt=0;const archUids=[];
+    let rowCnt=0;const archUids=[],archMeta={};
     snap.forEach(d=>{const v=d.data()||{};rowCnt+=(v.rows||[]).length;out.logbooks[d.id]=_plainDoc(v);
-      if(v._archive&&Array.isArray(v._archive.years)&&v._archive.years.length)archUids.push(d.id);});
+      if(v._archive&&Array.isArray(v._archive.years)&&v._archive.years.length){archUids.push(d.id);archMeta[d.id]=v._archive;}});
     // บัญชีโหมดคลัง: รวมแถวจากคลังทุกปีเข้าไปในไฟล์ด้วย ให้ไฟล์สำรองมีข้อมูลครบทุกแถว
     // ถ้าคลังของใครโหลดไม่สำเร็จ ให้หยุดทั้งหมด — ไฟล์สำรองที่ขาดข้อมูลอันตรายกว่าไม่มีไฟล์
     if(archUids.length){
       setSt('กำลังดึงคลังข้อมูลเก่า '+archUids.length+' คน…');
       await Promise.all(archUids.map(async uid=>{
-        const r=await loadDocMerged(uid);
-        const full=r.data.rows||[];
-        rowCnt+=full.length-(out.logbooks[uid].rows||[]).length;
-        out.logbooks[uid].rows=full;
+        const a=await _fetchArchRows(uid,archMeta[uid]);        // ไม่อ่านเอกสารหลักซ้ำ
+        rowCnt+=a.rows.length;
+        out.logbooks[uid].rows=a.rows.concat(out.logbooks[uid].rows||[]);
       }));
       out._meta.archivedAccounts=archUids.length;
     }
