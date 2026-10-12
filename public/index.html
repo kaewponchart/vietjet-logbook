@@ -304,6 +304,21 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 .filter-grid input{width:100%;border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:11px}
 .filter-count{font-size:11px;color:var(--red);font-weight:600;margin-left:8px}
 .row-hidden{display:none}
+/* ── จัดกลุ่มตาราง Logbook รายปี ── ยุบด้วยการซ่อนเท่านั้น แถวยังอยู่ใน DOM ครบ ระบบจึงบันทึกครบทุกแถว */
+#lb tr.yr-hide{display:none}
+#lb.filtering tr.yr-hide:not(.row-hidden){display:table-row}   /* ตอนกรอง: เห็นผลทุกปี ไม่สนการยุบ */
+#lb.filtering tr.yr-head{display:none}
+#lb tr.yr-head td{background:#eef2fa;border-top:2px solid #1a3a6b;padding:7px 10px;cursor:pointer;
+  user-select:none;font-size:12px;color:#1a3a6b;font-weight:800;text-align:left}
+#lb tr.yr-head:hover td{background:#e2e9f6}
+#lb tr.yr-head .yr-arr{display:inline-block;width:14px;transition:transform .15s}
+#lb tr.yr-head.yr-closed .yr-arr{transform:rotate(-90deg)}
+#lb tr.yr-head .yr-meta{font-weight:600;color:#6b7686;margin-left:8px}
+#lb tr.yr-head .yr-now{background:#1a3a6b;color:#fff;border-radius:3px;padding:0 6px;font-size:10px;margin-left:6px}
+@media print{
+  #lb tr.yr-hide{display:table-row}          /* พิมพ์ทุกปีในช่วงที่เลือก แม้ปีนั้นถูกยุบอยู่บนจอ */
+  #lb tr.yr-head{display:none!important}
+}
 
 /* ══ SUMMARY ════════════════════════════════════════════════════════ */
 .rp{display:inline-block;background:#e8f0e6;color:#2e6d33;border-radius:20px;padding:4px 15px;font-size:12px;font-weight:700;white-space:nowrap}
@@ -992,7 +1007,9 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   </div>
 
   <div class="tbar">
-    <button class="btn bg" onclick="addRow()">+ เพิ่มแถว</button>
+    <button class="btn bg" onclick="addRowNew()">+ เพิ่มแถว</button>
+    <button class="btn" style="background:#eef2fa;color:#1a3a6b;border:1px solid #c9d6ea" onclick="setAllYears(true)" title="กางทุกปี">▾ กางทุกปี</button>
+    <button class="btn" style="background:#eef2fa;color:#1a3a6b;border:1px solid #c9d6ea" onclick="setAllYears(false)" title="ยุบปีก่อนหน้า เหลือแค่ปีปัจจุบัน">▸ ยุบปีเก่า</button>
     <button class="btn" style="background:#fff0f0;color:#c00000;border:1px solid #fbbcbc" onclick="toggleFilter()">🔍 Filter</button>
     <button class="btn adm-only" style="background:#2c5f2e;color:#fff" onclick="exportPDF('all')">📄 Export PDF</button>
     <button class="btn bb" onclick="saveAll()">💾 บันทึก</button>
@@ -1401,7 +1418,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.9.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.10.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1741,7 +1758,7 @@ function initFirebase(){
       if(editUid || _suspendSave) return;
       await loadData();
       renderAll();
-      if(!D.rows||D.rows.length===0) addRow();
+      if(!D.rows||D.rows.length===0){ addRow(); _refreshYearHeads(); }
     } else {
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('main-app').style.display = 'none';
@@ -2268,6 +2285,79 @@ function checkDupWO(el){
     +hits.slice(0,2).map(h=>h.date).join(', ')+(hits.length>2?'…':'')+') — ถ้าเป็นงานคนละรายการก็ลงต่อได้');
 }
 function delR(btn){if(confirm('ลบแถวนี้?')){btn.closest('tr').remove();saveAllSoon();}}
+// ══ จัดกลุ่มตาราง Logbook รายปี ═══════════════════════════════════════════
+// ปีปัจจุบันกางไว้ ปีก่อนหน้ายุบให้อัตโนมัติ — คนที่ลงงานเยอะไม่ต้องเลื่อนจอยาว
+// ปลอดภัยต่อข้อมูล: ยุบ = ซ่อนด้วย class เท่านั้น แถวยังอยู่ใน DOM ครบ getRows() จึงอ่านได้ทุกแถว
+// แถวหัวปีไม่มีช่องกรอก getRows() / ตัวกรอง / ตัวเตือน WO ซ้ำ จึงข้ามไปเองทุกตัว
+const _yrOpen={};                          // ปี -> กางอยู่ไหม (จำไว้ตลอดการใช้งานรอบนี้)
+function _rowYear(tr){const i=tr.querySelector('input.di');const d=i?pDate(i.value):null;return d?d.getFullYear():null;}
+function groupLogbookByYear(){
+  const tb=document.getElementById('lb');if(!tb)return;
+  tb.querySelectorAll('tr.yr-head').forEach(h=>h.remove());
+  const rows=Array.from(tb.children);
+  const cy=new Date().getFullYear();
+  const groups={};
+  // แถวที่ยังไม่มีวันที่/วันที่ผิด อยู่กลุ่มปีปัจจุบัน (กางอยู่) จะได้เห็นและกรอกต่อได้
+  rows.forEach(tr=>{const y=_rowYear(tr)||cy;(groups[y]=groups[y]||[]).push(tr);});
+  if(!groups[cy])groups[cy]=[];            // มีหัวปีปัจจุบันเสมอ แถวที่เพิ่มใหม่จะต่อท้ายปีนี้
+  // ปีปัจจุบันอยู่ท้ายสุดเสมอ (ปีอนาคตซึ่งมักเป็นวันที่พิมพ์ผิดอยู่ก่อนหน้า) แถวใหม่จึงต่อท้ายปีนี้ถูกที่
+  const ys=Object.keys(groups).map(Number).filter(y=>y!==cy).sort((a,b)=>a-b).concat([cy]);
+  const ncol=(tb.closest('table')&&tb.closest('table').querySelectorAll('colgroup col').length)||16;
+  ys.forEach(y=>{
+    if(!(y in _yrOpen))_yrOpen[y]=(y>=cy);   // ค่าเริ่มต้น: ปีนี้กาง ปีก่อนยุบ
+    const h=document.createElement('tr');
+    h.className='yr-head';h.dataset.year=y;
+    h.innerHTML='<td colspan="'+ncol+'"></td>';
+    h.onclick=()=>{_yrOpen[y]=!_yrOpen[y];_applyYearCollapse();};
+    tb.appendChild(h);
+    groups[y].forEach(tr=>tb.appendChild(tr));
+  });
+  _applyYearCollapse();
+}
+function _applyYearCollapse(){
+  const tb=document.getElementById('lb');if(!tb)return;
+  let open=true;
+  Array.from(tb.children).forEach(tr=>{
+    if(tr.classList.contains('yr-head')){open=!!_yrOpen[+tr.dataset.year];tr.classList.toggle('yr-closed',!open);return;}
+    tr.classList.toggle('yr-hide',!open);
+  });
+  _refreshYearHeads();
+}
+// ป้ายหัวปี: นับจากแถวที่อยู่ใต้หัวปีนั้นจริงบนจอ (ไม่ใช่จากวันที่) ตัวเลขจึงตรงกับสิ่งที่เห็นเสมอ
+function _refreshYearHeads(){
+  const tb=document.getElementById('lb');if(!tb)return;
+  const cy=new Date().getFullYear();let cur=null;const stat=new Map();
+  Array.from(tb.children).forEach(tr=>{
+    if(tr.classList.contains('yr-head')){cur=tr;stat.set(tr,{n:0,h:0});return;}
+    if(!cur)return;
+    const ins=tr.querySelectorAll('input');if(ins.length<5)return;
+    const st=stat.get(cur);st.n++;st.h+=parseFloat(ins[4].value)||0;
+  });
+  stat.forEach((st,h)=>{
+    const y=+h.dataset.year;
+    h.firstElementChild.innerHTML='<span class="yr-arr">▾</span> '+y
+      +(y===cy?'<span class="yr-now">ปีปัจจุบัน</span>':'')
+      +'<span class="yr-meta">'+st.n.toLocaleString('th-TH')+' แถว · '
+      +(Math.round(st.h*10)/10).toLocaleString('th-TH')+' ชม.'
+      +(h.classList.contains('yr-closed')?' · กดเพื่อดู':'')+'</span>';
+  });
+}
+function setAllYears(open){
+  const cy=new Date().getFullYear();
+  Object.keys(_yrOpen).forEach(y=>{_yrOpen[y]=open?true:(+y>=cy);});
+  _applyYearCollapse();
+}
+// ปุ่ม "+ เพิ่มแถว": เพิ่มต่อท้ายปีปัจจุบัน กางปีนี้ไว้ แล้วเลื่อนจอไปหาแถวใหม่
+function addRowNew(){
+  addRow();
+  const cy=new Date().getFullYear();_yrOpen[cy]=true;_applyYearCollapse();
+  const tb=document.getElementById('lb');const tr=tb&&tb.lastElementChild;
+  if(tr&&!tr.classList.contains('yr-head')){
+    tr.scrollIntoView({behavior:'smooth',block:'center'});
+    const i=tr.querySelector('input.di');if(i)setTimeout(()=>i.focus(),250);
+  }
+}
+
 function getRows(){
   const rows=[];
   document.querySelectorAll('#lb tr').forEach(tr=>{
@@ -2477,6 +2567,7 @@ function sortByDate(which){
 function renderAll(){
   document.getElementById('lb').innerHTML='';
   (D.rows||[]).forEach(r=>addRow(r));
+  groupLogbookByYear();
   document.getElementById('tb').innerHTML='';
   (D.training||[]).forEach(r=>addTRow(r));
   syncPro();
@@ -2505,9 +2596,9 @@ function applyFilters(){
   };
   let shown=0,total=0;
   document.querySelectorAll('#lb tr').forEach(tr=>{
-    total++;
     const ins=tr.querySelectorAll('input');const sels=tr.querySelectorAll('select');
-    if(ins.length<5){tr.classList.remove('row-hidden');return;}
+    if(ins.length<5){tr.classList.remove('row-hidden');return;}   // แถวหัวปี — ไม่นับ
+    total++;
     const date=(ins[0]?ins[0].value:'').toLowerCase();
     const actype=(sels[0]?sels[0].value:'').toLowerCase();
     const reg=(sels[1]?sels[1].value:'').toLowerCase();
@@ -2526,13 +2617,16 @@ function applyFilters(){
     tr.classList.toggle('row-hidden',!match);if(match)shown++;
   });
   const fc=document.getElementById('filterCount');
-  if(fc)fc.textContent=Object.values(f).some(v=>v!=='')?`แสดง ${shown}/${total} แถว`:'';
+  const any=Object.values(f).some(v=>v!=='');
+  if(fc)fc.textContent=any?`แสดง ${shown}/${total} แถว`:'';
+  const lb=document.getElementById('lb');if(lb)lb.classList.toggle('filtering',any);   // กรองอยู่ = แสดงผลทุกปี
 }
 function clearFilters(){
   ['f_date','f_actype','f_reg','f_workref','f_desc','f_ata','f_skill','f_mxloc','f_act','f_sig']
     .forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.querySelectorAll('#lb tr').forEach(tr=>tr.classList.remove('row-hidden'));
   const fc=document.getElementById('filterCount');if(fc)fc.textContent='';
+  const lb=document.getElementById('lb');if(lb)lb.classList.remove('filtering');
 }
 
 // ══ PDF EXPORT ══════════════════════════════════════════════════════════════
@@ -2577,7 +2671,7 @@ function _printRowsOn(){
 }
 function _printRowsOff(x){
   if(!x)return;
-  x.hidden.forEach(tr=>tr.style.display='');
+  x.hidden.forEach(tr=>{tr.style.display='';if(!tr.getAttribute('style'))tr.removeAttribute('style');});
   x.orig.forEach(tr=>x.tb.appendChild(tr));                              // คืนลำดับเดิมทุกแถว
 }
 
@@ -2736,7 +2830,7 @@ function calcSum(){
 
 // ══ AUTO SAVE ON CHANGE ════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('lb').addEventListener('change',()=>saveAllSoon());
+  document.getElementById('lb').addEventListener('change',()=>{saveAllSoon();_refreshYearHeads();});
   document.getElementById('tb').addEventListener('change',()=>saveAllSoon());
   initFirebase();
   // ── version system ──
