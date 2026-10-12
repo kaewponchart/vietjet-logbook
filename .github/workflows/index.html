@@ -170,6 +170,21 @@ table.admin-tbl thead th{position:sticky;top:0;z-index:20;background:var(--red);
 .btn{padding:7px 14px;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;
      display:inline-flex;align-items:center;gap:5px;transition:all .15s}
 .btn:hover{filter:brightness(.96)}
+/* Revision Bar — เส้นแนวตั้งหน้าเลขข้อ
+   ใช้คู่สีน้ำเงิน/ส้ม ซึ่งคนตาบอดสีแยกออก และเพิ่มความต่างที่ไม่พึ่งสี
+   คือลักษณะเส้น (ทึบ = เพิ่มใหม่ / ประ = แก้ไข) กับตัวอักษรกำกับ N และ R */
+tr.gnewrow>td{background:#f4f8fd!important}
+tr.gnewrow>td:first-child{border-left:4px solid #1a5fb4}
+tr.grev>td{background:#fff8ef!important}
+tr.grev>td:first-child{border-left:4px dashed #d97706}
+.grev-p{border-left:4px dashed #d97706;padding-left:10px}
+.rvtag{display:inline-block;min-width:15px;border-radius:3px;padding:0 4px;margin-top:3px;
+  font-size:9px;font-weight:800;line-height:14px;letter-spacing:.3px}
+tr.gnewrow .rvtag{background:#1a5fb4;color:#fff}
+tr.grev .rvtag{background:#d97706;color:#fff}
+.revkey{display:inline-block;width:0;height:13px;vertical-align:-2px;margin-right:6px}
+.revkey.rk-new{border-left:4px solid #1a5fb4}
+.revkey.rk-upd{border-left:4px dashed #d97706}
 /* ปุ่มที่ใช้ได้เฉพาะแอดมิน — ซ่อนไว้ก่อน แล้ว checkAdmin() ค่อยเปิด */
 .adm-only{display:none}
 /* แถบควบคุมรวมของหน้า Admin */
@@ -289,6 +304,21 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 .filter-grid input{width:100%;border:1px solid var(--line);border-radius:5px;padding:4px 6px;font-size:11px}
 .filter-count{font-size:11px;color:var(--red);font-weight:600;margin-left:8px}
 .row-hidden{display:none}
+/* ── จัดกลุ่มตาราง Logbook รายปี ── ยุบด้วยการซ่อนเท่านั้น แถวยังอยู่ใน DOM ครบ ระบบจึงบันทึกครบทุกแถว */
+#lb tr.yr-hide{display:none}
+#lb.filtering tr.yr-hide:not(.row-hidden){display:table-row}   /* ตอนกรอง: เห็นผลทุกปี ไม่สนการยุบ */
+#lb.filtering tr.yr-head{display:none}
+#lb tr.yr-head td{background:#eef2fa;border-top:2px solid #1a3a6b;padding:7px 10px;cursor:pointer;
+  user-select:none;font-size:12px;color:#1a3a6b;font-weight:800;text-align:left}
+#lb tr.yr-head:hover td{background:#e2e9f6}
+#lb tr.yr-head .yr-arr{display:inline-block;width:14px;transition:transform .15s}
+#lb tr.yr-head.yr-closed .yr-arr{transform:rotate(-90deg)}
+#lb tr.yr-head .yr-meta{font-weight:600;color:#6b7686;margin-left:8px}
+#lb tr.yr-head .yr-now{background:#1a3a6b;color:#fff;border-radius:3px;padding:0 6px;font-size:10px;margin-left:6px}
+@media print{
+  #lb tr.yr-hide{display:table-row}          /* พิมพ์ทุกปีในช่วงที่เลือก แม้ปีนั้นถูกยุบอยู่บนจอ */
+  #lb tr.yr-head{display:none!important}
+}
 
 /* ══ SUMMARY ════════════════════════════════════════════════════════ */
 .rp{display:inline-block;background:#e8f0e6;color:#2e6d33;border-radius:20px;padding:4px 15px;font-size:12px;font-weight:700;white-space:nowrap}
@@ -977,12 +1007,14 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
   </div>
 
   <div class="tbar">
-    <button class="btn bg" onclick="addRow()">+ เพิ่มแถว</button>
+    <button class="btn bg" onclick="addRowNew()">+ เพิ่มแถว</button>
+    <button class="btn" style="background:#eef2fa;color:#1a3a6b;border:1px solid #c9d6ea" onclick="setAllYears(true)" title="กางทุกปี">▾ กางทุกปี</button>
+    <button class="btn" style="background:#eef2fa;color:#1a3a6b;border:1px solid #c9d6ea" onclick="setAllYears(false)" title="ยุบปีก่อนหน้า เหลือแค่ปีปัจจุบัน">▸ ยุบปีเก่า</button>
     <button class="btn" style="background:#fff0f0;color:#c00000;border:1px solid #fbbcbc" onclick="toggleFilter()">🔍 Filter</button>
     <button class="btn adm-only" style="background:#2c5f2e;color:#fff" onclick="exportPDF('all')">📄 Export PDF</button>
     <button class="btn bb" onclick="saveAll()">💾 บันทึก</button>
     <button class="btn bp" onclick="exportData()" title="Export ข้อมูลเป็น JSON (สำรองข้อมูล)">📦 Export JSON</button>
-    <button class="btn bt" onclick="document.getElementById('ifile').click()" title="Import ข้อมูลจาก JSON">📂 Import JSON</button>
+    <button class="btn bt adm-only" onclick="document.getElementById('ifile').click()" title="Import ข้อมูลจาก JSON (เฉพาะแอดมิน)">📂 Import JSON</button>
     <input type="file" id="ifile" accept=".json" style="display:none" onchange="importData(event)">
     <span class="savind" id="sind"></span><span id="userkey_disp" style="font-size:10px;color:#aaa;margin-left:8px"></span>
   </div>
@@ -1068,6 +1100,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 
 <div id="tg" class="tc">
   <h3 style="color:#9a0000;margin-bottom:10px;font-size:15px;letter-spacing:.5px">Guideline — Experience Individual Logbook (TVJ-QA-F-057)</h3>
+  <p style="font-size:11px;color:#666;margin:-4px 0 12px;line-height:2"><b>Revision Bar</b> — แถบแนวตั้งหน้าเลขข้อ แสดงการเปลี่ยนแปลงในรอบปรับปรุงนี้<br><span class="revkey rk-new"></span><b style="color:#1a5fb4">เส้นทึบ น้ำเงิน</b> + ป้าย <span style="background:#1a5fb4;color:#fff;border-radius:3px;padding:0 4px;font-size:9px;font-weight:800">N</span> = ข้อที่<b>เพิ่มใหม่</b> &nbsp;&nbsp;|&nbsp;&nbsp;<span class="revkey rk-upd"></span><b style="color:#d97706">เส้นประ ส้ม</b> + ป้าย <span style="background:#d97706;color:#fff;border-radius:3px;padding:0 4px;font-size:9px;font-weight:800">R</span> = ข้อที่<b>แก้ไขข้อความ</b></p>
 
   <!-- Guideline table -->
   <table class="gtbl" style="width:100%;border-collapse:collapse;font-size:12px;margin-bottom:20px">
@@ -1090,40 +1123,44 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">3</td>
         <td style="padding:10px 14px">This form is intended solely for recordkeeping purposes and remains the property of Thai VietJet Air. Unauthorized use, modification, reproduction, or distribution of this form by personnel outside Thai VietJet Air is strictly prohibited. Do not alter any formulas, formatting, or content contained within this electronic form.</td>
       </tr>
-      <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">4</td>
-        <td style="padding:10px 14px">Certifying Staff Position shall record only Work which you performed <strong>Release to Service</strong> only</td>
+      <tr class="grev" style="background:#fdf8f0;border-bottom:1px solid #eee">
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">4<br><span class="rvtag" title="ข้อที่แก้ไขข้อความ">R</span></td>
+        <td style="padding:10px 14px">Certifying Staff Position shall <strong>mainly</strong> record only Work which you performed <strong>Release to Service</strong> only</td>
+      </tr>
+      <tr class="gnewrow">
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">5<br><span class="rvtag" title="ข้อที่เพิ่มใหม่">N</span></td>
+        <td style="padding:10px 14px">Certifying Staff may record work not released to service by themselves, provided they were involved in the maintenance process, signed the relevant job document, and the work is traceable to that document. However, <strong>CRS shall not be selected</strong> as the activity.</td>
       </tr>
       <tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">5</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">6</td>
         <td style="padding:10px 14px">Column "Work Ref." need to be filled with <strong>Work Order No.</strong> as priority. And Technical Log Page as optional</td>
       </tr>
       <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">6</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">7</td>
         <td style="padding:10px 14px">Mechanic shall record only Work that you involve only, but <strong>cannot select CRS</strong> as activity</td>
       </tr>
       <tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">7</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">8</td>
         <td style="padding:10px 14px">Record only the tasks in which you have been directly involved. All experience records shall be accurate and truthful. Any false or fraudulent entry identified by QA may affect the issuance or renewal of your authorization.</td>
       </tr>
       <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">8</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">9</td>
         <td style="padding:10px 14px">Work Ref. for <strong>Transit Check</strong> shall be record with <strong>Flight No.</strong></td>
       </tr>
-      <tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">9</td>
-        <td style="padding:10px 14px">Enter the Work Description <strong>"Transit Check, Preflight Check, Daily Check, Weekly Check, APU Change, Engine Change, or A Check"</strong>. The ATA Chapter, Activity, and Duration will be populated automatically.</td>
+      <tr class="grev" style="border-bottom:1px solid #eee">
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">10<br><span class="rvtag" title="ข้อที่แก้ไขข้อความ">R</span></td>
+        <td style="padding:10px 14px">Enter the Work Description <strong>"Transit Check, Preflight Check, Daily Check, Weekly Check, APU Change, Engine Change, or A Check"</strong>. The ATA Chapter, <strong>Skill Code</strong>, Activity, and Duration will be populated automatically.</td>
       </tr>
       <tr style="background:#fdf8f0;border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">10</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">11</td>
         <td style="padding:10px 14px">Work that is CCL Item and rectify within CCL (not transfer to Tech log), <strong>do not record as Experience</strong></td>
       </tr>
-      <tr style="border-bottom:1px solid #eee">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">11</td>
-        <td style="padding:10px 14px">Activity <strong>"Supervise"</strong> shall be used only when that C/S instruct personnel who are on OJT period</td>
+      <tr class="grev" style="border-bottom:1px solid #eee">
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">12<br><span class="rvtag" title="ข้อที่แก้ไขข้อความ">R</span></td>
+        <td style="padding:10px 14px">Activity <strong>"Supervise"</strong> shall be selected only when the Certifying Staff acts as a <strong>Mentor</strong> to instruct and supervise personnel undergoing <strong>OJT</strong> for endorsement type rating in <strong>AMEL</strong>.</td>
       </tr>
       <tr style="background:#fdf8f0">
-        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">12</td>
+        <td style="padding:10px 12px;text-align:center;color:#888;vertical-align:top">13</td>
         <td style="padding:10px 14px">
           1 Working day estimate <strong>8 hours</strong> in both Line and Workshop<br>
           <span style="font-size:11px;color:#555">
@@ -1189,33 +1226,34 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
 
   <!-- ATA Quick Reference -->
   <h3 style="color:#9a0000;margin:16px 0 10px;font-size:14px">📋 ATA Chapter Quick Reference</h3>
-  <p style="font-size:11px;color:#666;margin-bottom:8px">
-    เมื่อลง Work Description ตามด้านล่าง ระบบจะ auto-fill ATA Chapter, Activity และ Duration ให้อัตโนมัติ &nbsp;|&nbsp;
+  <p class="grev-p" style="font-size:11px;color:#666;margin-bottom:8px">
+    เมื่อลง Work Description ตามด้านล่าง ระบบจะ auto-fill <b>ATA Chapter, Skill Code, Activity และ Duration</b> ให้อัตโนมัติ  &nbsp;|&nbsp;
     <span style="color:#c00000;font-weight:700">(A) = Airbus A320/321</span> &nbsp;|&nbsp;
     <span style="color:#7a3500;font-weight:700">(B) = Boeing 737-8/8200</span>
   </p>
   <table style="width:100%;border-collapse:collapse;font-size:11.5px;margin-bottom:14px">
     <thead>
       <tr style="background:#b00000;color:#fff">
-        <th style="padding:7px 12px;text-align:left;width:22%">Task (Work Description)</th>
-        <th style="padding:7px 8px;text-align:center;width:6%">Type</th>
-        <th style="padding:7px 12px;text-align:left;width:38%">ATA Chapter</th>
-        <th style="padding:7px 8px;text-align:left;width:26%">Activity</th>
+        <th style="padding:7px 12px;text-align:left;width:20%">Task (Work Description)</th>
+        <th style="padding:7px 8px;text-align:center;width:5%">Type</th>
+        <th style="padding:7px 8px;text-align:center;width:9%">Skill Code</th>
+        <th style="padding:7px 12px;text-align:left;width:34%">ATA Chapter</th>
+        <th style="padding:7px 8px;text-align:left;width:24%">Activity</th>
         <th style="padding:7px 8px;text-align:center;width:8%">Duration</th>
       </tr>
     </thead>
     <tbody>
-      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600">Transit Check</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 12px;color:#555">12-13 (Check IDG &amp; Oil Level)</td><td style="padding:6px 8px;color:#555">Servicing, Inspection</td><td style="text-align:center;font-weight:600">0.5</td></tr>
-      <tr><td style="padding:6px 12px;font-weight:600" rowspan="4">Preflight Check (A)</td><td style="text-align:center" rowspan="4"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 12px 2px;color:#555">12-13, 23-71, 31-33, 33-50, 34-13</td><td style="padding:6px 8px" rowspan="4">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="4">1.0</td></tr>
+      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600">Transit Check</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" title="Airframe (AF)">AF</td><td style="padding:6px 12px;color:#555">12-13 (Check IDG &amp; Oil Level)</td><td style="padding:6px 8px;color:#555">Servicing, Inspection</td><td style="text-align:center;font-weight:600">0.5</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600" rowspan="4">Preflight Check (A)</td><td style="text-align:center" rowspan="4"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="4" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">12-13, 23-71, 31-33, 33-50, 34-13</td><td style="padding:6px 8px" rowspan="4">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="4">1.0</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">12-13 (Check IDG &amp; Oil Level)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">23-71 (CVR Ops Chk) &nbsp;|&nbsp; 31-33 (DFDR Ops Test)</td></tr>
       <tr style="border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px;color:#666;font-size:11px">33-50 (Emergency Lighting Charging) &nbsp;|&nbsp; 34-13 (Visual Chk Air Data Sensor)</td></tr>
-      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600" rowspan="5">Daily Check (A)</td><td style="text-align:center" rowspan="5"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 12px 2px;color:#555">12-13, 05-21 to 25, 05-27 to 28, 32-41, 34-13</td><td style="padding:6px 8px" rowspan="5">Servicing, Inspection</td><td style="text-align:center;font-weight:600" rowspan="5">2.0</td></tr>
+      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600" rowspan="5">Daily Check (A)</td><td style="text-align:center" rowspan="5"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="5" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">12-13, 05-21 to 25, 05-27 to 28, 32-41, 34-13</td><td style="padding:6px 8px" rowspan="5">Servicing, Inspection</td><td style="text-align:center;font-weight:600" rowspan="5">2.0</td></tr>
       <tr style="background:#fdf8f0"><td style="padding:2px 12px;color:#666;font-size:11px">12-13 (Check IDG &amp; Oil Level)</td></tr>
       <tr style="background:#fdf8f0"><td style="padding:2px 12px;color:#666;font-size:11px">05-21 to 25 (Zonal Insp) &nbsp;|&nbsp; 05-27 to 28 (Zonal Insp)</td></tr>
       <tr style="background:#fdf8f0"><td style="padding:2px 12px;color:#666;font-size:11px">32-41 (Wheel/Tire Pressure Inspection)</td></tr>
       <tr style="background:#fdf8f0;border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px;color:#666;font-size:11px">34-13 (Visual Chk Air Data Sensor)</td></tr>
-      <tr><td style="padding:6px 12px;font-weight:600" rowspan="9">Weekly Check (A)</td><td style="text-align:center" rowspan="9"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 12px 2px;color:#555">05-21/25, 12-32, 24-21/24, 25-55, 31-36, 32-12/22, 32-40/42, 33-51, 38-31, 52-10/22</td><td style="padding:6px 8px" rowspan="9">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="9">2.0</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600" rowspan="9">Weekly Check (A)</td><td style="text-align:center" rowspan="9"><span style="background:#c00000;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="9" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">05-21/25, 12-32, 24-21/24, 25-55, 31-36, 32-12/22, 32-40/42, 33-51, 38-31, 52-10/22</td><td style="padding:6px 8px" rowspan="9">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="9">2.0</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">05-21/25 (GVI LDG Well &amp; Bay) &nbsp;|&nbsp; 12-32 (Drain Water)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">24-21/24 (Chk IDG Oil &amp; Ops Chk Emer GEN)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">25-55 (Visual Chk Cargo Comp) &nbsp;|&nbsp; 31-36 (Flight Data Storage)</td></tr>
@@ -1224,15 +1262,15 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">33-51 (Ops Chk EPSU) &nbsp;|&nbsp; 38-31 (Clean Vacuum Waste Line)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">52-10/22 (Chk Cylinder Press, Pax &amp; Emer Door)</td></tr>
       <tr style="border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px"></td></tr>
-      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600">APU Change</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 12px;color:#555">49-11 (Remove/Install APU)</td><td style="padding:6px 8px;color:#555">Remove &amp; Install, Test</td><td style="text-align:center;font-weight:600">6.0</td></tr>
-      <tr><td style="padding:6px 12px;font-weight:600">Engine Change</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 12px;color:#555">71-00 (Remove/Install Powerplant)</td><td style="padding:6px 8px;color:#555">Remove &amp; Install, Test</td><td style="text-align:center;font-weight:600">12.0</td></tr>
-      <tr style="background:#fdf8f0;border-bottom:3px solid #c00000"><td style="padding:6px 12px;font-weight:600">A Check</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 12px;color:#555">Various ATA as specified in Work Package</td><td style="padding:6px 8px;color:#555">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600">5.0</td></tr>
+      <tr style="background:#fdf8f0"><td style="padding:6px 12px;font-weight:600">APU Change</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#7a3500" title="Engine (EN)">EN</td><td style="padding:6px 12px;color:#555">49-11 (Remove/Install APU)</td><td style="padding:6px 8px;color:#555">Remove &amp; Install, Test</td><td style="text-align:center;font-weight:600">6.0</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600">Engine Change</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#7a3500" title="Engine (EN)">EN</td><td style="padding:6px 12px;color:#555">71-00 (Remove/Install Powerplant)</td><td style="padding:6px 8px;color:#555">Remove &amp; Install, Test</td><td style="text-align:center;font-weight:600">12.0</td></tr>
+      <tr style="background:#fdf8f0;border-bottom:3px solid #c00000"><td style="padding:6px 12px;font-weight:600">A Check</td><td style="text-align:center"><span style="background:#555;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">A+B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" title="Airframe (AF)">AF</td><td style="padding:6px 12px;color:#555">Various ATA as specified in Work Package</td><td style="padding:6px 8px;color:#555">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600">5.0</td></tr>
       <!-- Boeing -->
-      <tr><td style="padding:6px 12px;font-weight:600" rowspan="4">Preflight Check (B)</td><td style="text-align:center" rowspan="4"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 12px 2px;color:#555">12-13, 23-71, 31-31, 33-51</td><td style="padding:6px 8px" rowspan="4">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="4">1.0</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600" rowspan="4">Preflight Check (B)</td><td style="text-align:center" rowspan="4"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="4" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">12-13, 23-71, 31-31, 33-51</td><td style="padding:6px 8px" rowspan="4">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="4">1.0</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">12-13 (Check IDG &amp; ENG Oil Level) &nbsp;|&nbsp; 23-71 (CVR Ops Check)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">31-31 (DFDR Ops Test)</td></tr>
       <tr style="border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px;color:#666;font-size:11px">33-51 (Photoluminescent Charging)</td></tr>
-      <tr style="background:#fff8f0"><td style="padding:6px 12px;font-weight:600" rowspan="8">Daily Check (B)</td><td style="text-align:center" rowspan="8"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 12px 2px;color:#555">12-12, 12-13, 12-15, 29-11, 32-00, 32-71, 32-41, 33-51, 47-31</td><td style="padding:6px 8px" rowspan="8">Servicing, Inspection</td><td style="text-align:center;font-weight:600" rowspan="8">2.0</td></tr>
+      <tr style="background:#fff8f0"><td style="padding:6px 12px;font-weight:600" rowspan="8">Daily Check (B)</td><td style="text-align:center" rowspan="8"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="8" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">12-12, 12-13, 12-15, 29-11, 32-00, 32-71, 32-41, 33-51, 47-31</td><td style="padding:6px 8px" rowspan="8">Servicing, Inspection</td><td style="text-align:center;font-weight:600" rowspan="8">2.0</td></tr>
       <tr style="background:#fff8f0"><td style="padding:2px 12px;color:#666;font-size:11px">12-12 (Check HYD Level) &nbsp;|&nbsp; 12-13 (Check IDG &amp; Oil Level)</td></tr>
       <tr style="background:#fff8f0"><td style="padding:2px 12px;color:#666;font-size:11px">12-15 (Tire Pressure System Check)</td></tr>
       <tr style="background:#fff8f0"><td style="padding:2px 12px;color:#666;font-size:11px">29-11 (Check Delta P A &amp; B System) &nbsp;|&nbsp; 32-00 (Clean Gear)</td></tr>
@@ -1240,7 +1278,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <tr style="background:#fff8f0"><td style="padding:2px 12px;color:#666;font-size:11px">33-51 (Check External Light) &nbsp;|&nbsp; 47-31 (Check NGS Light)</td></tr>
       <tr style="background:#fff8f0"><td style="padding:2px 12px"></td></tr>
       <tr style="background:#fff8f0;border-bottom:2px solid #f0e8d0"><td style="padding:2px 12px 6px"></td></tr>
-      <tr><td style="padding:6px 12px;font-weight:600" rowspan="5">Weekly Check (B)</td><td style="text-align:center" rowspan="5"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 12px 2px;color:#555">05-41, 12-14, 24-34, 31-65, 73-00</td><td style="padding:6px 8px" rowspan="5">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="5">2.0</td></tr>
+      <tr><td style="padding:6px 12px;font-weight:600" rowspan="5">Weekly Check (B)</td><td style="text-align:center" rowspan="5"><span style="background:#7a3500;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px">B</span></td><td style="padding:6px 8px;text-align:center;font-weight:700;font-size:11px;color:#1a6b2e" rowspan="5" title="Airframe (AF)">AF</td><td style="padding:6px 12px 2px;color:#555">05-41, 12-14, 24-34, 31-65, 73-00</td><td style="padding:6px 8px" rowspan="5">Servicing, Inspection, Test</td><td style="text-align:center;font-weight:600" rowspan="5">2.0</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">05-41 (GVI Aircraft) &nbsp;|&nbsp; 12-14 (Drain &amp; Fill Portable Water)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">24-34 (SPCU Ops Check)</td></tr>
       <tr><td style="padding:2px 12px;color:#666;font-size:11px">31-65 (Display Unit Cleaning and SMT Message Check)</td></tr>
@@ -1281,6 +1319,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <button class="tmi" onclick="_tool(function(){openRoutine(70)})"><span>📊 งานตรวจประจำเกิน 70%</span><span id="mi-rt"></span></button>
         <button class="tmi" onclick="_tool(function(){openNear(70)})"><span>🎯 ใกล้ครบเกณฑ์ (ไม่ผ่าน)</span><span id="mi-nr"></span></button>
         <button class="tmi" onclick="_tool(openPQ)"><span>👤 ตรวจโปรไฟล์และบัญชี</span><span id="mi-pq"></span></button>
+        <button class="tmi" onclick="_tool(openSize)"><span>📦 เฝ้าระวังขนาดเอกสาร</span><span id="mi-sz"></span></button>
         <div class="tmh">ส่งออกรายงาน</div>
         <button class="tmi" onclick="_tool(exportAdminCSV)"><span>📊 ส่งออก Excel (CSV)</span></button>
         <button class="tmi" onclick="_tool(exportAdminPDF)"><span>📄 ส่งออก PDF</span></button>
@@ -1288,8 +1327,10 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
         <button class="tmi" onclick="_tool(monthlyReport)"><span>📅 รายงานประจำเดือน</span></button>
         <div class="tmh">จัดการข้อมูล</div>
         <button class="tmi" onclick="_tool(loadAllUsers)"><span>🔄 โหลดข้อมูลใหม่</span></button>
-        <button class="tmi" onclick="_tool(openBackup)"><span>💾 สำรอง / กู้คืนข้อมูล</span></button>
+        <button class="tmi" onclick="_tool(openBackup)"><span>💾 สำรอง / กู้คืนข้อมูล</span><span id="mi-bk"></span></button>
         <button class="tmi" onclick="_tool(openTrash)"><span>🗑 ถังขยะ</span></button>
+        <button class="tmi" onclick="_tool(openJunkClean)"><span>🧹 ล้างข้อมูลขยะจาก Import</span></button>
+        <button class="tmi" onclick="_tool(openArchiveTool)"><span>📚 คลังข้อมูลเก่า</span></button>
       </div>
     </div>
   </div>
@@ -1377,7 +1418,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.2.0';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.10.1';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -1471,6 +1512,221 @@ const SKILL_RULES=[
   {re:/\b(?:apu|engine)\s*change\b/i,                              sk:'Engine (EN)'}
 ];
 
+// ── ฟิลด์ระดับบนสุดที่ระบบใช้จริง — อะไรนอกเหนือจากนี้ถือเป็นขยะ ──
+// ขยะส่วนใหญ่มาจากการ Import ไฟล์ Excel ที่ถูกแปลงเป็น JSON ด้วยเครื่องมือภายนอก
+// ทำให้เอกสารบวมจนชนลิมิต 1 MiB ของ Firestore และบันทึกไม่ได้
+const KNOWN_KEYS=new Set(['profile','rows','training','pmode','pfrom','pto',
+  '_savedAt','_uid','_email','_userName','_lastEditedBy','_lastEditedAt','_savedAtServer','_archive']);
+function sanitizeD(obj){
+  const out={};
+  Object.keys(obj||{}).forEach(k=>{if(KNOWN_KEYS.has(k))out[k]=obj[k];});
+  return out;
+}
+// แถวที่ทุกช่องว่างเปล่า (เกิดจากกด "+ เพิ่มแถว" แล้วไม่ได้กรอก) — ไม่มีประโยชน์ กินพื้นที่
+// และในโหมดคลังจะค้างอยู่เอกสารหลักตลอดไปเพราะไม่มีวันที่ให้จัดปี จึงไม่บันทึกแถวแบบนี้
+const ROW_FIELDS=['date','actype','reg','workref','desc','ata','skill','mxloc','a1','a2','a3','a4','a5','dur','sig'];
+function isBlankRow(r){return !r||ROW_FIELDS.every(k=>!String(r[k]==null?'':r[k]).trim());}
+function pruneBlankRows(rows){return (rows||[]).filter(r=>!isBlankRow(r));}
+function junkKeys(obj){return Object.keys(obj||{}).filter(k=>!KNOWN_KEYS.has(k));}
+
+// ══ คลังข้อมูลเก่า (Archive) ═══════════════════════════════════════════════
+// หลักการ: "แยกเก็บบนดิสก์ รวมเป็นชุดเดียวในหน่วยความจำ"
+//   • บนดิสก์: เอกสารหลักเก็บเฉพาะแถวใหม่ แถวเก่ากว่า ARCH_KEEP_MONTHS แยกไป logbooks/{uid}/archive/{ปี}
+//   • ในหน่วยความจำ: โหลดแล้วรวมกลับเป็น D.rows ชุดเดียว ทุกฟีเจอร์เดิมจึงทำงานได้โดยไม่ต้องแก้
+//   • ตอนบันทึก: แยกใหม่ทุกครั้งในชุดเดียว (atomic batch) — สำเร็จทั้งหมดหรือไม่เขียนเลย
+// เปิดใช้เฉพาะบัญชีที่มีฟิลด์ _archive เท่านั้น บัญชีอื่นทำงานเหมือนเดิมทุกประการ
+// เก็บในเอกสารหลักแค่ 12 เดือนก็พอ เพราะทุกครั้งที่โหลดระบบรวมคลังกลับเข้าหน่วยความจำครบทุกแถว
+// การคำนวณ compliance 24 เดือนจึงยังถูกต้อง ไม่ขึ้นกับว่าแถวถูกเก็บอยู่ที่ไหน
+// (ทดสอบแล้ว: ถ้าใช้ 30 เดือน คนที่ลงงานหนักช่วงหลังจะย้ายเข้าคลังได้ 0 แถว ไม่ช่วยอะไรเลย)
+const ARCH_KEEP_MONTHS=12;
+// เปิดโหมดคลังให้อัตโนมัติเมื่อเอกสารหลักใหญ่เกินเกณฑ์นี้ — ไม่มีใครต้องชนลิมิต 1 MiB อีก
+const ARCH_AUTO_BYTES=Math.round(1048576*0.6);
+let _archSig={};                     // ลายเซ็นคลังรายปีของเอกสารที่โหลดอยู่ — ใช้เขียนเฉพาะปีที่เปลี่ยน
+let _loadedTarget=null;              // uid ที่โหลดสำเร็จครบแล้ว — ถ้าไม่ตรงห้ามบันทึกเด็ดขาด
+function _archCol(uid){return fbDb.collection('logbooks').doc(uid).collection('archive');}
+// จุดตัด = วันที่ 1 ของเดือน ย้อนหลัง ARCH_KEEP_MONTHS เดือน
+// ตั้งให้ตรงต้นเดือน เพื่อให้แถวข้ามไปคลังเดือนละครั้ง ไม่ใช่ทุกวัน (ลดการเขียนคลังซ้ำ)
+function archCutoff(){const d=new Date();d.setHours(0,0,0,0);d.setDate(1);d.setMonth(d.getMonth()-ARCH_KEEP_MONTHS);return d;}
+function splitRows(rows){
+  const cut=archCutoff(),recent=[],byYear={};
+  (rows||[]).forEach(r=>{
+    const d=(r&&r.date)?pDate(r.date):null;
+    // แถวที่ไม่มีวันที่หรือวันที่ผิด อยู่เอกสารหลักเสมอ (จัดปีไม่ได้ และต้องให้เห็นเพื่อแก้ไข)
+    if(d&&d<cut){const y=d.getFullYear();(byYear[y]=byYear[y]||[]).push(r);}
+    else recent.push(r);
+  });
+  return {recent,byYear,cut};
+}
+// โหลดเอกสารหลัก + คลังทุกปี แล้วรวมแถว — ถ้าคลังปีใดโหลดไม่ได้จะโยน error
+// ห้ามใช้ข้อมูลที่โหลดมาไม่ครบเด็ดขาด เพราะการบันทึกครั้งถัดไปจะลบคลังที่หายไปทิ้ง
+// อ่านเฉพาะเอกสารคลังของปีที่ระบุ (ใช้เมื่อมีเอกสารหลักอยู่ในมือแล้ว ไม่ต้องอ่านซ้ำ)
+async function _fetchArchRows(uid,meta){
+  const years=(meta&&Array.isArray(meta.years))?meta.years:[];
+  const sig={},arch=[];
+  if(!years.length)return {rows:arch,sig:sig};
+  const snaps=await Promise.all(years.map(y=>_archCol(uid).doc(String(y)).get()));
+  snaps.forEach((sn,i)=>{
+    if(!sn.exists)throw new Error('ไม่พบคลังข้อมูลปี '+years[i]);
+    const rs=(sn.data()||{}).rows||[];
+    sig[years[i]]=JSON.stringify(rs);
+    rs.forEach(x=>arch.push(x));
+  });
+  return {rows:arch,sig:sig};
+}
+async function loadDocMerged(uid){
+  const doc=await fbDb.collection('logbooks').doc(uid).get();
+  if(!doc.exists)return {exists:false,data:null,archSig:{}};
+  const d=doc.data()||{};
+  const a=await _fetchArchRows(uid,d._archive);
+  if(a.rows.length||(d._archive&&d._archive.years&&d._archive.years.length))d.rows=a.rows.concat(d.rows||[]);
+  return {exists:true,data:d,archSig:a.sig};
+}
+// ใส่คำสั่งเขียนคลังลงใน batch — คืนค่าแถวใหม่สำหรับเอกสารหลัก + ข้อมูลกำกับคลัง
+function addArchiveOps(batch,uid,fullRows,prevYears,prevSig){
+  const {recent,byYear,cut}=splitRows(fullRows);
+  const years=Object.keys(byYear).map(Number).sort((a,b)=>a-b);
+  const newSig={};let count=0;
+  years.forEach(y=>{
+    const rs=byYear[y];count+=rs.length;
+    const sg=JSON.stringify(rs);newSig[y]=sg;
+    if(prevSig[y]!==sg)batch.set(_archCol(uid).doc(String(y)),
+      {year:y,rows:rs,count:rs.length,_updatedAt:firebase.firestore.FieldValue.serverTimestamp()});
+  });
+  (prevYears||[]).forEach(y=>{if(!byYear[y])batch.delete(_archCol(uid).doc(String(y)));});
+  return {recent,newSig,meta:{years:years,count:count,cutoff:dToIso(cut),updatedAt:new Date().toISOString()}};
+}
+// ══ ตัวเตือนการสำรองข้อมูล ═════════════════════════════════════════════════
+// แพลน Spark ไม่มีระบบสำรองอัตโนมัติ ไฟล์สำรองจึงเป็นทางกู้ข้อมูลทางเดียว — ต้องไม่ให้ถูกลืม
+// บันทึกเวลาสำรองล่าสุดไว้ที่ meta/backupState (เขียน 1 ครั้งต่อการสำรอง อ่าน 1 ครั้งต่อการเปิดแดชบอร์ด)
+const BACKUP_DUE_DAYS=30, BACKUP_WARN_DAYS=25;
+let _lastBackup=null;          // null = ยังอ่านไม่ได้ · {} = ไม่เคยสำรอง · {atISO,...} = มีข้อมูล
+async function _loadBackupState(){
+  try{const sn=await fbDb.collection('meta').doc('backupState').get();_lastBackup=sn.exists?(sn.data()||{}):{};}
+  catch(e){_lastBackup=null;console.warn('backupState',e);}
+}
+function _backupAgeDays(){
+  if(!_lastBackup||!_lastBackup.atISO)return null;
+  const t=new Date(_lastBackup.atISO).getTime();
+  return isNaN(t)?null:Math.floor((Date.now()-t)/86400000);
+}
+// ok = ภายในกำหนด · warn = ใกล้ครบกำหนด · due = เกินกำหนดหรือไม่เคยสำรอง · unknown = อ่านสถานะไม่ได้
+function _backupLevel(){
+  if(_lastBackup===null)return 'unknown';
+  const a=_backupAgeDays();
+  if(a===null)return 'due';
+  return a>BACKUP_DUE_DAYS?'due':(a>=BACKUP_WARN_DAYS?'warn':'ok');
+}
+function _backupText(){
+  const lv=_backupLevel(),a=_backupAgeDays();
+  if(lv==='unknown')return 'อ่านสถานะการสำรองไม่ได้';
+  if(a===null)return 'ยังไม่เคยสำรองข้อมูล';
+  const d=new Date(_lastBackup.atISO).toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'2-digit'});
+  return 'สำรองล่าสุด '+d+' ('+(a===0?'วันนี้':a+' วันก่อน')+')';
+}
+function _renderBackupStatus(){
+  const el=document.getElementById('backup-last');if(!el)return;
+  const lv=_backupLevel();
+  const c={ok:['#eaf5ea','#2e7d32'],warn:['#fff6e5','#8a5a00'],due:['#fdecec','#c00000'],unknown:['#f2f2f2','#777']}[lv];
+  el.style.cssText='margin:0 0 10px;padding:7px 11px;border-radius:6px;font-size:12px;font-weight:700;background:'+c[0]+';color:'+c[1];
+  el.innerHTML=(lv==='ok'?'✓ ':(lv==='unknown'?'':'⚠️ '))+esc(_backupText())
+    +(lv==='due'?' — เกินกำหนด '+BACKUP_DUE_DAYS+' วัน กรุณาสำรองข้อมูลตอนนี้':'')
+    +(lv==='warn'?' — ใกล้ครบกำหนด '+BACKUP_DUE_DAYS+' วัน':'')
+    +(_lastBackup&&_lastBackup.by?'<br><span style="font-weight:400">โดย '+esc(_lastBackup.by)
+      +(_lastBackup.count?' · '+_lastBackup.count+' คน':'')+'</span>':'');
+}
+
+// ══ ขั้นที่ 2: ย้ายบัญชีโหมดคลังเข้า-ออกถังขยะ ══════════════════════════════
+// ถังขยะเก็บโครงสร้างแบบเดียวกับของจริง: deletedLogbooks/{uid} + deletedLogbooks/{uid}/archive/{ปี}
+// (ไม่รวมเป็นเอกสารเดียว เพราะบัญชีที่ใหญ่พอจะเข้าโหมดคลัง รวมแล้วอาจเกินลิมิต 1 MiB)
+// ทุกคำสั่งของบัญชีหนึ่งอยู่ใน batch เดียว — สำเร็จทั้งหมดหรือไม่เขียนเลย
+function _trashArchCol(uid){return fbDb.collection('deletedLogbooks').doc(uid).collection('archive');}
+function _archYearsOf(d){return (d&&d._archive&&Array.isArray(d._archive.years))?d._archive.years:[];}
+async function _readArchDocs(col,years){
+  const out={};
+  const snaps=await Promise.all(years.map(y=>col.doc(String(y)).get()));
+  snaps.forEach((sn,i)=>{
+    if(!sn.exists)throw new Error('ไม่พบคลังข้อมูลปี '+years[i]+' — ยกเลิกทั้งหมด ไม่มีอะไรถูกแก้ไข');
+    out[years[i]]=sn.data();
+  });
+  return out;
+}
+// logbooks -> ถังขยะ
+async function _addTrashOps(batch,uid,name){
+  const snap=await fbDb.collection('logbooks').doc(uid).get();
+  if(!snap.exists)return 0;
+  const data=snap.data()||{};
+  const years=_archYearsOf(data);
+  const arch=years.length?await _readArchDocs(_archCol(uid),years):{};
+  // ถังขยะอาจมีคลังค้างจากการลบครั้งก่อน ลบปีที่ไม่อยู่ในชุดใหม่ทิ้ง กันข้อมูลเก่าโผล่มาตอนกู้คืน
+  const old=await fbDb.collection('deletedLogbooks').doc(uid).get();
+  const oldYears=old.exists?_archYearsOf(old.data()):[];
+  data._del={name:name,byEmail:(currentUser&&currentUser.email)||'-',
+    at:firebase.firestore.FieldValue.serverTimestamp()};
+  let n=0;
+  batch.set(fbDb.collection('deletedLogbooks').doc(uid),data);n++;
+  years.forEach(y=>{batch.set(_trashArchCol(uid).doc(String(y)),arch[y]);n++;
+                   batch.delete(_archCol(uid).doc(String(y)));n++;});
+  oldYears.forEach(y=>{if(years.indexOf(y)<0){batch.delete(_trashArchCol(uid).doc(String(y)));n++;}});
+  batch.delete(fbDb.collection('logbooks').doc(uid));n++;
+  return n;
+}
+// ถังขยะ -> logbooks
+async function _addUntrashOps(batch,it){
+  const uid=it.uid,v=it.v||{};
+  const years=_archYearsOf(v);
+  const arch=years.length?await _readArchDocs(_trashArchCol(uid),years):{};
+  // ถ้าตอนนี้มีเอกสารชุดใหม่ที่อยู่ในโหมดคลัง ลบคลังของชุดใหม่ที่ไม่อยู่ในชุดที่กู้คืนทิ้งด้วย
+  const cur=await fbDb.collection('logbooks').doc(uid).get();
+  const curYears=cur.exists?_archYearsOf(cur.data()):[];
+  const data=sanitizeD(v);                 // ตัด _del และขยะออก
+  data._savedAt=new Date().toISOString();  // ให้เครื่องที่เปิดค้างไว้ตรวจเจอว่าข้อมูลเปลี่ยน
+  let n=0;
+  batch.set(fbDb.collection('logbooks').doc(uid),data);n++;
+  years.forEach(y=>{batch.set(_archCol(uid).doc(String(y)),arch[y]);n++;
+                   batch.delete(_trashArchCol(uid).doc(String(y)));n++;});
+  curYears.forEach(y=>{if(years.indexOf(y)<0){batch.delete(_archCol(uid).doc(String(y)));n++;}});
+  batch.delete(fbDb.collection('deletedLogbooks').doc(uid));n++;
+  return n;
+}
+// ลบถาวรจากถังขยะ
+function _addPurgeOps(batch,it){
+  const years=_archYearsOf(it.v);
+  years.forEach(y=>batch.delete(_trashArchCol(it.uid).doc(String(y))));
+  batch.delete(fbDb.collection('deletedLogbooks').doc(it.uid));
+  return years.length+1;
+}
+// รันหลายรายการ แบ่ง batch ตามจำนวนคำสั่ง (Firestore จำกัด 500 ต่อ batch)
+async function _runBatched(items,addFn){
+  let batch=fbDb.batch(),ops=0,pending=0,done=0;
+  for(const it of items){
+    const n=await addFn(batch,it);
+    if(!n)continue;
+    ops+=n;pending++;
+    if(ops>=400){await batch.commit();done+=pending;batch=fbDb.batch();ops=0;pending=0;}
+  }
+  if(pending){await batch.commit();done+=pending;}
+  return done;
+}
+
+// ── แถบแจ้งเตือนโหลดข้อมูลไม่สำเร็จ + ระงับการบันทึก ──
+function showLoadFail(e){
+  let b=document.getElementById('load-fail');
+  if(!b){
+    b=document.createElement('div');b.id='load-fail';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:20001;background:#7a0000;color:#fff;'
+      +'padding:11px 16px;font-size:13px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.35);'
+      +'display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+    document.body.appendChild(b);
+  }
+  b.innerHTML='⛔ โหลดข้อมูลไม่สำเร็จ — ระบบระงับการบันทึกไว้ก่อน เพื่อไม่ให้ข้อมูลเดิมของคุณถูกเขียนทับ'
+    +'<span style="font-weight:400">· กรุณาตรวจสัญญาณอินเทอร์เน็ตแล้วโหลดหน้าใหม่'
+    +(e&&e.message?' ('+esc(String(e.message)).slice(0,90)+')':'')+'</span>'
+    +'<button onclick="location.reload()" style="margin-left:auto;background:#fff;color:#7a0000;border:none;'
+    +'border-radius:6px;padding:5px 12px;font-weight:800;cursor:pointer">โหลดหน้าใหม่</button>';
+  b.style.display='flex';
+}
+function hideLoadFail(){const b=document.getElementById('load-fail');if(b)b.style.display='none';}
+
 // ══ STATE ═════════════════════════════════════════════════════════════════
 let D={profile:{name:'',staffid:'',amel:'',position:''},rows:[],training:[],pmode:'auto',pfrom:'',pto:''};
 let currentUser = null;
@@ -1502,7 +1758,7 @@ function initFirebase(){
       if(editUid || _suspendSave) return;
       await loadData();
       renderAll();
-      if(!D.rows||D.rows.length===0) addRow();
+      if(!D.rows||D.rows.length===0){ addRow(); _refreshYearHeads(); }
     } else {
       document.getElementById('login-screen').style.display = 'flex';
       document.getElementById('main-app').style.display = 'none';
@@ -1524,15 +1780,23 @@ async function loadData(){
   if(!fbDb || !currentUser) return;
   setStatus('⏳ กำลังโหลดข้อมูล...');
   try {
-    const doc = await fbDb.collection('logbooks').doc(currentUser.uid).get();
-    if(doc.exists){
-      D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, doc.data());
+    const r = await loadDocMerged(currentUser.uid);
+    if(r.exists){
+      D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, r.data);
       _baseSavedAt = D._savedAt || null;   // เวอร์ชันที่เราถืออยู่ (ใช้ตรวจการชนกัน)
     } else {
       _baseSavedAt = null;
     }
+    _archSig = r.archSig;
     _lastSig = contentSig();               // baseline สำหรับ dirty-check
-  } catch(e){ console.warn('Load error:',e); }
+    _loadedTarget = currentUser.uid;       // โหลดสำเร็จครบ — อนุญาตให้บันทึกได้
+    hideLoadFail();
+  } catch(e){
+    // บั๊กเดิม: โหลดล้มเหลวแล้วปล่อย D ว่างไว้ ครั้งถัดไปที่บันทึกจะเขียนทับข้อมูลจริงทั้งหมด
+    console.warn('Load error:',e);
+    _loadedTarget = null;
+    showLoadFail(e);
+  }
   setStatus('');
 }
 
@@ -1578,8 +1842,14 @@ async function saveData(){
     showSaved('✓ เป็นปัจจุบัน — ' + new Date().toLocaleTimeString('th-TH'));
     return;
   }
-  _saving = true;
   const target = editUid || currentUser.uid;
+  // ด่านสำคัญ: ถ้ายังโหลดเอกสารนี้ไม่สำเร็จครบ ห้ามเขียนเด็ดขาด
+  if(_loadedTarget!==target){
+    showSaved('⛔ ระงับการบันทึก — ยังโหลดข้อมูลไม่สำเร็จ');
+    showLoadFail(null);
+    return;
+  }
+  _saving = true;
   try {
     showSaved('⏳ กำลังบันทึก...');
     // ตรวจก่อนว่ามีคนอื่นแก้ข้อมูลนี้หลังจากที่เราโหลดมาหรือยัง
@@ -1605,13 +1875,34 @@ async function saveData(){
     }
     // เขียนเวลาจากเซิร์ฟเวอร์ Firestore ด้วย (แม่นยำ ไม่ขึ้นกับนาฬิกาเครื่องผู้ใช้)
     // _savedAt (ISO ฝั่ง client) ยังใช้ตรวจการชนกันเหมือนเดิม, _savedAtServer ใช้แสดงผลจริง
-    const payload = Object.assign({}, D, {_savedAtServer: firebase.firestore.FieldValue.serverTimestamp()});
-    await fbDb.collection('logbooks').doc(target).set(payload);
+    // ตัดฟิลด์ขยะออกก่อนบันทึกทุกครั้ง — เอกสารที่บวมจะหดกลับเองในการบันทึกครั้งถัดไป
+    D = sanitizeD(D);
+    // ตัดแถวว่างออกก่อนบันทึก — แถวบนจอยังอยู่ให้กรอกต่อได้ตามปกติ จะหายไปเองเมื่อโหลดหน้าใหม่
+    D.rows = pruneBlankRows(D.rows);
+    // เอกสารใหญ่เกินเกณฑ์ -> เปิดโหมดคลังให้อัตโนมัติ (พนักงานไม่เห็นความต่าง ข้อมูลยังครบทุกแถว)
+    if(!D._archive && _bytes(D)>ARCH_AUTO_BYTES) D._archive={years:[],count:0};
+    if(D._archive){
+      // บัญชีโหมดคลัง: แยกแถวเก่าไปคลังรายปี + บันทึกเอกสารหลักในชุดเดียวกัน (atomic)
+      const batch=fbDb.batch();
+      const ar=addArchiveOps(batch,target,D.rows,(D._archive.years||[]),_archSig);
+      D._archive=ar.meta;
+      const payload = Object.assign({}, D, {rows:ar.recent,_archive:ar.meta,
+        _savedAtServer: firebase.firestore.FieldValue.serverTimestamp()});
+      batch.set(fbDb.collection('logbooks').doc(target),payload);
+      await batch.commit();
+      _archSig = ar.newSig;
+    } else {
+      const payload = Object.assign({}, D, {_savedAtServer: firebase.firestore.FieldValue.serverTimestamp()});
+      await fbDb.collection('logbooks').doc(target).set(payload);
+    }
     _baseSavedAt = now;                       // เวอร์ชันของเราคือเวอร์ชันล่าสุดแล้ว
     _lastSig     = sig;                       // จำเนื้อหาที่เพิ่งบันทึก
     showSaved((editUid?('✓ บันทึกข้อมูลของ '+editName+' — '):'✓ บันทึกแล้ว — ') + new Date().toLocaleTimeString('th-TH'));
+    _saveFailed=false;hideSaveFail();
   } catch(e){
     showSaved('❌ บันทึกไม่สำเร็จ: ' + e.message);
+    _saveFailed=true;
+    showSaveFail(e);
   } finally {
     _saving = false;
   }
@@ -1650,11 +1941,13 @@ async function resolveConflict(action){
   const target = editUid || currentUser.uid;
   if(action==='reload'){
     try{
-      const doc = await fbDb.collection('logbooks').doc(target).get();
-      if(doc.exists){
-        D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, doc.data());
+      const r = await loadDocMerged(target);
+      if(r.exists){
+        D = Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''}, r.data);
         _baseSavedAt = D._savedAt || null;
+        _archSig = r.archSig;
         _lastSig = contentSig();
+        _loadedTarget = target;
       }
       renderAll(); calcSum();
       showSaved('↻ โหลดข้อมูลล่าสุดแล้ว');
@@ -1875,10 +2168,15 @@ function autoFill(inp){
   if(!desc)return;
 
   // เติม Skill ตามชนิดงาน — ทำแยกจากตาราง ATA เพื่อให้ครอบคลุมทุก Aircraft Type
+  // ทับได้เฉพาะค่าที่ "ระบบเติมเอง" (ธง data-auto) เท่านั้น
+  // ถ้าคนกรอกเลือกเอง ธงจะถูกล้าง ระบบจะไม่แตะอีกเลย — กันตัวเลข NDT/BSI เพี้ยน
   const skSel=allSels[2];
-  if(skSel&&!skSel.value){
-    for(const r of SKILL_RULES){
-      if(r.re.test(desc)){skSel.value=r.sk;break;}
+  if(skSel){
+    let match=null;
+    for(const r of SKILL_RULES){if(r.re.test(desc)){match=r.sk;break;}}
+    if(match&&(!skSel.value||skSel.dataset.auto==='1')){
+      skSel.value=match;
+      skSel.dataset.auto='1';
     }
   }
 
@@ -1951,7 +2249,7 @@ function addRow(r){
     <td><input class="wref" value="${esc(r.workref)}" placeholder="WO No." style="width:100%;border:none;background:transparent;font-size:10.5px" onchange="checkDupWO(this)" onblur="checkDupWO(this)"></td>
     <td><input value="${esc(r.desc)}" placeholder="Work Description" style="width:100%;border:none;background:transparent;font-size:10.5px" oninput="autoATA(this)"></td>
     <td><input value="${esc(r.ata)}" placeholder="ATA" style="width:100%;border:none;background:transparent;font-size:10.5px"></td>
-    <td>${mksel(SK,r.skill)}</td><td>${mksel(MX,r.mxloc)}</td>
+    <td><select class="skillsel" style='width:100%;border:none;background:transparent;font-size:10.5px' onchange="this.dataset.auto=''">${SK.map(o=>`<option${o===r.skill?' selected':''}>${o}</option>`).join('')}</select></td><td>${mksel(MX,r.mxloc)}</td>
     <td>${mksel(ACT,r.a1)}</td><td>${mksel(ACT,r.a2)}</td><td>${mksel(ACT,r.a3)}</td>
     <td>${mksel(ACT,r.a4)}</td><td>${mksel(ACT,r.a5)}</td>
     <td><input type="number" value="${r.dur||''}" placeholder="e.g. 8.0" step="0.5" min="0.5" style="width:100%;border:none;background:transparent;font-size:10.5px" onblur="validateDur(this)"></td>
@@ -1987,6 +2285,79 @@ function checkDupWO(el){
     +hits.slice(0,2).map(h=>h.date).join(', ')+(hits.length>2?'…':'')+') — ถ้าเป็นงานคนละรายการก็ลงต่อได้');
 }
 function delR(btn){if(confirm('ลบแถวนี้?')){btn.closest('tr').remove();saveAllSoon();}}
+// ══ จัดกลุ่มตาราง Logbook รายปี ═══════════════════════════════════════════
+// ปีปัจจุบันกางไว้ ปีก่อนหน้ายุบให้อัตโนมัติ — คนที่ลงงานเยอะไม่ต้องเลื่อนจอยาว
+// ปลอดภัยต่อข้อมูล: ยุบ = ซ่อนด้วย class เท่านั้น แถวยังอยู่ใน DOM ครบ getRows() จึงอ่านได้ทุกแถว
+// แถวหัวปีไม่มีช่องกรอก getRows() / ตัวกรอง / ตัวเตือน WO ซ้ำ จึงข้ามไปเองทุกตัว
+const _yrOpen={};                          // ปี -> กางอยู่ไหม (จำไว้ตลอดการใช้งานรอบนี้)
+function _rowYear(tr){const i=tr.querySelector('input.di');const d=i?pDate(i.value):null;return d?d.getFullYear():null;}
+function groupLogbookByYear(){
+  const tb=document.getElementById('lb');if(!tb)return;
+  tb.querySelectorAll('tr.yr-head').forEach(h=>h.remove());
+  const rows=Array.from(tb.children);
+  const cy=new Date().getFullYear();
+  const groups={};
+  // แถวที่ยังไม่มีวันที่/วันที่ผิด อยู่กลุ่มปีปัจจุบัน (กางอยู่) จะได้เห็นและกรอกต่อได้
+  rows.forEach(tr=>{const y=_rowYear(tr)||cy;(groups[y]=groups[y]||[]).push(tr);});
+  if(!groups[cy])groups[cy]=[];            // มีหัวปีปัจจุบันเสมอ แถวที่เพิ่มใหม่จะต่อท้ายปีนี้
+  // ปีปัจจุบันอยู่ท้ายสุดเสมอ (ปีอนาคตซึ่งมักเป็นวันที่พิมพ์ผิดอยู่ก่อนหน้า) แถวใหม่จึงต่อท้ายปีนี้ถูกที่
+  const ys=Object.keys(groups).map(Number).filter(y=>y!==cy).sort((a,b)=>a-b).concat([cy]);
+  const ncol=(tb.closest('table')&&tb.closest('table').querySelectorAll('colgroup col').length)||16;
+  ys.forEach(y=>{
+    if(!(y in _yrOpen))_yrOpen[y]=(y>=cy);   // ค่าเริ่มต้น: ปีนี้กาง ปีก่อนยุบ
+    const h=document.createElement('tr');
+    h.className='yr-head';h.dataset.year=y;
+    h.innerHTML='<td colspan="'+ncol+'"></td>';
+    h.onclick=()=>{_yrOpen[y]=!_yrOpen[y];_applyYearCollapse();};
+    tb.appendChild(h);
+    groups[y].forEach(tr=>tb.appendChild(tr));
+  });
+  _applyYearCollapse();
+}
+function _applyYearCollapse(){
+  const tb=document.getElementById('lb');if(!tb)return;
+  let open=true;
+  Array.from(tb.children).forEach(tr=>{
+    if(tr.classList.contains('yr-head')){open=!!_yrOpen[+tr.dataset.year];tr.classList.toggle('yr-closed',!open);return;}
+    tr.classList.toggle('yr-hide',!open);
+  });
+  _refreshYearHeads();
+}
+// ป้ายหัวปี: นับจากแถวที่อยู่ใต้หัวปีนั้นจริงบนจอ (ไม่ใช่จากวันที่) ตัวเลขจึงตรงกับสิ่งที่เห็นเสมอ
+function _refreshYearHeads(){
+  const tb=document.getElementById('lb');if(!tb)return;
+  const cy=new Date().getFullYear();let cur=null;const stat=new Map();
+  Array.from(tb.children).forEach(tr=>{
+    if(tr.classList.contains('yr-head')){cur=tr;stat.set(tr,{n:0,h:0});return;}
+    if(!cur)return;
+    const ins=tr.querySelectorAll('input');if(ins.length<5)return;
+    const st=stat.get(cur);st.n++;st.h+=parseFloat(ins[4].value)||0;
+  });
+  stat.forEach((st,h)=>{
+    const y=+h.dataset.year;
+    h.firstElementChild.innerHTML='<span class="yr-arr">▾</span> '+y
+      +(y===cy?'<span class="yr-now">ปีปัจจุบัน</span>':'')
+      +'<span class="yr-meta">'+st.n.toLocaleString('th-TH')+' แถว · '
+      +(Math.round(st.h*10)/10).toLocaleString('th-TH')+' ชม.'
+      +(h.classList.contains('yr-closed')?' · กดเพื่อดู':'')+'</span>';
+  });
+}
+function setAllYears(open){
+  const cy=new Date().getFullYear();
+  Object.keys(_yrOpen).forEach(y=>{_yrOpen[y]=open?true:(+y>=cy);});
+  _applyYearCollapse();
+}
+// ปุ่ม "+ เพิ่มแถว": เพิ่มต่อท้ายปีปัจจุบัน กางปีนี้ไว้ แล้วเลื่อนจอไปหาแถวใหม่
+function addRowNew(){
+  addRow();
+  const cy=new Date().getFullYear();_yrOpen[cy]=true;_applyYearCollapse();
+  const tb=document.getElementById('lb');const tr=tb&&tb.lastElementChild;
+  if(tr&&!tr.classList.contains('yr-head')){
+    tr.scrollIntoView({behavior:'smooth',block:'center'});
+    const i=tr.querySelector('input.di');if(i)setTimeout(()=>i.focus(),250);
+  }
+}
+
 function getRows(){
   const rows=[];
   document.querySelectorAll('#lb tr').forEach(tr=>{
@@ -2060,27 +2431,107 @@ window.addEventListener('pagehide', flushSave);
 // ══ EXPORT / IMPORT JSON ═══════════════════════════════════════════════════
 function exportData(){
   saveAll();
-  const blob=new Blob([JSON.stringify(D,null,2)],{type:'application/json'});
+  // ส่งออกเฉพาะข้อมูลของผู้ใช้ ตัดฟิลด์ระบบที่ขึ้นต้นด้วย _ ออก
+  // (เช่น _lastEditedBy, _savedAt, _email) ซึ่งเป็นข้อมูลภายในของระบบ ไม่ใช่เนื้อหา logbook
+  const out={};
+  Object.keys(D).forEach(k=>{if(k.charAt(0)!=='_')out[k]=D[k];});
+  const blob=new Blob([JSON.stringify(out,null,2)],{type:'application/json'});
   const a=document.createElement('a');a.href=URL.createObjectURL(blob);
   const nm=(D.profile.name||'logbook').replace(/\s+/g,'_');
   a.download='Logbook_'+nm+'_'+new Date().toISOString().slice(0,10)+'.json';a.click();
 }
+// ── แถบแจ้งเตือนบันทึกล้มเหลว: ค้างอยู่จนกว่าจะบันทึกสำเร็จ ──
+let _saveFailed=false;
+function showSaveFail(e){
+  let b=document.getElementById('save-fail');
+  if(!b){
+    b=document.createElement('div');b.id='save-fail';
+    b.style.cssText='position:fixed;top:0;left:0;right:0;z-index:20000;background:#c00000;color:#fff;'
+      +'padding:10px 16px;font-size:13px;font-weight:700;box-shadow:0 3px 12px rgba(0,0,0,.3);'
+      +'display:flex;gap:10px;align-items:center;flex-wrap:wrap';
+    document.body.appendChild(b);
+  }
+  const msg=String((e&&e.message)||e||'');
+  const tooBig=/exceed|maximum|too large|size/i.test(msg);
+  b.innerHTML='⚠️ บันทึกข้อมูลไม่สำเร็จ — ข้อมูลที่เพิ่งกรอกยังไม่ถูกบันทึก <u>อย่าเพิ่งปิดหน้านี้</u>'
+    +'<span style="font-weight:400">· '+(tooBig?'เอกสารใหญ่เกินลิมิตของระบบ ลองกดบันทึกอีกครั้ง ถ้ายังไม่ได้กรุณาแจ้งแอดมิน'
+      :esc(msg).slice(0,140))+'</span>'
+    +'<button onclick="saveAll()" style="margin-left:auto;background:#fff;color:#c00000;border:none;'
+    +'border-radius:6px;padding:5px 12px;font-weight:800;cursor:pointer">ลองบันทึกอีกครั้ง</button>';
+  b.style.display='flex';
+}
+function hideSaveFail(){const b=document.getElementById('save-fail');if(b)b.style.display='none';}
+// กันปิดหน้าทิ้งขณะที่ยังมีข้อมูลค้างไม่ได้บันทึก
+window.addEventListener('beforeunload',e=>{if(_saveFailed){e.preventDefault();e.returnValue='';}});
+
 function importData(evt){
+  // สงวนไว้ให้แอดมินเท่านั้น — พนักงานที่ต้องการนำเข้าข้อมูลให้ติดต่อแอดมิน
+  if(!isAdmin()){evt.target.value='';alert('การ Import สงวนไว้สำหรับแอดมินเท่านั้น\n\nหากต้องการนำเข้าข้อมูล กรุณาติดต่อฝ่าย SSQA');return;}
   const f=evt.target.files[0];if(!f)return;
   const rd=new FileReader();
   rd.onload=e=>{
-    try{
-      const imp=JSON.parse(e.target.result);
-      if(!imp||typeof imp!=='object'||Array.isArray(imp)||(imp.rows&&!Array.isArray(imp.rows))||(imp.training&&!Array.isArray(imp.training))){
-        alert('ไฟล์ไม่ใช่ข้อมูล Logbook ที่ถูกต้อง');evt.target.value='';return;
-      }
-      if(confirm('Import จะเขียนทับข้อมูลทั้งหมด ยืนยัน?')){
-        D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},imp);
-        renderAll();saveData();alert('Import สำเร็จ! มี '+(D.rows||[]).length+' แถว');
-      }
-    }catch(ex){alert('ไฟล์ไม่ถูกต้อง: '+ex.message);}
     evt.target.value='';
-  };rd.readAsText(f);
+    let imp;
+    try{imp=JSON.parse(e.target.result);}
+    catch(ex){alert('❌ ไฟล์นี้ไม่ใช่ JSON ที่ถูกต้อง\n\n'+ex.message);return;}
+
+    // ด่านที่ 1: ต้องเป็นไฟล์ที่ส่งออกจากแอปนี้เท่านั้น — ต้องมี rows เป็น array
+    // (บั๊กเดิม: ไฟล์ที่ไม่มี rows เลยหลุดผ่าน แล้วล้างข้อมูลทั้งหมดเป็นค่าว่าง)
+    if(!imp||typeof imp!=='object'||Array.isArray(imp)||!Array.isArray(imp.rows)){
+      alert('❌ ไฟล์นี้ไม่ใช่ไฟล์ Logbook ที่ส่งออกจากแอปนี้\n\n'
+        +'รองรับเฉพาะไฟล์จากปุ่ม 📦 Export JSON ของแอปนี้เท่านั้น\n'
+        +'ไฟล์ Excel ที่แปลงเป็น JSON ด้วยเครื่องมืออื่นใช้ไม่ได้\n\nข้อมูลเดิมของคุณยังอยู่ครบ ไม่ถูกแตะ');
+      return;
+    }
+    if(imp.training!==undefined&&!Array.isArray(imp.training)){
+      alert('❌ ข้อมูล Training ในไฟล์ผิดรูปแบบ — ยกเลิกการนำเข้า\n\nข้อมูลเดิมของคุณยังอยู่ครบ');return;
+    }
+    // ด่านที่ 2: แถวต้องมีหน้าตาเป็นแถว logbook จริง
+    const isRow=r=>r&&typeof r==='object'&&!Array.isArray(r)&&('date' in r||'desc' in r||'actype' in r||'workref' in r);
+    const good=imp.rows.filter(isRow);
+    if(imp.rows.length&&!good.length){
+      alert('❌ แถวในไฟล์ไม่ใช่รูปแบบของ Logbook — ยกเลิกการนำเข้า\n\nข้อมูลเดิมของคุณยังอยู่ครบ');return;
+    }
+    const nNew=good.length, nOld=(D.rows||[]).length;
+    const tNew=Array.isArray(imp.training)?imp.training.length:0, tOld=(D.training||[]).length;
+    // ด่านที่ 3: ห้ามนำเข้าไฟล์ว่าง ถ้าของเดิมมีข้อมูลอยู่ — ป้องกันการล้างข้อมูลทั้งหมด
+    if(nNew===0&&nOld>0){
+      alert('⛔ ไฟล์นี้ไม่มีข้อมูลงานเลยสักแถว\n\nถ้านำเข้า ข้อมูลเดิม '+nOld+' แถวจะหายทั้งหมด ระบบจึงไม่อนุญาต\n\nข้อมูลเดิมของคุณยังอยู่ครบ');
+      return;
+    }
+    let msg='นำเข้าข้อมูลจากไฟล์?\n\n'
+      +'• งานในไฟล์: '+nNew+' แถว   (ปัจจุบัน '+nOld+' แถว)\n'
+      +'• Training ในไฟล์: '+tNew+' รายการ   (ปัจจุบัน '+tOld+' รายการ)\n\n'
+      +'ข้อมูลปัจจุบันทั้งหมดจะถูกแทนที่ด้วยข้อมูลในไฟล์';
+    if(nOld>0)msg+='\n\n💾 ระบบจะดาวน์โหลดสำเนาข้อมูลปัจจุบันเก็บไว้ให้ก่อนอัตโนมัติ';
+    if(nOld>0&&nNew<nOld*0.8)
+      msg='⚠️ คำเตือน: ไฟล์มีงานน้อยกว่าของเดิมมาก ('+nNew+' แถว จากเดิม '+nOld+' แถว)\nข้อมูลจะหายไป '+(nOld-nNew)+' แถว\n\n'+msg;
+    if(!confirm(msg))return;
+
+    // สำรองของเดิมไว้ให้ก่อนเขียนทับ
+    if(nOld>0){
+      try{
+        const bak={};Object.keys(D).forEach(k=>{if(k.charAt(0)!=='_'&&KNOWN_KEYS.has(k))bak[k]=D[k];});
+        const b=new Blob([JSON.stringify(bak,null,2)],{type:'application/json'});
+        const a=document.createElement('a');a.href=URL.createObjectURL(b);
+        a.download='Logbook_'+((D.profile&&D.profile.name)||'backup').replace(/\s+/g,'_')
+          +'_BEFORE-IMPORT_'+new Date().toISOString().slice(0,10)+'.json';
+        document.body.appendChild(a);a.click();a.remove();
+      }catch(x){}
+    }
+    // รับเฉพาะฟิลด์ที่ระบบรู้จัก ทิ้งขยะทั้งหมด และคงฟิลด์ระบบ (_email ฯลฯ) ของเดิมไว้
+    const next={
+      profile:(imp.profile&&typeof imp.profile==='object'&&!Array.isArray(imp.profile))?imp.profile:(D.profile||{}),
+      rows:good,
+      training:Array.isArray(imp.training)?imp.training:[],
+      pmode:imp.pmode||'auto',pfrom:imp.pfrom||'',pto:imp.pto||''
+    };
+    Object.keys(D).forEach(k=>{if(k.charAt(0)==='_')next[k]=D[k];});
+    D=next;
+    renderAll();saveData();
+    alert('✅ นำเข้าสำเร็จ — งาน '+nNew+' แถว, Training '+next.training.length+' รายการ');
+  };
+  rd.readAsText(f);
 }
 
 // ══ RENDER ALL ═════════════════════════════════════════════════════════════
@@ -2116,6 +2567,7 @@ function sortByDate(which){
 function renderAll(){
   document.getElementById('lb').innerHTML='';
   (D.rows||[]).forEach(r=>addRow(r));
+  groupLogbookByYear();
   document.getElementById('tb').innerHTML='';
   (D.training||[]).forEach(r=>addTRow(r));
   syncPro();
@@ -2144,9 +2596,9 @@ function applyFilters(){
   };
   let shown=0,total=0;
   document.querySelectorAll('#lb tr').forEach(tr=>{
-    total++;
     const ins=tr.querySelectorAll('input');const sels=tr.querySelectorAll('select');
-    if(ins.length<5){tr.classList.remove('row-hidden');return;}
+    if(ins.length<5){tr.classList.remove('row-hidden');return;}   // แถวหัวปี — ไม่นับ
+    total++;
     const date=(ins[0]?ins[0].value:'').toLowerCase();
     const actype=(sels[0]?sels[0].value:'').toLowerCase();
     const reg=(sels[1]?sels[1].value:'').toLowerCase();
@@ -2165,13 +2617,16 @@ function applyFilters(){
     tr.classList.toggle('row-hidden',!match);if(match)shown++;
   });
   const fc=document.getElementById('filterCount');
-  if(fc)fc.textContent=Object.values(f).some(v=>v!=='')?`แสดง ${shown}/${total} แถว`:'';
+  const any=Object.values(f).some(v=>v!=='');
+  if(fc)fc.textContent=any?`แสดง ${shown}/${total} แถว`:'';
+  const lb=document.getElementById('lb');if(lb)lb.classList.toggle('filtering',any);   // กรองอยู่ = แสดงผลทุกปี
 }
 function clearFilters(){
   ['f_date','f_actype','f_reg','f_workref','f_desc','f_ata','f_skill','f_mxloc','f_act','f_sig']
     .forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   document.querySelectorAll('#lb tr').forEach(tr=>tr.classList.remove('row-hidden'));
   const fc=document.getElementById('filterCount');if(fc)fc.textContent='';
+  const lb=document.getElementById('lb');if(lb)lb.classList.remove('filtering');
 }
 
 // ══ PDF EXPORT ══════════════════════════════════════════════════════════════
@@ -2216,7 +2671,7 @@ function _printRowsOn(){
 }
 function _printRowsOff(x){
   if(!x)return;
-  x.hidden.forEach(tr=>tr.style.display='');
+  x.hidden.forEach(tr=>{tr.style.display='';if(!tr.getAttribute('style'))tr.removeAttribute('style');});
   x.orig.forEach(tr=>x.tb.appendChild(tr));                              // คืนลำดับเดิมทุกแถว
 }
 
@@ -2375,7 +2830,7 @@ function calcSum(){
 
 // ══ AUTO SAVE ON CHANGE ════════════════════════════════════════════════════
 document.addEventListener('DOMContentLoaded',()=>{
-  document.getElementById('lb').addEventListener('change',()=>saveAllSoon());
+  document.getElementById('lb').addEventListener('change',()=>{saveAllSoon();_refreshYearHeads();});
   document.getElementById('tb').addEventListener('change',()=>saveAllSoon());
   initFirebase();
   // ── version system ──
@@ -2511,10 +2966,27 @@ async function loadAllUsers(){
         staffId:(d.profile&&d.profile.staffid)||'-',position:(d.profile&&d.profile.position)||'-',
         rows:(d.rows||[]).length,rowsArr:(d.rows||[]),trainingArr:(d.training||[]),
         savedAt:(d._savedAtServer&&typeof d._savedAtServer.toDate==='function')?d._savedAtServer.toDate().toISOString():(d._savedAt||'-'),
-        amel:(d.profile&&d.profile.amel)||'',email:d._email||'-'});
+        amel:(d.profile&&d.profile.amel)||'',email:d._email||'-',
+        docBytes:_bytes(d),     // ขนาดเอกสารหลักโดยประมาณ ใช้เฝ้าระวังลิมิต 1 MiB
+        arch:(d._archive&&Array.isArray(d._archive.years))?d._archive.years.slice():[],
+        archFail:false});
     });
+    // รวมคลังข้อมูลเก่ากลับเข้า rowsArr — อ่านเพิ่มเฉพาะบัญชีที่อยู่ในโหมดคลังเท่านั้น
+    const _au=allUsersData.filter(u=>u.arch.length);
+    if(_au.length){
+      await Promise.all(_au.map(async u=>{
+        try{
+          // มีเอกสารหลักอยู่ในมือแล้ว อ่านเฉพาะคลัง (ประหยัดการอ่านบัญชีละ 1 ครั้ง)
+          const a=await _fetchArchRows(u.uid,{years:u.arch});
+          u.rowsArr=a.rows.concat(u.rowsArr||[]);u.rows=u.rowsArr.length;
+        }catch(e){u.archFail=true;console.warn('archive load',u.uid,e);}
+      }));
+      const nf=_au.filter(u=>u.archFail).length;
+      if(nf)toastMsg('⚠️ โหลดคลังข้อมูลเก่าไม่สำเร็จ '+nf+' คน — ตัวเลขของคนกลุ่มนี้อาจไม่ครบ');
+    }
     populatePosFilter(allUsersData);
     filterAdminTable();updateAdminStats(allUsersData);
+    await _loadBackupState();
     renderMonBar();
     checkStatusAlerts(allUsersData);   // ตรวจสถานะหล่นผ่าน→ไม่ผ่าน แล้วแจ้งเตือน (ไม่บล็อกการแสดงตาราง)
   }catch(e){tbody.innerHTML='<tr><td colspan="10" style="text-align:center;padding:20px;color:#c00000">Error: '+e.message+'</td></tr>';}
@@ -2579,6 +3051,7 @@ const DQ_TYPES=[
   {k:'nodur',  t:'ไม่มี Duration หรือค่าไม่ถูกต้อง', why:'ชั่วโมงไม่ถูกนำไปคำนวณ Working Days'},
   {k:'noskill',t:'ไม่ได้เลือก Skill',            why:'กระทบการนับ NDT และประเภทงาน'},
   {k:'notype', t:'ไม่ได้เลือก Aircraft Type',    why:'ระบุไม่ได้ว่าเป็นงาน 1st Type หรือไม่'},
+  {k:'regmis', t:'Reg./P/N ไม่ตรงกับ Aircraft Type', why:'ระบุลำหรือชิ้นส่วนผิดประเภท ตรวจสอบย้อนกลับไม่ได้'},
   {k:'dup',    t:'แถวซ้ำ (วันที่ + Work Ref. + งานเดียวกัน)', why:'อาจทำให้ Tasks ถูกนับเกินจริง'},
   {k:'over24', t:'ชั่วโมงรวมในวันเดียวเกิน 24 ชม.', why:'เป็นไปไม่ได้ทางกายภาพ ควรตรวจสอบ'}
 ];
@@ -2598,6 +3071,12 @@ function dqScan(){
       if(!r.dur||isNaN(dur)||dur<=0||Math.round(dur*2)!==dur*2)add('nodur');
       if(!r.skill)add('noskill');
       if(!r.actype)add('notype');
+      // Reg./P/N ต้องอยู่ในรายการที่อนุญาตของ Aircraft Type นั้น (ตามตารางจับคู่)
+      // ข้ามถ้ายังไม่ได้เลือกประเภท หรือยังไม่ได้เลือก Reg. หรือประเภทไม่มีในตาราง
+      if(r.actype&&r.reg&&AC_MAP[r.actype]&&regList(r.actype).indexOf(r.reg)<0){
+        issues.push({k:'regmis',name:u.name,staffId:u.staffId,pos:u.position||'-',row:i+1,
+          date:r.date||'-',ref:r.workref||'',desc:r.actype+'  ✗  '+r.reg});
+      }
       const key=(r.date||'')+'|'+(r.workref||'')+'|'+(r.desc||'');
       if(r.date&&(r.workref||r.desc)){ if(seen[key])add('dup'); else seen[key]=1; }
       if(d&&!isNaN(dur)&&dur>0){const dk=r.date;perDay[dk]=(perDay[dk]||0)+dur;}
@@ -2718,16 +3197,28 @@ function renderMonBar(){
     st.innerHTML='';['mi-risk','mi-idle','mi-dq'].forEach(i=>set(i,''));return;
   }
   const risk=riskList(30).length, idle=idleList(30).length, dq=dqScan().length, rt=routineList(70).length, nr=nearList().filter(x=>x.ratio>=70).length, pq=pqScan().length;
+  const szL=sizeList(), sz=szL.filter(x=>x.pct>=SIZE_WARN||(x.yrs!==null&&x.yrs<2)).length,
+        szCrit=szL.filter(x=>x.pct>=SIZE_CRIT).length;
   // ป้ายเล็กบนปุ่ม — เหลืองเมื่อมีเรื่องต้องดู, จางเมื่อเป็นศูนย์
   const pill=(icon,n,ok)=>'<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;'
     +'background:'+(ok?'rgba(255,255,255,.16)':'#ffd479')+';color:'+(ok?'#e8ecf3':'#5c3d00')
     +';border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800">'+icon+' '+n.toLocaleString('th-TH')+'</span>';
-  st.innerHTML=pill('⚠️',risk,risk===0)+pill('💤',idle,idle===0)+pill('🔍',dq,dq===0);
+  st.innerHTML=pill('⚠️',risk,risk===0)+pill('💤',idle,idle===0)+pill('🔍',dq,dq===0)
+    +(szCrit?pill('📦',szCrit,false):'')
+    +((_backupLevel()==='due'||_backupLevel()==='warn')
+      ?'<span title="'+esc(_backupText())+'" style="display:inline-flex;align-items:center;margin-left:6px;background:'
+        +(_backupLevel()==='due'?'#ff9b9b;color:#5c0000':'#ffd479;color:#5c3d00')
+        +';border-radius:10px;padding:1px 7px;font-size:11px;font-weight:800">💾 '
+        +(_backupAgeDays()===null?'ยังไม่สำรอง':_backupAgeDays()+' วัน')+'</span>':'');
   // ป้ายในเมนู
   const mb=(n,ok)=>'<span style="background:'+(ok?'#eaf5ea':'#fff2d6')+';color:'+(ok?'#2e7d32':'#8a5a00')
     +';border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:800">'+n.toLocaleString('th-TH')+'</span>';
   set('mi-risk',mb(risk,risk===0));set('mi-idle',mb(idle,idle===0));set('mi-dq',mb(dq,dq===0));
-  set('mi-rt',mb(rt,rt===0));set('mi-nr',mb(nr,nr===0));set('mi-pq',mb(pq,pq===0));
+  set('mi-rt',mb(rt,rt===0));set('mi-nr',mb(nr,nr===0));set('mi-pq',mb(pq,pq===0));set('mi-sz',mb(sz,sz===0));
+  const bl=_backupLevel(),ba=_backupAgeDays();
+  const bc={ok:['#eaf5ea','#2e7d32'],warn:['#fff2d6','#8a5a00'],due:['#fdecec','#c00000'],unknown:['#f2f2f2','#888']}[bl];
+  set('mi-bk','<span style="background:'+bc[0]+';color:'+bc[1]+';border-radius:10px;padding:2px 10px;font-size:11.5px;font-weight:800">'
+    +(bl==='unknown'?'?':(ba===null?'ยังไม่เคย':(ba===0?'วันนี้':ba+' วัน')))+'</span>');
 }
 
 // ══ ตรวจคุณภาพโปรไฟล์ + บัญชีซ้ำ/แปลกปลอม ═════════════════════════════════
@@ -2860,6 +3351,536 @@ function _pqRender(){
       +'<td style="padding:6px;font-size:10.5px;color:#777">'+esc(i.note)+'</td></tr>';
   });
   box.innerHTML=h+'</table>';
+}
+
+// ══ เฝ้าระวังขนาดเอกสาร (ลิมิต 1 MiB ต่อคนของ Firestore) ════════════════════
+// ใช้ข้อมูลที่โหลดมาแล้ว ไม่อ่าน Firestore เพิ่ม · คาดการณ์จากอัตราลงงาน 12 เดือนล่าสุด
+const SIZE_WARN=70, SIZE_CRIT=90;
+function sizeList(){
+  const now=new Date(),ya=new Date(now);ya.setFullYear(ya.getFullYear()-1);
+  return (allUsersData||[]).map(u=>{
+    const b=u.docBytes||0, pct=b/DOC_LIMIT*100, n=u.rows||0;
+    const perYear=(u.rowsArr||[]).filter(r=>{const d=pDate(r.date);return d&&d>=ya&&d<=now;}).length;
+    const bpr=n?b/n:0, left=Math.max(0,DOC_LIMIT-b);
+    const yrs=(perYear&&bpr)?left/(perYear*bpr):null;
+    return {u,b,pct,perYear,yrs};
+  }).sort((a,b)=>b.pct-a.pct);
+}
+let _szAll=[],_szView=[];
+function openSize(){
+  _szAll=sizeList();
+  const warn=_szAll.filter(x=>x.pct>=SIZE_WARN).length, crit=_szAll.filter(x=>x.pct>=SIZE_CRIT).length;
+  const soon=_szAll.filter(x=>x.yrs!==null&&x.yrs<2).length;
+  let h='<div style="background:#f4f7fc;border:1px solid #d4e0f0;border-radius:8px;padding:11px 14px;margin-bottom:12px;font-size:12px;color:#33507a;line-height:1.75">'
+    +'Firestore จำกัดข้อมูลไว้ที่ <b>1 MiB ต่อคน</b> (ราว 3,000 แถวงาน) ถ้าเกิน <b>พนักงานคนนั้นจะบันทึกข้อมูลไม่ได้เลย</b><br>'
+    +(crit?'<b style="color:#c00000">🔴 '+crit+' คนเกิน '+SIZE_CRIT+'% — ต้องจัดการด่วน</b> &nbsp;':'')
+    +(warn-crit>0?'<b style="color:#b8860b">🟠 '+(warn-crit)+' คนเกิน '+SIZE_WARN+'%</b> &nbsp;':'')
+    +(soon?'<b style="color:#7a3500">⏳ '+soon+' คนคาดว่าจะเต็มภายใน 2 ปี</b>':'')
+    +(!warn&&!soon?'<b style="color:#2e7d32">✓ ทุกคนยังอยู่ในระดับปลอดภัย</b>':'')
+    +'<br><span style="color:#888">* ขนาดเป็นค่าประมาณ · การคาดการณ์คิดจากจำนวนแถวที่ลงใน 12 เดือนล่าสุด</span></div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f9fc;border:1px solid #dde5f0;'
+    +'border-radius:8px;padding:10px 12px;margin-bottom:10px;position:sticky;top:0;z-index:2">'
+    +'<input id="sz-q" placeholder="🔍 ค้นหาชื่อ / Staff ID / อีเมล..." style="flex:1 1 240px;min-width:0;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+    +'<label style="font-size:12px;display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="sz-only"'+(warn?' checked':'')+'> เฉพาะที่เกิน '+SIZE_WARN+'% หรือเต็มใน 2 ปี</label></div>'
+    +'<div id="sz-count" style="font-size:12px;color:#666;margin-bottom:6px"></div><div id="sz-list"></div>';
+  _openInfoModal('📦 เฝ้าระวังขนาดเอกสาร','#1a3a6b',h,()=>{
+    const lines=[['ชื่อ-นามสกุล','Staff ID','อีเมล','จำนวนแถว','ขนาด (KB)','ใช้ไป (%)','ลงงานปีละ (แถว)','คาดว่าเต็มใน (ปี)'].map(_csvCell).join(',')];
+    _szView.forEach(x=>lines.push([x.u.name,x.u.staffId,x.u.email,x.u.rows,(x.b/1024).toFixed(0),x.pct.toFixed(1),
+      x.perYear,x.b>=DOC_LIMIT?'เต็มแล้ว':(x.yrs===null?'-':x.yrs.toFixed(1))].map(_csvCell).join(',')));
+    _dlCSV(lines,'DocSize_');
+  },true);
+  const q=document.getElementById('sz-q'),o=document.getElementById('sz-only');
+  if(q)q.addEventListener('input',_szRender);
+  if(o)o.addEventListener('change',_szRender);
+  _szRender();
+}
+function _szRender(){
+  const box=document.getElementById('sz-list');if(!box)return;
+  const q=((document.getElementById('sz-q')||{}).value||'').toLowerCase().trim();
+  const only=(document.getElementById('sz-only')||{}).checked;
+  _szView=_szAll.filter(x=>{
+    if(only&&!(x.pct>=SIZE_WARN||(x.yrs!==null&&x.yrs<2)))return false;
+    if(q&&!((x.u.name||'').toLowerCase().includes(q)||(x.u.staffId||'').toLowerCase().includes(q)
+      ||(x.u.email||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+  const cnt=document.getElementById('sz-count');
+  if(cnt)cnt.innerHTML='แสดง <b>'+_szView.length+'</b> จาก '+_szAll.length+' คน';
+  if(!_szView.length){box.innerHTML='<div style="text-align:center;padding:26px;color:#2e7d32;font-weight:700">✓ ไม่มีรายการตามเงื่อนไข</div>';return;}
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#eef2fa"><th style="padding:8px;text-align:left">ชื่อ-นามสกุล</th>'
+    +'<th style="padding:8px">Staff ID</th><th style="padding:8px">แถวงาน</th><th style="padding:8px">ขนาด</th>'
+    +'<th style="padding:8px">ใช้ไปแล้ว</th><th style="padding:8px">ลงงานปีละ</th><th style="padding:8px">คาดว่าเต็มใน</th></tr>';
+  _szView.forEach(x=>{
+    const col=x.pct>=SIZE_CRIT?'#c00000':(x.pct>=SIZE_WARN?'#b8860b':'#2e7d32');
+    const w=Math.min(100,x.pct);
+    const yc=x.yrs===null?'#bbb':(x.yrs<2?'#c00000':(x.yrs<5?'#b8860b':'#2e7d32'));
+    h+='<tr style="border-bottom:1px solid #f0f0f0">'
+      +'<td style="padding:7px 8px"><b style="color:#1a3a6b">'+esc(x.u.name)+'</b>'
+        +(x.u.arch&&x.u.arch.length?' <span title="อยู่ในโหมดคลังข้อมูลเก่า" style="background:#6b4a10;color:#fff;border-radius:3px;padding:0 5px;font-size:9.5px;font-weight:800">📚 คลัง '+x.u.arch.length+' ปี</span>':'')
+        +'<br><span style="color:#999;font-size:10.5px">'+esc(x.u.email)+'</span></td>'
+      +'<td style="padding:7px 8px;text-align:center">'+esc(x.u.staffId)+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+(x.u.rows||0).toLocaleString('th-TH')+'</td>'
+      +'<td style="padding:7px 8px;text-align:center">'+(x.b/1024).toFixed(0)+' KB</td>'
+      +'<td style="padding:7px 8px;text-align:center;white-space:nowrap">'
+        +'<div style="background:#eee;border-radius:5px;height:8px;width:80px;display:inline-block;overflow:hidden;vertical-align:middle">'
+        +'<div style="height:100%;width:'+w+'%;background:'+col+'"></div></div> '
+        +'<b style="color:'+col+';font-size:11.5px">'+x.pct.toFixed(0)+'%</b></td>'
+      +'<td style="padding:7px 8px;text-align:center">'+x.perYear.toLocaleString('th-TH')+' แถว</td>'
+      +'<td style="padding:7px 8px;text-align:center;font-weight:700;color:'+yc+'">'
+        +(x.b>=DOC_LIMIT?'⛔ เต็มแล้ว':(x.yrs===null?'-':(x.yrs>20?'> 20 ปี':'~'+x.yrs.toFixed(1)+' ปี')))+'</td></tr>';
+  });
+  box.innerHTML=h+'</table>';
+}
+
+// ══ เครื่องมือคลังข้อมูลเก่า (ขั้นทดลอง: ทำทีละบัญชี) ═══════════════════════
+function _archPreview(u){
+  const all=u.rowsArr||[];
+  if(u.arch&&u.arch.length){
+    const {recent}=splitRows(all);
+    const archRows=all.length-recent.length;
+    return {mode:'archived',years:u.arch,archRows:archRows,total:all.length,
+      mergedBytes:(u.docBytes||0)+Math.max(0,_bytes(all)-_bytes(recent))};
+  }
+  const {recent,byYear,cut}=splitRows(all);
+  const ys=Object.keys(byYear).sort();
+  const moved=all.length-recent.length;
+  const after=Math.max(0,(u.docBytes||0)-(_bytes(all)-_bytes(recent)));
+  return {mode:'normal',cut:cut,byYear:byYear,years:ys,moved:moved,keep:recent.length,total:all.length,after:after};
+}
+let _arAll=[],_arSel='';const _arPick2=new Set();   // บัญชีที่ติ๊กเลือกไว้เพื่อเปิดโหมดคลังพร้อมกัน
+function openArchiveTool(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  if(!allUsersData||!allUsersData.length){alert('ยังไม่มีข้อมูล — กด "โหลดข้อมูลใหม่" ก่อน');return;}
+  // คำนวณล่วงหน้าว่าแต่ละคนย้ายได้กี่แถว (ใช้ข้อมูลที่โหลดไว้แล้ว ไม่อ่าน Firestore เพิ่ม)
+  _arAll=allUsersData.map(u=>{
+    const archived=!!(u.arch&&u.arch.length), p=_archPreview(u);
+    return {u,archived,pct:(u.docBytes||0)/DOC_LIMIT*100,
+      movable:archived?p.archRows:p.moved, after:archived?null:p.after/DOC_LIMIT*100};
+  }).sort((a,b)=>b.pct-a.pct);
+  const nArch=_arAll.filter(x=>x.archived).length;
+  const sel=(id,opts)=>'<select id="'+id+'" style="border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px;background:#fff">'
+    +opts.map(o=>'<option value="'+o[0]+'">'+o[1]+'</option>').join('')+'</select>';
+  let h='<div style="background:#fff8ec;border:1px solid #e8cfa0;border-radius:8px;padding:11px 14px;margin-bottom:12px;font-size:12px;color:#6b4a10;line-height:1.75">'
+    +'<b>📚 คลังข้อมูลเก่า</b> — ย้ายแถวงานที่เก่ากว่า <b>'+ARCH_KEEP_MONTHS+' เดือน</b> ไปเก็บในคลังแยกรายปี เอกสารหลักจะเล็กลงและไม่ชนลิมิตอีก<br>'
+    +'พนักงาน<b>ยังเห็นข้อมูลครบทุกแถวเหมือนเดิม</b> ระบบรวมกลับให้อัตโนมัติ ตัวเลข compliance ไม่เปลี่ยน<br>'
+    +'ลบเข้าถังขยะ กู้คืน และสำรองข้อมูลได้ตามปกติ · ระบบ<b>เปิดโหมดคลังให้อัตโนมัติ</b>เมื่อเอกสารใหญ่เกิน 60% · ต้องอัปเดต Firestore Rules ก่อนใช้งาน<br>'
+    +'ตอนนี้อยู่ในโหมดคลังแล้ว <b>'+nArch+'</b> จาก '+_arAll.length+' บัญชี</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;background:#f7f9fc;border:1px solid #dde5f0;'
+    +'border-radius:8px;padding:10px 12px;margin-bottom:8px;position:sticky;top:0;z-index:2">'
+    +'<input id="ar-q" placeholder="🔍 ค้นหาชื่อ / Staff ID / อีเมล..." style="flex:1 1 220px;min-width:0;border:1px solid #ccc;border-radius:6px;padding:7px 10px;font-size:13px">'
+    +sel('ar-st',[['','ทุกสถานะ'],['no','ยังไม่เข้าคลัง'],['yes','📚 โหมดคลังแล้ว']])
+    +sel('ar-sz',[['0','ทุกขนาด'],['30','ใช้ไป ≥ 30%'],['50','ใช้ไป ≥ 50%'],['70','ใช้ไป ≥ 70%']])
+    +'<label style="font-size:12px;display:flex;gap:5px;align-items:center;cursor:pointer;white-space:nowrap">'
+    +'<input type="checkbox" id="ar-mv"> เฉพาะที่มีแถวให้ย้าย</label>'
+    +'<button class="btn" id="ar-clear" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้าง</button></div>'
+    +'<div id="ar-bulk" style="display:none;align-items:center;gap:10px;flex-wrap:wrap;background:#fff4e0;border:1px solid #e8c98a;'
+    +'border-radius:8px;padding:9px 13px;margin-bottom:8px">'
+    +'<span id="ar-bulk-stat" style="font-size:12px;color:#6b4a10;font-weight:700"></span>'
+    +'<button class="btn" id="ar-bulk-go" style="margin-left:auto;background:#6b4a10;color:#fff;font-size:12px;padding:6px 13px">📚 เปิดโหมดคลังให้ที่เลือก</button>'
+    +'<button class="btn" id="ar-bulk-clr" style="background:#e8e8e8;color:#444;font-size:12px;padding:6px 12px">ล้างการเลือก</button></div>'
+    +'<div id="ar-count" style="font-size:12px;color:#666;margin-bottom:6px"></div>'
+    +'<div id="ar-list" style="max-height:42vh;overflow:auto;border:1px solid #eee;border-radius:8px;margin-bottom:14px"></div>'
+    +'<div id="ar-prev"></div>';
+  _openInfoModal('📚 คลังข้อมูลเก่า','#6b4a10',h,null,true);
+  const ids=['ar-q','ar-st','ar-sz','ar-mv'];
+  ids.forEach(id=>{const e=document.getElementById(id);if(e)e.addEventListener(id==='ar-q'?'input':'change',_arRender);});
+  const cl=document.getElementById('ar-clear');
+  if(cl)cl.onclick=()=>{const q=document.getElementById('ar-q');if(q)q.value='';
+    ['ar-st','ar-sz'].forEach(id=>{const e=document.getElementById(id);if(e)e.selectedIndex=0;});
+    const m=document.getElementById('ar-mv');if(m)m.checked=false;_arRender();};
+  _arSel='';_arPick2.clear();
+  const bg=document.getElementById('ar-bulk-go');if(bg)bg.onclick=runArchiveBulk;
+  const bc=document.getElementById('ar-bulk-clr');if(bc)bc.onclick=()=>{_arPick2.clear();_arRender();};
+  _arRender();
+}
+function _arRender(){
+  const box=document.getElementById('ar-list');if(!box)return;
+  const q=((document.getElementById('ar-q')||{}).value||'').toLowerCase().trim();
+  const st=(document.getElementById('ar-st')||{}).value||'';
+  const sz=+((document.getElementById('ar-sz')||{}).value||0);
+  const mv=(document.getElementById('ar-mv')||{}).checked;
+  const view=_arAll.filter(x=>{
+    if(st==='yes'&&!x.archived)return false;
+    if(st==='no'&&x.archived)return false;
+    if(x.pct<sz)return false;
+    if(mv&&(x.archived||!x.movable))return false;
+    if(q&&!((x.u.name||'').toLowerCase().includes(q)||(x.u.staffId||'').toLowerCase().includes(q)
+      ||(x.u.email||'').toLowerCase().includes(q)))return false;
+    return true;
+  });
+  const cnt=document.getElementById('ar-count');
+  if(cnt)cnt.innerHTML='แสดง <b>'+view.length+'</b> จาก '+_arAll.length+' บัญชี · <span style="color:#999">กดที่แถวเพื่อดูรายละเอียดและดำเนินการ</span>';
+  if(!view.length){box.innerHTML='<div style="text-align:center;padding:24px;color:#999">ไม่พบบัญชีตามเงื่อนไข</div>';return;}
+  let h='<table style="width:100%;border-collapse:collapse;font-size:12px">'
+    +'<tr style="background:#f5ead2;position:sticky;top:0">'
+    +'<th style="padding:7px;width:32px"><input type="checkbox" id="ar-all" title="เลือกทั้งหมดที่แสดงอยู่ (เฉพาะที่ยังไม่เข้าคลัง)"></th>'
+    +'<th style="padding:7px;text-align:left">ชื่อ / อีเมล</th>'
+    +'<th style="padding:7px">Staff ID</th><th style="padding:7px">แถวงาน</th><th style="padding:7px">ขนาดตอนนี้</th>'
+    +'<th style="padding:7px">ย้ายได้</th><th style="padding:7px">หลังย้าย</th><th style="padding:7px">สถานะ</th></tr>';
+  view.forEach(x=>{
+    const col=x.pct>=90?'#c00000':(x.pct>=70?'#b8860b':'#555');
+    const picked=x.u.uid===_arSel;
+    h+='<tr class="ar-row" data-uid="'+esc(x.u.uid)+'" style="border-bottom:1px solid #f0f0f0;cursor:pointer;'
+      +(picked?'background:#fff1d6;box-shadow:inset 3px 0 0 #6b4a10':'')+'">'
+      +'<td style="padding:6px 8px;text-align:center">'+(x.archived?''
+        :'<input type="checkbox" class="ar-ck" data-uid="'+esc(x.u.uid)+'"'+(_arPick2.has(x.u.uid)?' checked':'')+'>')+'</td>'
+      +'<td style="padding:6px 8px"><b style="color:#1a3a6b">'+esc(x.u.name)+'</b><br><span style="color:#999;font-size:10.5px">'+esc(x.u.email)+'</span></td>'
+      +'<td style="padding:6px 8px;text-align:center">'+esc(x.u.staffId)+'</td>'
+      +'<td style="padding:6px 8px;text-align:center">'+(x.u.rows||0).toLocaleString('th-TH')+'</td>'
+      +'<td style="padding:6px 8px;text-align:center;font-weight:700;color:'+col+'">'+x.pct.toFixed(0)+'%</td>'
+      +'<td style="padding:6px 8px;text-align:center">'+(x.archived?'<span style="color:#999">'+x.movable+' ในคลัง</span>'
+        :(x.movable?'<b style="color:#6b4a10">'+x.movable.toLocaleString('th-TH')+'</b>':'<span style="color:#ccc">0</span>'))+'</td>'
+      +'<td style="padding:6px 8px;text-align:center;color:#2e7d32;font-weight:700">'+(x.after===null?'-':'~'+x.after.toFixed(0)+'%')+'</td>'
+      +'<td style="padding:6px 8px;text-align:center">'+(x.archived
+        ?'<span style="background:#6b4a10;color:#fff;border-radius:3px;padding:1px 6px;font-size:10px;font-weight:800">📚 '+x.u.arch.length+' ปี</span>'
+        :'<span style="color:#aaa;font-size:11px">ปกติ</span>')+'</td></tr>';
+  });
+  box.innerHTML=h+'</table>';
+  box.querySelectorAll('.ar-row').forEach(tr=>tr.onclick=e=>{if(e.target.classList.contains('ar-ck'))return;_arPick(tr.dataset.uid);});
+  box.querySelectorAll('.ar-ck').forEach(ck=>ck.onchange=()=>{
+    if(ck.checked)_arPick2.add(ck.dataset.uid);else _arPick2.delete(ck.dataset.uid);_arBulkBar(view);});
+  const all=document.getElementById('ar-all');
+  if(all)all.onchange=()=>{view.filter(x=>!x.archived).forEach(x=>{if(all.checked)_arPick2.add(x.u.uid);else _arPick2.delete(x.u.uid);});_arRender();};
+  _arBulkBar(view);
+}
+// สรุปสิ่งที่เลือก + ต้นทุนการอ่านที่จะเพิ่มขึ้น ให้เห็นก่อนตัดสินใจ
+function _arBulkSummary(){
+  const sel=_arAll.filter(x=>_arPick2.has(x.u.uid)&&!x.archived);
+  let moved=0,years=0,useless=0;
+  sel.forEach(x=>{const {byYear}=splitRows(pruneBlankRows(x.u.rowsArr||[]));
+    const y=Object.keys(byYear).length;years+=y;moved+=x.movable;if(!x.movable)useless++;});
+  return {sel,moved,years,useless};
+}
+function _arBulkBar(view){
+  const bar=document.getElementById('ar-bulk');if(!bar)return;
+  const sm=_arBulkSummary();
+  bar.style.display=sm.sel.length?'flex':'none';
+  const st=document.getElementById('ar-bulk-stat');
+  if(st)st.innerHTML='เลือกไว้ '+sm.sel.length+' บัญชี · ย้ายรวม '+sm.moved.toLocaleString('th-TH')+' แถว'
+    +' · <span style="color:#b35900">การอ่านตอนเปิดแดชบอร์ดเพิ่ม ~'+sm.years+' ครั้ง</span>'
+    +(sm.useless?' · <span style="color:#c00000">'+sm.useless+' บัญชีย้ายไม่ได้สักแถว</span>':'');
+  const all=document.getElementById('ar-all');
+  if(all){const el=(view||[]).filter(x=>!x.archived);all.checked=el.length>0&&el.every(x=>_arPick2.has(x.u.uid));}
+}
+async function runArchiveBulk(){
+  if(!isAdmin())return;
+  const sm=_arBulkSummary();
+  if(!sm.sel.length){alert('ยังไม่ได้เลือกบัญชี');return;}
+  let msg='เปิดโหมดคลังให้ '+sm.sel.length+' บัญชี?\n\n'
+    +'• ย้ายเข้าคลังรวม '+sm.moved.toLocaleString('th-TH')+' แถว\n'
+    +'• การอ่าน Firestore ตอนเปิดแดชบอร์ดแอดมินจะเพิ่มราว '+sm.years+' ครั้งต่อการเปิด 1 รอบ\n'
+    +'• พนักงานแต่ละคนจะอ่านเพิ่มตามจำนวนปีในคลังของตัวเองทุกครั้งที่เปิดแอป\n'
+    +'• ทุกบัญชียังเห็นข้อมูลครบทุกแถวเหมือนเดิม';
+  if(sm.useless)msg+='\n\n⚠️ มี '+sm.useless+' บัญชีที่ย้ายไม่ได้สักแถว — จะเพิ่มต้นทุนโดยไม่ได้ประโยชน์ในตอนนี้';
+  msg+='\n\nได้สำรองข้อมูลและอัปเดต Firestore Rules แล้วใช่ไหม?';
+  if(!confirm(msg))return;
+  const btn=document.getElementById('ar-bulk-go');if(btn)btn.disabled=true;
+  const st=document.getElementById('ar-bulk-stat');
+  let okN=0;const bad=[];
+  for(let i=0;i<sm.sel.length;i++){
+    const x=sm.sel[i];
+    if(st)st.textContent='กำลังดำเนินการ '+(i+1)+' / '+sm.sel.length+' — '+x.u.name;
+    try{
+      const r=await _archiveOneCore(x.u.uid);
+      if(r.ok)okN++;else bad.push(x.u.name+' — '+r.err);
+    }catch(e){
+      bad.push(x.u.name+' — '+e.message);
+      if(/permission/i.test(e.message)){bad.push('(หยุดทำงาน: น่าจะยังไม่ได้อัปเดต Firestore Rules)');break;}
+    }
+  }
+  _arPick2.clear();
+  alert('📚 เปิดโหมดคลังสำเร็จ '+okN+' บัญชี (ทุกบัญชีที่สำเร็จผ่านการตรวจทานจำนวนแถวแล้ว)'
+    +(bad.length?'\n\n⚠️ ไม่สำเร็จ '+bad.length+' รายการ:\n'+bad.slice(0,12).join('\n')+(bad.length>12?'\n…':''):''));
+  if(_closeInfo)_closeInfo();
+  loadAllUsers();
+}
+function _arPick(uid){
+  _arSel=uid;_arRender();_arRenderPreview(uid);
+  const p=document.getElementById('ar-prev');
+  if(p)p.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function _arRenderPreview(uid){
+  const box=document.getElementById('ar-prev');if(!box)return;
+  const u=(allUsersData||[]).find(x=>x.uid===uid);
+  if(!u){box.innerHTML='';return;}
+  if(u.archFail){box.innerHTML='<div style="color:#c00000;padding:12px">⛔ โหลดคลังของบัญชีนี้ไม่สำเร็จ — ห้ามดำเนินการใดๆ กรุณาโหลดข้อมูลใหม่ก่อน</div>';return;}
+  const p=_archPreview(u);
+  let h='<div style="border:1px solid #e3e7f0;border-radius:8px;padding:12px 14px;font-size:12.5px;line-height:1.8">';
+  if(p.mode==='archived'){
+    h+='<b>สถานะ:</b> 📚 อยู่ในโหมดคลัง · คลัง '+p.years.length+' ปี ('+p.years.join(', ')+') · '+p.archRows+' แถว<br>'
+      +'<b>แถวทั้งหมด:</b> '+p.total.toLocaleString('th-TH')+' แถว (เห็นครบทุกแถวเหมือนเดิม)<br>'
+      +'<b>ถ้ายกเลิกโหมดคลัง</b> เอกสารหลักจะกลับไปใหญ่ราว <b>'+(p.mergedBytes/DOC_LIMIT*100).toFixed(0)+'%</b> ของลิมิต</div>';
+    const ok=p.mergedBytes<DOC_LIMIT*0.95;
+    h+='<div style="margin-top:12px"><button class="btn" id="ar-undo" '+(ok?'':'disabled ')
+      +'style="background:#7a3500;color:#fff">↩ ยกเลิกโหมดคลัง (รวมกลับเป็นเอกสารเดียว)</button>'
+      +(ok?'':' <span style="color:#c00000;font-size:12px">รวมกลับแล้วจะเกินลิมิต จึงยกเลิกไม่ได้</span>')+'</div>';
+    h+=_arPathPanel(uid,p.years);
+    box.innerHTML=h;
+    const b=document.getElementById('ar-undo');if(b&&ok)b.onclick=()=>runUnarchiveOne(uid,u.name);
+    _arWirePathPanel(uid);
+    return;
+  }
+  const rowsY=p.years.map(y=>y+': '+p.byYear[y].length+' แถว').join(' · ');
+  h+='<b>แถวทั้งหมด:</b> '+p.total.toLocaleString('th-TH')+' แถว · <b>ขนาดตอนนี้:</b> '+((u.docBytes||0)/DOC_LIMIT*100).toFixed(0)+'% ของลิมิต<br>'
+    +'<b>จุดตัด:</b> แถวที่เก่ากว่า '+fmtD(p.cut)+' จะย้ายเข้าคลัง<br>'
+    +'<b>ย้ายเข้าคลัง:</b> '+p.moved.toLocaleString('th-TH')+' แถว'+(rowsY?' ('+rowsY+')':'')+'<br>'
+    +'<b>อยู่เอกสารหลัก:</b> '+p.keep.toLocaleString('th-TH')+' แถว · <b>ขนาดหลังย้าย:</b> ~'+(p.after/DOC_LIMIT*100).toFixed(0)+'% ของลิมิต</div>'
+    +(p.moved?'':'<p style="font-size:12px;color:#b8860b;margin-top:8px">ℹ️ ยังไม่มีแถวที่เก่าพอจะย้าย — ถ้าเปิดโหมดคลังไว้ ระบบจะทยอยย้ายให้เองเมื่อแถวเก่าลง</p>')
+    +'<div style="margin-top:12px"><button class="btn" id="ar-go" style="background:#6b4a10;color:#fff">📚 เปิดโหมดคลังให้บัญชีนี้</button></div>';
+  h+=_arPathPanel(uid,[]);
+  box.innerHTML=h;
+  document.getElementById('ar-go').onclick=()=>runArchiveOne(uid,u.name,p);
+  _arWirePathPanel(uid);
+}
+// ── แผงบอกตำแหน่งใน Firestore + ตรวจสอบสดจากฐานข้อมูลจริง ──
+// ลิงก์เปิดเอกสารใน Firebase Console โดยตรง (~2F คือเครื่องหมาย / ในรูปแบบ URL ของ Console)
+function _consoleLink(segs){
+  const pid=(typeof FB_CONFIG!=='undefined'&&FB_CONFIG.projectId)||'';
+  return 'https://console.firebase.google.com/project/'+encodeURIComponent(pid)
+    +'/firestore/databases/-default-/data/~2F'+segs.map(encodeURIComponent).join('~2F');
+}
+function _consoleBtn(segs){
+  return ' <a href="'+_consoleLink(segs)+'" target="_blank" rel="noopener" title="เปิดเอกสารนี้ใน Firebase Console" '
+    +'style="font-size:11px;background:#fff3e0;color:#b35900;border:1px solid #f0c890;border-radius:4px;'
+    +'padding:1px 7px;text-decoration:none;white-space:nowrap">🔗 เปิดใน Console</a>';
+}
+function _arPathPanel(uid,years){
+  const mono='font-family:Consolas,Menlo,monospace;font-size:11.5px;background:#f4f4f4;border-radius:4px;padding:1px 6px';
+  let h='<div style="margin-top:14px;border:1px dashed #c9b27a;border-radius:8px;padding:12px 14px;font-size:12px;line-height:1.9;color:#555">'
+    +'<b style="color:#6b4a10">📍 ตำแหน่งใน Firestore</b><br>'
+    +'UID (ชื่อเอกสาร): <span style="'+mono+'">'+esc(uid)+'</span> '
+    +'<button class="btn" id="ar-cp" style="background:#e8e8e8;color:#444;font-size:11px;padding:2px 9px">📋 คัดลอก</button><br>'
+    +'เอกสารหลัก: <span style="'+mono+'">logbooks / '+esc(uid)+'</span>'+_consoleBtn(['logbooks',uid])+'<br>';
+  if(years&&years.length){
+    h+='คลังรายปี: '+years.map(y=>'<span style="'+mono+'">logbooks / '+esc(uid)+' / archive / '+y+'</span>'
+      +_consoleBtn(['logbooks',uid,'archive',String(y)])).join('<br>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;')+'<br>';
+  }else{
+    h+='<span style="color:#999">ยังไม่มีคลัง — เอกสารหลักจะไม่มีฟิลด์ <span style="'+mono+'">_archive</span></span><br>';
+  }
+  h+='<button class="btn" id="ar-verify-btn" style="background:#6b4a10;color:#fff;font-size:12px;padding:5px 12px;margin-top:6px">'
+    +'🔍 ตรวจกับ Firestore ตอนนี้</button><div id="ar-verify" style="margin-top:8px"></div></div>';
+  return h;
+}
+function _arWirePathPanel(uid){
+  const cp=document.getElementById('ar-cp');
+  if(cp)cp.onclick=()=>{
+    const done=()=>toastMsg('📋 คัดลอก UID แล้ว');
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(uid).then(done).catch(()=>_copyFallback(uid,done));
+    else _copyFallback(uid,done);
+  };
+  const vb=document.getElementById('ar-verify-btn');
+  if(vb)vb.onclick=()=>verifyArchive(uid);
+}
+// อ่านจากฐานข้อมูลจริงทีละเอกสาร (ไม่ใช้ข้อมูลในหน่วยความจำ) แล้วรายงานว่าแต่ละที่มีกี่แถว
+async function verifyArchive(uid){
+  const out=document.getElementById('ar-verify');if(!out)return;
+  out.innerHTML='<span style="color:#888">กำลังอ่านจาก Firestore…</span>';
+  try{
+    const main=await fbDb.collection('logbooks').doc(uid).get();
+    if(!main.exists){out.innerHTML='<span style="color:#c00000">ไม่พบเอกสารหลัก</span>';return;}
+    const d=main.data()||{};
+    const meta=d._archive||null;
+    const list=[{path:'logbooks/'+uid,label:'เอกสารหลัก',n:(d.rows||[]).length,ok:true}];
+    let total=(d.rows||[]).length,bad=0;
+    for(const y of ((meta&&meta.years)||[])){
+      const sn=await _archCol(uid).doc(String(y)).get();
+      if(!sn.exists){list.push({path:'logbooks/'+uid+'/archive/'+y,label:'คลังปี '+y,n:0,ok:false});bad++;continue;}
+      const n=((sn.data()||{}).rows||[]).length;total+=n;
+      list.push({path:'logbooks/'+uid+'/archive/'+y,label:'คลังปี '+y,n:n,ok:true});
+    }
+    const archSum=total-(d.rows||[]).length;
+    const metaOk=!meta||meta.count===archSum;
+    let h='<table style="border-collapse:collapse;font-size:11.5px;margin-top:4px">';
+    list.forEach(x=>{
+      h+='<tr><td style="padding:3px 10px 3px 0;font-family:Consolas,Menlo,monospace">'+esc(x.path)+'</td>'
+        +'<td style="padding:3px 10px">'+x.label+'</td>'
+        +'<td style="padding:3px 10px;text-align:right;font-weight:700">'+x.n.toLocaleString('th-TH')+' แถว</td>'
+        +'<td style="padding:3px 0;color:'+(x.ok?'#2e7d32':'#c00000')+';font-weight:700">'+(x.ok?'✓':'✗ ไม่พบ')+'</td></tr>';
+    });
+    h+='</table><div style="margin-top:6px;font-weight:700;color:'+(bad||!metaOk?'#c00000':'#2e7d32')+'">'
+      +(meta?'📚 อยู่ในโหมดคลัง · ':'ยังไม่อยู่ในโหมดคลัง · ')
+      +'รวมทั้งหมด '+total.toLocaleString('th-TH')+' แถว'
+      +(meta?(' · ฟิลด์ _archive ระบุคลัง '+meta.count+' แถว '+(metaOk?'= ตรงกับที่นับได้จริง ✓':'≠ ที่นับได้จริง '+archSum+' ⚠️')):'')
+      +(bad?' · ⚠️ เอกสารคลังหาย '+bad+' ปี — ห้ามแก้ไขบัญชีนี้ กรุณาแจ้งผู้พัฒนา':'')+'</div>';
+    out.innerHTML=h;
+  }catch(e){out.innerHTML='<span style="color:#c00000">อ่านไม่สำเร็จ: '+esc(e.message)
+    +(/permission/i.test(e.message)?' — น่าจะยังไม่ได้อัปเดต Firestore Rules':'')+'</span>';}
+}
+// แกนการเปิดโหมดคลัง 1 บัญชี — ไม่มี UI คืนผลลัพธ์ให้ผู้เรียกจัดการเอง
+async function _archiveOneCore(uid){
+  const doc=await fbDb.collection('logbooks').doc(uid).get();
+  if(!doc.exists)return {ok:false,err:'ไม่พบข้อมูล'};
+  const d=sanitizeD(doc.data()||{});
+  if(d._archive)return {ok:false,err:'อยู่ในโหมดคลังแล้ว'};
+  d.rows=pruneBlankRows(d.rows);
+  const before=d.rows.length;
+  const batch=fbDb.batch();
+  const ar=addArchiveOps(batch,uid,d.rows,[],{});
+  const payload=Object.assign({},d,{rows:ar.recent,_archive:ar.meta,_savedAt:new Date().toISOString(),
+    _savedAtServer:firebase.firestore.FieldValue.serverTimestamp()});
+  batch.set(fbDb.collection('logbooks').doc(uid),payload);
+  await batch.commit();
+  // ตรวจทานทันที: อ่านกลับมารวมแล้วต้องได้จำนวนแถวเท่าเดิมพอดี
+  const a=await _fetchArchRows(uid,ar.meta);
+  const after=a.rows.length+ar.recent.length;
+  return {ok:after===before,before,after,moved:ar.meta.count,years:ar.meta.years.length,
+    err:after===before?'':'ตรวจทานไม่ผ่าน ก่อน '+before+' / หลัง '+after};
+}
+async function runArchiveOne(uid,name,p){
+  if(!isAdmin())return;
+  if(!confirm('เปิดโหมดคลังให้ "'+name+'"?\n\nย้ายเข้าคลัง '+p.moved+' แถว · อยู่เอกสารหลัก '+p.keep+' แถว\n'
+    +'พนักงานยังเห็นข้อมูลครบทุกแถวเหมือนเดิม\n\nได้สำรองข้อมูลและอัปเดต Firestore Rules แล้วใช่ไหม?'))return;
+  try{
+    const doc=await fbDb.collection('logbooks').doc(uid).get();
+    if(!doc.exists){alert('ไม่พบข้อมูล');return;}
+    const d=sanitizeD(doc.data()||{});
+    if(d._archive){alert('บัญชีนี้อยู่ในโหมดคลังแล้ว');return;}
+    d.rows=pruneBlankRows(d.rows);              // แถวว่างไม่ต้องย้าย ทิ้งไปเลย
+    const before=(d.rows||[]).length;
+    const batch=fbDb.batch();
+    const ar=addArchiveOps(batch,uid,d.rows||[],[],{});
+    // ขยับ _savedAt เพื่อให้เครื่องที่เปิดหน้าค้างไว้ตรวจเจอว่าข้อมูลเปลี่ยน แล้วโหลดใหม่แบบรวมคลัง
+    const now=new Date().toISOString();
+    const payload=Object.assign({},d,{rows:ar.recent,_archive:ar.meta,_savedAt:now,
+      _savedAtServer:firebase.firestore.FieldValue.serverTimestamp()});
+    batch.set(fbDb.collection('logbooks').doc(uid),payload);
+    await batch.commit();
+    // ตรวจทานทันทีหลังเขียน: โหลดกลับมารวมแล้วต้องได้จำนวนแถวเท่าเดิมพอดี
+    const chk=await loadDocMerged(uid);
+    const after=(chk.data.rows||[]).length;
+    if(after!==before){alert('⚠️ ตรวจทานไม่ผ่าน: ก่อน '+before+' แถว / หลัง '+after+' แถว\nกรุณาแจ้งผู้พัฒนาทันที และห้ามแก้ไขบัญชีนี้');return;}
+    toastMsg('📚 เปิดโหมดคลังให้ '+name+' แล้ว — ตรวจทานผ่าน ครบ '+after+' แถว');
+    if(_closeInfo)_closeInfo();
+    loadAllUsers();
+  }catch(e){alert('ไม่สำเร็จ: '+e.message+(/permission/i.test(e.message)?'\n\nน่าจะยังไม่ได้อัปเดต Firestore Rules':''));}
+}
+async function runUnarchiveOne(uid,name){
+  if(!isAdmin())return;
+  if(!confirm('ยกเลิกโหมดคลังของ "'+name+'"?\n\nแถวในคลังทั้งหมดจะถูกรวมกลับเข้าเอกสารหลัก แล้วลบคลังทิ้ง'))return;
+  try{
+    const r=await loadDocMerged(uid);           // ถ้าคลังโหลดไม่ครบจะหยุดตรงนี้ ไม่แตะอะไร
+    if(!r.exists){alert('ไม่พบข้อมูล');return;}
+    const d=sanitizeD(r.data);
+    const years=(d._archive&&d._archive.years)||[];
+    d.rows=pruneBlankRows(d.rows);
+    const before=(d.rows||[]).length;
+    delete d._archive;
+    const now=new Date().toISOString();
+    const payload=Object.assign({},d,{_savedAt:now,_savedAtServer:firebase.firestore.FieldValue.serverTimestamp()});
+    if(_bytes(payload)>DOC_LIMIT*0.95){alert('รวมกลับแล้วจะเกินลิมิต — ยกเลิกไม่ได้');return;}
+    const batch=fbDb.batch();
+    years.forEach(y=>batch.delete(_archCol(uid).doc(String(y))));
+    batch.set(fbDb.collection('logbooks').doc(uid),payload);   // set แทนทั้งเอกสาร = ฟิลด์ _archive หายไปด้วย
+    await batch.commit();
+    const chk=await loadDocMerged(uid);
+    const after=(chk.data.rows||[]).length;
+    if(after!==before){alert('⚠️ ตรวจทานไม่ผ่าน: ก่อน '+before+' / หลัง '+after+' แถว — กรุณาแจ้งผู้พัฒนาทันที');return;}
+    toastMsg('↩ ยกเลิกโหมดคลังของ '+name+' แล้ว — ตรวจทานผ่าน ครบ '+after+' แถว');
+    if(_closeInfo)_closeInfo();
+    loadAllUsers();
+  }catch(e){alert('ไม่สำเร็จ: '+e.message);}
+}
+
+// ══ ล้างข้อมูลขยะจากการ Import ════════════════════════════════════════════
+// ลบ "ระดับฟิลด์" ด้วย FieldValue.delete() — ไม่เขียนทับเอกสาร ไม่แตะ rows/training/profile เลย
+const DOC_LIMIT=1048576;
+let _jcItems=[];
+function _bytes(o){try{return new Blob([JSON.stringify(o)]).size;}catch(e){return 0;}}
+async function openJunkClean(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  _openInfoModal('🧹 ล้างข้อมูลขยะจาก Import','#5a3d7a',
+    '<div id="jc-body" style="padding:20px;color:#666">กำลังสแกนเอกสารทั้งหมด…</div>',null,true);
+  try{
+    const snap=await fbDb.collection('logbooks').get();
+    const items=[];let totalDocs=0;
+    snap.forEach(doc=>{
+      totalDocs++;
+      const d=doc.data()||{};
+      const jk=junkKeys(d);
+      if(!jk.length)return;
+      const jo={};jk.forEach(k=>jo[k]=d[k]);
+      items.push({uid:doc.id,email:d._email||'-',name:(d.profile&&d.profile.name)||d._userName||'-',
+        rows:(d.rows||[]).length,keys:jk,total:_bytes(d),junk:_bytes(jo)});
+    });
+    items.sort((a,b)=>b.total-a.total);
+    _jcItems=items;
+    const box=document.getElementById('jc-body');if(!box)return;
+    if(!items.length){
+      box.innerHTML='<div style="text-align:center;padding:30px;color:#2e7d32;font-weight:700">✓ ไม่พบข้อมูลขยะในเอกสารทั้ง '+totalDocs+' บัญชี</div>';return;
+    }
+    const over=items.filter(i=>i.total>DOC_LIMIT).length;
+    const near=items.filter(i=>i.total>DOC_LIMIT*0.8&&i.total<=DOC_LIMIT).length;
+    const sum=items.reduce((a,i)=>a+i.junk,0);
+    let h='<div style="background:#f6f1fb;border:1px solid #d9c8ea;border-radius:8px;padding:11px 14px;margin-bottom:12px;font-size:12px;color:#4a2f66;line-height:1.75">'
+      +'พบ <b>'+items.length+'</b> บัญชีที่มีข้อมูลขยะ รวม <b>'+(sum/1048576).toFixed(1)+' MB</b> จากทั้งหมด '+totalDocs+' บัญชี<br>'
+      +(over?'<b style="color:#c00000">🔴 '+over+' บัญชีเกินลิมิต 1 MiB — บันทึกข้อมูลใหม่ไม่ได้แล้ว</b><br>':'')
+      +(near?'<b style="color:#b8860b">🟠 '+near+' บัญชีใกล้ชนลิมิต</b><br>':'')
+      +'การล้างจะ<b>ลบเฉพาะฟิลด์ขยะ</b> ข้อมูลงาน Training และโปรไฟล์ไม่ถูกแตะเลย<br>'
+      +'⚠️ แนะนำให้กด <b>💾 สำรองข้อมูล</b> ก่อนเสมอ</div>'
+      +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">'
+      +'<label style="font-size:12px;display:flex;gap:5px;align-items:center;cursor:pointer"><input type="checkbox" id="jc-all" checked> เลือกทั้งหมด</label>'
+      +'<span id="jc-stat" style="font-size:12px;color:#666"></span>'
+      +'<button class="btn" id="jc-go" style="margin-left:auto;background:#5a3d7a;color:#fff">🧹 ล้างขยะรายการที่เลือก</button></div>'
+      +'<table style="width:100%;border-collapse:collapse;font-size:11.5px">'
+      +'<tr style="background:#efe7f6"><th style="padding:7px;width:34px"></th><th style="padding:7px;text-align:left">ชื่อ / อีเมล</th>'
+      +'<th style="padding:7px">แถวงาน</th><th style="padding:7px">ขนาดเอกสาร</th><th style="padding:7px">ขยะ</th>'
+      +'<th style="padding:7px">หลังล้าง</th><th style="padding:7px;text-align:left">ฟิลด์ขยะที่จะลบ</th></tr>';
+    items.forEach((it,i)=>{
+      const pct=it.total/DOC_LIMIT*100, after=(it.total-it.junk)/DOC_LIMIT*100;
+      const col=it.total>DOC_LIMIT?'#c00000':(pct>80?'#b8860b':'#555');
+      h+='<tr style="border-bottom:1px solid #f0f0f0'+(it.total>DOC_LIMIT?';background:#fff5f5':'')+'">'
+        +'<td style="padding:6px;text-align:center"><input type="checkbox" class="jc-ck" data-i="'+i+'" checked></td>'
+        +'<td style="padding:6px"><b style="color:#1a3a6b">'+esc(it.name)+'</b><br><span style="color:#888;font-size:10.5px">'+esc(it.email)+'</span></td>'
+        +'<td style="padding:6px;text-align:center">'+it.rows+'</td>'
+        +'<td style="padding:6px;text-align:center;font-weight:700;color:'+col+'">'+(it.total/1024).toFixed(0)+' KB<br><span style="font-size:10px">('+pct.toFixed(0)+'%)</span></td>'
+        +'<td style="padding:6px;text-align:center;color:#c00000">'+(it.junk/1024).toFixed(0)+' KB</td>'
+        +'<td style="padding:6px;text-align:center;color:#2e7d32;font-weight:700">'+after.toFixed(0)+'%</td>'
+        +'<td style="padding:6px;font-size:10.5px;color:#777">'+it.keys.map(esc).join(', ')+'</td></tr>';
+    });
+    box.innerHTML=h+'</table>';
+    const cks=box.querySelectorAll('.jc-ck');
+    const upd=()=>{const n=box.querySelectorAll('.jc-ck:checked').length;
+      const st=document.getElementById('jc-stat');if(st)st.textContent='เลือกไว้ '+n+' บัญชี';
+      const a=document.getElementById('jc-all');if(a)a.checked=n===cks.length;};
+    cks.forEach(c=>c.onchange=upd);
+    document.getElementById('jc-all').onchange=function(){cks.forEach(c=>c.checked=this.checked);upd();};
+    document.getElementById('jc-go').onclick=runJunkClean;
+    upd();
+  }catch(e){
+    const box=document.getElementById('jc-body');
+    if(box)box.innerHTML='<div style="color:#c00000;padding:16px">สแกนไม่สำเร็จ: '+esc(e.message)+'</div>';
+  }
+}
+async function runJunkClean(){
+  if(!isAdmin()){alert('เฉพาะแอดมินเท่านั้น');return;}
+  const picked=[];
+  document.querySelectorAll('#jc-body .jc-ck:checked').forEach(c=>{const it=_jcItems[+c.dataset.i];if(it)picked.push(it);});
+  if(!picked.length){alert('ยังไม่ได้เลือกรายการ');return;}
+  const nk=picked.reduce((a,i)=>a+i.keys.length,0);
+  if(!confirm('ล้างข้อมูลขยะจาก '+picked.length+' บัญชี ('+nk+' ฟิลด์)?\n\n'
+    +'จะลบเฉพาะฟิลด์ขยะเท่านั้น ข้อมูลงาน Training และโปรไฟล์ไม่ถูกแตะ\n\nได้สำรองข้อมูลไว้แล้วใช่ไหม?'))return;
+  const btn=document.getElementById('jc-go');if(btn)btn.disabled=true;
+  const del=firebase.firestore.FieldValue.delete();
+  let done=0;
+  try{
+    for(const grp of _chunk(picked,200)){
+      const batch=fbDb.batch();
+      grp.forEach(it=>{
+        // FieldPath รองรับชื่อฟิลด์ที่มีช่องว่าง/ขีด/อักขระพิเศษ เช่น "Summary Sheet"
+        const args=[];
+        it.keys.forEach(k=>{args.push(new firebase.firestore.FieldPath(k),del);});
+        batch.update(fbDb.collection('logbooks').doc(it.uid),...args);
+      });
+      await batch.commit();done+=grp.length;
+    }
+    toastMsg('🧹 ล้างขยะเรียบร้อย '+done+' บัญชี');
+    if(_closeInfo)_closeInfo();
+    loadAllUsers();
+  }catch(e){
+    alert('ล้างไม่สำเร็จ: '+e.message+(done?'\n\nล้างสำเร็จไปแล้ว '+done+' บัญชี':''));
+    if(btn)btn.disabled=false;
+  }
 }
 
 // ══ ส่งออกข้อมูลดิบทุกแถวของทุกคน (หลักฐานสำหรับตรวจสอบ / ทำ Pivot ใน Excel) ══
@@ -3359,21 +4380,8 @@ async function bulkDelete(){
     +names.slice(0,10).join('\n')+(names.length>10?'\n…และอีก '+(names.length-10)+' คน':'')
     +'\n\nกู้คืนได้ภายหลังจากปุ่ม 🗑 ถังขยะ'))return;
   try{
-    let done=0;
-    for(const grp of _chunk(uids,100)){          // แบ่งชุดละ 100 คน (200 ops) กันชน limit ของ batch
-      const batch=fbDb.batch();let n=0;
-      for(const uid of grp){
-        const snap=await fbDb.collection('logbooks').doc(uid).get();
-        if(!snap.exists)continue;
-        const data=snap.data()||{};
-        data._del={name:nameOf(uid),byEmail:(currentUser&&currentUser.email)||'-',
-                   at:firebase.firestore.FieldValue.serverTimestamp()};
-        batch.set(fbDb.collection('deletedLogbooks').doc(uid),data);
-        batch.delete(fbDb.collection('logbooks').doc(uid));
-        n++;
-      }
-      if(n){await batch.commit();done+=n;}
-    }
+    // รองรับโหมดคลัง — แบ่ง batch ตามจำนวนคำสั่งจริง ไม่ใช่จำนวนคน
+    const done=await _runBatched(uids,(batch,uid)=>_addTrashOps(batch,uid,nameOf(uid)));
     _selUids.clear();
     toastMsg('🗑 ย้าย '+done+' รายการไปถังขยะแล้ว');
     loadAllUsers();
@@ -3516,9 +4524,9 @@ function updateAdminFilterCount(shown,total,rawq,pos,st){
 }
 async function viewUser(uid,name){
   try{
-    const doc=await fbDb.collection('logbooks').doc(uid).get();
-    if(!doc.exists){alert('ไม่พบข้อมูล');return;}
-    const userData=doc.data();
+    const r=await loadDocMerged(uid);
+    if(!r.exists){alert('ไม่พบข้อมูล');return;}
+    const userData=r.data;
     _adminViewUid=uid; _adminViewName=name;
     showUserModal(userData,name);
   }catch(e){alert('Error: '+e.message);}
@@ -3530,15 +4538,11 @@ async function deleteUser(uid,name){
   if(editUid&&uid===editUid){alert('กำลังอยู่ในโหมดแก้ไขข้อมูลของพนักงานคนนี้ กรุณาออกจากโหมดแก้ไขก่อนลบ');return;}
   if(!confirm('ย้ายข้อมูล Logbook ของ "'+name+'" ไปถังขยะ?\n\nกู้คืนได้ภายหลังจากปุ่ม 🗑 ถังขยะ')) return;
   try{
-    const snap=await fbDb.collection('logbooks').doc(uid).get();
-    if(!snap.exists){alert('ไม่พบข้อมูลของ "'+name+'"');loadAllUsers();return;}
-    const data=snap.data()||{};
-    data._del={name:name,
-      byEmail:(currentUser&&currentUser.email)||'-',
-      at:firebase.firestore.FieldValue.serverTimestamp()};
-    // เก็บสำเนาเข้าถังขยะ "ก่อน" แล้วค่อยลบต้นฉบับ — ถ้าขั้นแรกพลาด ข้อมูลยังอยู่ครบ
-    await fbDb.collection('deletedLogbooks').doc(uid).set(data);
-    await fbDb.collection('logbooks').doc(uid).delete();
+    // รองรับโหมดคลัง: ย้ายเอกสารหลัก + คลังทุกปีเข้าถังขยะในชุดเดียว (atomic)
+    const batch=fbDb.batch();
+    const n=await _addTrashOps(batch,uid,name);
+    if(!n){alert('ไม่พบข้อมูลของ "'+name+'"');loadAllUsers();return;}
+    await batch.commit();
     toastMsg('🗑 ย้าย "'+name+'" ไปถังขยะแล้ว — กู้คืนได้จากปุ่มถังขยะ');
     loadAllUsers();
   }catch(e){alert('ลบไม่สำเร็จ: '+e.message);}
@@ -3612,7 +4616,9 @@ async function renderTrash(){
         +'<td style="padding:8px;text-align:center"><input type="checkbox" class="tk" data-i="'+i+'"></td>'
         +'<td style="padding:8px">'+esc(p.name||dl.name||'-')+'</td>'
         +'<td style="padding:8px;text-align:center">'+esc(p.staffid||'-')+'</td>'
-        +'<td style="padding:8px;text-align:center;font-weight:700;color:#c00000">'+((it.v.rows||[]).length)+'</td>'
+        +'<td style="padding:8px;text-align:center;font-weight:700;color:#c00000">'
+          +((it.v.rows||[]).length+((it.v._archive&&it.v._archive.count)||0))
+          +(_archYearsOf(it.v).length?' <span title="มีคลังข้อมูลเก่า" style="color:#6b4a10">📚</span>':'')+'</td>'
         +'<td style="padding:8px;text-align:center;font-size:11px">'+(when?new Date(when).toLocaleString('th-TH'):'-')+'</td>'
         +'<td style="padding:8px;text-align:center;font-size:11px;color:#888">'+esc(dl.byEmail||'-')+'</td>'
         +'<td style="padding:8px;text-align:center;white-space:nowrap">'
@@ -3667,16 +4673,8 @@ async function bulkRestore(){
     let msg='กู้คืน '+picked.length+' รายการ?';
     if(over)msg+='\n\n⚠️ ในจำนวนนี้มี '+over+' รายการที่มีข้อมูลอยู่ในระบบแล้ว และจะถูกเขียนทับ';
     if(!confirm(msg))return;
-    for(const grp of _chunk(picked,100)){
-      const batch=fbDb.batch();
-      grp.forEach(it=>{
-        const data=Object.assign({},it.v);delete data._del;
-        batch.set(fbDb.collection('logbooks').doc(it.uid),data);
-        batch.delete(fbDb.collection('deletedLogbooks').doc(it.uid));
-      });
-      await batch.commit();
-    }
-    toastMsg('♻ กู้คืน '+picked.length+' รายการเรียบร้อยแล้ว');
+    const done=await _runBatched(picked,_addUntrashOps);   // รองรับโหมดคลัง
+    toastMsg('♻ กู้คืน '+done+' รายการเรียบร้อยแล้ว');
     await renderTrash();loadAllUsers();
   }catch(e){alert('กู้คืนไม่สำเร็จ: '+e.message);}
 }
@@ -3689,11 +4687,7 @@ async function bulkPurge(){
     +names.slice(0,10).join('\n')+(names.length>10?'\n…และอีก '+(names.length-10)+' คน':'')
     +'\n\nหลังจากนี้จะกู้คืนไม่ได้อีกเลย'))return;
   try{
-    for(const grp of _chunk(picked,200)){
-      const batch=fbDb.batch();
-      grp.forEach(it=>batch.delete(fbDb.collection('deletedLogbooks').doc(it.uid)));
-      await batch.commit();
-    }
+    await _runBatched(picked,async(batch,it)=>_addPurgeOps(batch,it));   // ลบคลังในถังขยะด้วย
     toastMsg('ลบถาวร '+picked.length+' รายการแล้ว');
     await renderTrash();
   }catch(e){alert('ลบไม่สำเร็จ: '+e.message);}
@@ -3707,9 +4701,9 @@ async function restoreUser(it){
     }else{
       if(!confirm('กู้คืนข้อมูลของ "'+nm+'" ใช่หรือไม่?'))return;
     }
-    const data=Object.assign({},it.v);delete data._del;
-    await fbDb.collection('logbooks').doc(it.uid).set(data);
-    await fbDb.collection('deletedLogbooks').doc(it.uid).delete();
+    const batch=fbDb.batch();            // รองรับโหมดคลัง — ย้ายกลับทั้งเอกสารหลักและคลังในชุดเดียว
+    await _addUntrashOps(batch,it);
+    await batch.commit();
     toastMsg('♻ กู้คืน "'+nm+'" เรียบร้อยแล้ว');
     await renderTrash();loadAllUsers();
   }catch(e){alert('กู้คืนไม่สำเร็จ: '+e.message);}
@@ -3718,7 +4712,9 @@ async function purgeUser(it){
   const nm=_trashName(it);
   if(!confirm('⚠️ ลบถาวรข้อมูลของ "'+nm+'"?\n\nหลังจากนี้จะกู้คืนไม่ได้อีกเลย'))return;
   try{
-    await fbDb.collection('deletedLogbooks').doc(it.uid).delete();
+    const batch=fbDb.batch();
+    _addPurgeOps(batch,it);              // ลบคลังในถังขยะด้วย ไม่ทิ้งข้อมูลกำพร้าไว้
+    await batch.commit();
     toastMsg('ลบถาวร "'+nm+'" แล้ว');
     await renderTrash();
   }catch(e){alert('ลบไม่สำเร็จ: '+e.message);}
@@ -3759,7 +4755,8 @@ function openBackup(){
     +'<div style="border:1px solid #cfe0e4;background:#f4fafb;border-radius:8px;padding:14px;margin-bottom:14px">'
       +'<div style="font-weight:800;font-size:13px;color:#0b5566;margin-bottom:6px">1) สำรองข้อมูล (Backup)</div>'
       +'<p style="font-size:12px;color:#666;line-height:1.6;margin:0 0 10px">ดึงข้อมูลพนักงานทุกคนออกมาเป็นไฟล์ JSON ไฟล์เดียว รวมรายละเอียดทุกบรรทัดและ Training ทั้งหมด '
-      +'แนะนำให้ทำสัปดาห์ละครั้ง แล้วเก็บไฟล์ไว้บน SharePoint หรือ Drive ของบริษัท</p>'
+      +'ควรทำอย่างน้อยเดือนละครั้ง แล้วเก็บไฟล์ไว้บน SharePoint หรือ Drive ของบริษัท</p>'
+      +'<div id="backup-last"></div>'
       +'<button class="btn" id="btn-do-backup" style="background:#0b5566;color:#fff">⬇ ดาวน์โหลดไฟล์สำรองทั้งระบบ</button>'
       +'<span id="backup-stat" style="font-size:12px;color:#666;margin-left:10px"></span>'
     +'</div>'
@@ -3774,6 +4771,7 @@ function openBackup(){
   document.getElementById('backup-close').onclick=closeBackup;
   _lockScroll();
   document.getElementById('btn-do-backup').onclick=backupAll;
+  _renderBackupStatus();
   document.getElementById('btn-pick-restore').onclick=()=>document.getElementById('restore-file').click();
   modal.addEventListener('click',e=>{if(e.target===modal)closeBackup();});
 }
@@ -3787,13 +4785,32 @@ async function backupAll(){
     const out={_meta:{app:'TVJ Experience Individual Logbook',form:'TVJ-QA-F-057',
       appVersion:APP_VERSION,exportedAt:new Date().toISOString(),
       exportedBy:(currentUser&&currentUser.email)||'-',count:snap.size},logbooks:{}};
-    let rowCnt=0;
-    snap.forEach(d=>{const v=d.data()||{};rowCnt+=(v.rows||[]).length;out.logbooks[d.id]=_plainDoc(v);});
+    let rowCnt=0;const archUids=[],archMeta={};
+    snap.forEach(d=>{const v=d.data()||{};rowCnt+=(v.rows||[]).length;out.logbooks[d.id]=_plainDoc(v);
+      if(v._archive&&Array.isArray(v._archive.years)&&v._archive.years.length){archUids.push(d.id);archMeta[d.id]=v._archive;}});
+    // บัญชีโหมดคลัง: รวมแถวจากคลังทุกปีเข้าไปในไฟล์ด้วย ให้ไฟล์สำรองมีข้อมูลครบทุกแถว
+    // ถ้าคลังของใครโหลดไม่สำเร็จ ให้หยุดทั้งหมด — ไฟล์สำรองที่ขาดข้อมูลอันตรายกว่าไม่มีไฟล์
+    if(archUids.length){
+      setSt('กำลังดึงคลังข้อมูลเก่า '+archUids.length+' คน…');
+      await Promise.all(archUids.map(async uid=>{
+        const a=await _fetchArchRows(uid,archMeta[uid]);        // ไม่อ่านเอกสารหลักซ้ำ
+        rowCnt+=a.rows.length;
+        out.logbooks[uid].rows=a.rows.concat(out.logbooks[uid].rows||[]);
+      }));
+      out._meta.archivedAccounts=archUids.length;
+    }
     const blob=new Blob([JSON.stringify(out,null,1)],{type:'application/json'});
     const a=document.createElement('a');a.href=URL.createObjectURL(blob);
     a.download='TVJ_Logbook_FULL_BACKUP_'+new Date().toISOString().slice(0,10)+'.json';
     document.body.appendChild(a);a.click();a.remove();
     setSt('✓ สำเร็จ — '+snap.size+' คน, '+rowCnt.toLocaleString()+' บรรทัด, '+(blob.size/1048576).toFixed(2)+' MB');
+    // บันทึกว่าสำรองแล้วเมื่อไร — ถ้าบันทึกไม่ได้ ไฟล์สำรองยังได้ครบ แค่ตัวเตือนจะไม่รู้
+    try{
+      const bs={atISO:new Date().toISOString(),by:(currentUser&&currentUser.email)||'-',count:snap.size,
+        rows:rowCnt,archived:archUids.length,at:firebase.firestore.FieldValue.serverTimestamp()};
+      await fbDb.collection('meta').doc('backupState').set(bs);
+      _lastBackup=bs;_renderBackupStatus();renderMonBar();
+    }catch(e){console.warn('backupState write',e);toastMsg('⚠️ สำรองสำเร็จ แต่บันทึกเวลาสำรองไม่ได้ — ตัวเตือนอาจไม่อัปเดต');}
     toastMsg('💾 สำรองข้อมูลสำเร็จ '+snap.size+' คน');
   }catch(e){setSt('');alert('สำรองข้อมูลไม่สำเร็จ: '+e.message);}
 }
@@ -3816,12 +4833,12 @@ async function handleRestoreFile(evt){
       Object.keys(bk.logbooks).forEach(uid=>{
         const b=bk.logbooks[uid]||{},c=cur[uid];
         const bp=b.profile||{},cp=c?(c.profile||{}):{};
-        const bRows=(b.rows||[]).length,cRows=c?(c.rows||[]).length:0;
+        const bRows=(b.rows||[]).length,cRows=c?((c.rows||[]).length+((c._archive&&c._archive.count)||0)):0;
         let st='same';
         if(!c)st='missing';
         else if(bRows!==cRows||(b._savedAt||'')!==(c._savedAt||''))st='diff';
         items.push({uid:uid,name:bp.name||cp.name||'(ไม่มีชื่อ)',staffid:bp.staffid||cp.staffid||'-',
-          bRows:bRows,cRows:cRows,st:st,doc:b});
+          bRows:bRows,cRows:cRows,st:st,doc:b,arch:!!(b._archive||(c&&c._archive)),curYears:c?_archYearsOf(c):[]});
       });
       items.sort((a,b)=>({missing:0,diff:1,same:2})[a.st]-({missing:0,diff:1,same:2})[b.st]||a.name.localeCompare(b.name,'th'));
       _restorePlan=items;
@@ -3875,10 +4892,24 @@ async function doRestore(){
   if(nOver)msg+='\n\n⚠️ ในจำนวนนี้มี '+nOver+' รายการที่มีข้อมูลอยู่ในระบบแล้ว และจะถูกเขียนทับด้วยข้อมูลในไฟล์';
   if(!confirm(msg))return;
   try{
-    const batch=fbDb.batch();
-    picked.forEach(p=>batch.set(fbDb.collection('logbooks').doc(p.uid),_rehydrateDoc(p.doc)));
-    await batch.commit();   // เขียนทีเดียวพร้อมกัน ถ้าพลาดคือไม่เขียนเลย ไม่มีสภาพครึ่งๆ กลางๆ
-    toastMsg('♻ กู้คืนสำเร็จ '+picked.length+' รายการ');
+    const now=new Date().toISOString();
+    const done=await _runBatched(picked,async(batch,p)=>{
+      // กรองขยะและแถวว่างออกก่อนเขียนกลับ
+      const d=sanitizeD(_rehydrateDoc(p.doc));
+      d.rows=pruneBlankRows(d.rows);
+      d._savedAt=now;                       // ให้เครื่องที่เปิดค้างไว้ตรวจเจอว่าข้อมูลเปลี่ยน
+      const ref=fbDb.collection('logbooks').doc(p.uid);
+      // ใช้โหมดคลังถ้าไฟล์หรือเอกสารปัจจุบันอยู่โหมดคลัง หรือถ้าเขียนรวมเป็นเอกสารเดียวแล้วจะใหญ่เกินเกณฑ์
+      if(p.arch||_bytes(d)>ARCH_AUTO_BYTES){
+        const ar=addArchiveOps(batch,p.uid,d.rows,p.curYears||[],{});   // {} = เขียนคลังทุกปีใหม่หมด
+        batch.set(ref,Object.assign({},d,{rows:ar.recent,_archive:ar.meta}));
+        return 1+ar.meta.years.length+(p.curYears||[]).length;
+      }
+      delete d._archive;
+      batch.set(ref,d);
+      return 1;
+    });
+    toastMsg('♻ กู้คืนสำเร็จ '+done+' รายการ');
     closeBackup();loadAllUsers();
   }catch(e){alert('กู้คืนไม่สำเร็จ: '+e.message);}
 }
@@ -3888,12 +4919,14 @@ async function editUser(uid,name){
   if(uid===currentUser.uid){ closeUserModal(); showTab('tl'); return; } // own data: normal editing
   if(!confirm('เข้าสู่โหมดแก้ไขข้อมูลของ "'+name+'"?\n\nการบันทึกหรือลบแถวจะเขียนทับข้อมูลของพนักงานคนนี้โดยตรง')) return;
   try{
-    const doc=await fbDb.collection('logbooks').doc(uid).get();
-    if(!doc.exists){alert('ไม่พบข้อมูล');return;}
+    const r=await loadDocMerged(uid);    // รวมคลังข้อมูลเก่าด้วย ถ้าโหลดไม่ครบจะไม่เข้าโหมดแก้ไข
+    if(!r.exists){alert('ไม่พบข้อมูล');return;}
     editUid=uid; editName=name;
-    D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},doc.data());
+    D=Object.assign({profile:{},rows:[],training:[],pmode:'auto',pfrom:'',pto:''},r.data);
     _baseSavedAt = D._savedAt || null;   // baseline สำหรับตรวจการชนกันของ doc พนักงานคนนี้
+    _archSig = r.archSig;
     _lastSig = contentSig();             // baseline สำหรับ dirty-check
+    _loadedTarget = uid;                 // อนุญาตให้บันทึกลงเอกสารของพนักงานคนนี้
     _conflictOpen = false;
     if(_saveTimer){ clearTimeout(_saveTimer); _saveTimer=null; }
     closeUserModal();      // remove modal if open (also renders current D)
