@@ -1027,7 +1027,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
       <button class="btn" style="background:#eee;color:#555;padding:3px 10px;font-size:11px;margin-left:auto" onclick="clearFilters()">✕ Clear All</button>
     </div>
     <div class="filter-grid">
-      <div><label>UTC Date</label><input id="f_date" placeholder="e.g. JAN-25" oninput="applyFilters()"></div>
+      <div><label>Completed Date</label><input id="f_date" placeholder="e.g. JAN-25" oninput="applyFilters()"></div>
       <div><label>Aircraft Type</label><input id="f_actype" placeholder="e.g. AIRBUS" oninput="applyFilters()"></div>
       <div><label>Aircraft Reg. / P/N</label><input id="f_reg" placeholder="e.g. HS-VKA" oninput="applyFilters()"></div>
       <div><label>Work Ref.</label><input id="f_workref" placeholder="WO No." oninput="applyFilters()"></div>
@@ -1049,7 +1049,7 @@ table.lg td input:focus,table.lg td select:focus{outline:none;box-shadow:0 0 0 2
     </colgroup>
     <thead>
       <tr>
-        <th rowspan="2" class="th-sort" onclick="sortByDate('lb')" title="คลิกเพื่อเรียงตามวันที่">UTC Date<br>(DD-MMM-YY) <span class="sort-ind" id="sort-ind-lb">⇅</span></th>
+        <th rowspan="2" class="th-sort" onclick="sortByDate('lb')" title="วันที่ทำงานเสร็จ (UTC) — คลิกเพื่อเรียงตามวันที่">Completed Date<br>(UTC · DD-MMM-YY) <span class="sort-ind" id="sort-ind-lb">⇅</span></th>
         <th rowspan="2">Aircraft Type &amp; Engine<br>or Other Rating</th>
         <th rowspan="2">Aircraft Reg.<br>or Component P/N</th>
         <th rowspan="2">Work Ref.<br>(WO/Tech Log)</th>
@@ -1418,7 +1418,7 @@ const FB_CONFIG = {
 };
 
 // ══ APP VERSION & AUTO-UPDATE CHECK ═══════════════════════════════════════
-const APP_VERSION = '4.10.3';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
+const APP_VERSION = '4.10.4';   // ← bump ทุกครั้งที่ deploy เวอร์ชันใหม่
 let _newVerFound = '';
 function initVersionUI(){
   const lv=document.getElementById('login-version');
@@ -3053,7 +3053,7 @@ const DQ_TYPES=[
   {k:'notype', t:'ไม่ได้เลือก Aircraft Type',    why:'ระบุไม่ได้ว่าเป็นงาน 1st Type หรือไม่'},
   {k:'regmis', t:'Reg./P/N ไม่ตรงกับ Aircraft Type', why:'ระบุลำหรือชิ้นส่วนผิดประเภท ตรวจสอบย้อนกลับไม่ได้'},
   {k:'dup',    t:'แถวซ้ำ (วันที่ + Work Ref. + งานเดียวกัน)', why:'อาจทำให้ Tasks ถูกนับเกินจริง'},
-  {k:'over24', t:'ชั่วโมงรวมในวันเดียวเกิน 24 ชม.', why:'เป็นไปไม่ได้ทางกายภาพ ควรตรวจสอบ'}
+  {k:'over24', t:'ชั่วโมงรวมในวันเดียวเกิน 24 ชม.', why:'งานเครื่องบินในวันเดียวเกิน 24 ชม. เป็นไปไม่ได้ ควรตรวจสอบ · ไม่นับงาน Component เพราะซ่อมข้ามวันได้ และวันที่ที่ลงคือวันที่ซ่อมเสร็จ'}
 ];
 function dqScan(){
   const today=new Date();today.setHours(23,59,59,999);
@@ -3079,7 +3079,8 @@ function dqScan(){
       }
       const key=(r.date||'')+'|'+(r.workref||'')+'|'+(r.desc||'');
       if(r.date&&(r.workref||r.desc)){ if(seen[key])add('dup'); else seen[key]=1; }
-      if(d&&!isNaN(dur)&&dur>0){const dk=r.date;perDay[dk]=(perDay[dk]||0)+dur;}
+      // งาน Component ซ่อมข้ามวันได้ และลงวันที่เป็นวันเสร็จงาน ชั่วโมงทั้งงานจึงไปรวมในวันเดียว — ไม่นับในการตรวจนี้
+      if(d&&!isNaN(dur)&&dur>0&&r.actype!=='Component under C Rating'){const dk=r.date;perDay[dk]=(perDay[dk]||0)+dur;}
     });
     Object.keys(perDay).forEach(dk=>{
       if(perDay[dk]>24)issues.push({k:'over24',name:u.name,staffId:u.staffId,pos:u.position||'-',row:'-',date:dk,
@@ -3899,7 +3900,7 @@ function exportRawRows(){
   if(!confirm('ส่งออกข้อมูลดิบ '+n.toLocaleString('th-TH')+' แถว จากพนักงาน '+allUsersData.length+' คน?\n\n'
     +(r?('ช่วงเวลา '+fmtD(r.from)+' — '+fmtD(r.to)):'ทุกช่วงเวลา (ไม่จำกัด)')
     +'\n\nไฟล์อาจมีขนาดหลายเมกะไบต์ และใช้เวลาสร้างสักครู่'))return;
-  const head=['#','ชื่อ-นามสกุล','Staff ID','Position','วันที่','Aircraft Type','Reg.','Work Ref.',
+  const head=['#','ชื่อ-นามสกุล','Staff ID','Position','Completed Date (UTC)','Aircraft Type','Reg.','Work Ref.',
     'Work Description','ATA','Skill','MX Loc.','1st','2nd','3rd','4th','5th','Duration (hrs)','Sign'];
   const lines=[head.map(_csvCell).join(',')];
   let i=0;
